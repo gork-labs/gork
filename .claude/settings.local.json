@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(go mod:*)",
+      "Bash(go build:*)",
+      "Bash(ls:*)",
+      "Bash(./openapi-gen --help)",
+      "Bash(./openapi-gen:*)",
+      "Bash(cat:*)",
+      "Bash(rm:*)",
+      "Bash(go run:*)",
+      "Bash(grep:*)",
+      "Bash(go:*)",
+      "Bash(jq:*)",
+      "Bash(make:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

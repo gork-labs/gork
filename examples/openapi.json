@@ -1,0 +1,841 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "Login",
+        "description": "Login handles user login requests",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "ListUsers",
+        "description": "ListUsers handles listing all users",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUsersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "bearerAuth": [
+              "read:users"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CreateUser",
+        "description": "CreateUser handles user creation requests",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/{userId}": {
+      "get": {
+        "operationId": "GetUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "UpdateUser",
+        "description": "UpdateUser handles user update requests",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "DeleteUser",
+        "description": "DeleteUser handles user deletion requests",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/payment-method": {
+      "put": {
+        "operationId": "UpdateUserPaymentMethod",
+        "description": "UpdateUserPaymentMethod handles user payment method update requests",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "bearerAuth": [
+              "write:payment"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/preferences": {
+      "put": {
+        "operationId": "UpdateUserPreferences",
+        "description": "UpdateUserPreferences handles user preferences update requests",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserPreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "bearerAuth": [
+              "write:preferences"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminUserResponse": {
+        "type": "object",
+        "description": "AdminUserResponse represents an admin user with additional fields",
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "description": "UserId is the ID of the user"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username is the username of the user"
+          }
+        }
+      },
+      "BankPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "description": "AccountNumber is the bank account number"
+          },
+          "routingNumber": {
+            "type": "string",
+            "description": "RoutingNumber is the bank routing number"
+          },
+          "type": {
+            "type": "string",
+            "description": "Type is the payment method type discriminator"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "description": "CreateUserRequest represents the request body for creating a user",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username is the username of the user to create"
+          }
+        }
+      },
+      "CreditCardPaymentMethod": {
+        "type": "object",
+        "properties": {
+          "cardNumber": {
+            "type": "string",
+            "description": "CardNumber is the credit card number"
+          },
+          "type": {
+            "type": "string",
+            "description": "Type is the payment method type discriminator"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "DeleteUserRequest": {
+        "type": "object",
+        "description": "DeleteUserRequest represents the request body for deleting a user",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "UserId is the ID of the user to delete"
+          }
+        }
+      },
+      "GetUserRequest": {
+        "type": "object",
+        "description": "GetUserRequest represents the request body for getting a user",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "UserId is the ID of the user to retrieve"
+          }
+        }
+      },
+      "ListUsersRequest": {
+        "type": "object",
+        "description": "ListUsersRequest represents the request body for listing users"
+      },
+      "ListUsersResponse": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUserResponse"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            }
+          }
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "description": "LoginRequest represents the request body for the login endpoint",
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "Password is the user's password"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username is the user's username"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "description": "LoginResponse represents the response body for the login endpoint",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token is the JWT token for the authenticated user"
+          }
+        }
+      },
+      "NotificationChannel": {
+        "type": "string",
+        "description": "NotificationChannel represents the channel through which notifications are sent",
+        "enum": [
+          "email",
+          "sms",
+          "push"
+        ]
+      },
+      "PaymentMethodRequest": {
+        "description": "PaymentMethodRequest is the request body which is a union of payment methods",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BankPaymentMethod"
+          },
+          {
+            "$ref": "#/components/schemas/CreditCardPaymentMethod"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "bank_account": "#/components/schemas/BankPaymentMethod",
+            "credit_card": "#/components/schemas/CreditCardPaymentMethod"
+          }
+        }
+      },
+      "PaymentRequest": {
+        "description": "PaymentRequest represents a payment request with different payment methods",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CreditCardPaymentMethod"
+          },
+          {
+            "$ref": "#/components/schemas/BankPaymentMethod"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "bank_account": "#/components/schemas/BankPaymentMethod",
+            "credit_card": "#/components/schemas/CreditCardPaymentMethod"
+          }
+        }
+      },
+      "ProcessPaymentRequest": {
+        "type": "object",
+        "description": "ProcessPaymentRequest represents the full request for processing payment",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Amount is the payment amount in cents",
+            "minimum": 1
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentRequest",
+            "description": "PaymentMethod contains the payment method details"
+          },
+          "userId": {
+            "type": "string",
+            "description": "UserID is the ID of the user making payment"
+          }
+        },
+        "required": [
+          "userId",
+          "amount",
+          "paymentMethod"
+        ]
+      },
+      "ProcessPaymentResponse": {
+        "type": "object",
+        "description": "ProcessPaymentResponse represents the payment processing response",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Status indicates if the payment was successful"
+          },
+          "transactionId": {
+            "type": "string",
+            "description": "TransactionID is the unique identifier for this transaction"
+          }
+        }
+      },
+      "UpdateUserPreferencesRequest": {
+        "type": "object",
+        "properties": {
+          "paymentMethod": {
+            "description": "Preferences contains the user's updated preferences\nPayment methods are set in the \"paymentMethods\" field",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BankPaymentMethod"
+              },
+              {
+                "$ref": "#/components/schemas/CreditCardPaymentMethod"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "bank_account": "#/components/schemas/BankPaymentMethod",
+                "credit_card": "#/components/schemas/CreditCardPaymentMethod"
+              }
+            }
+          },
+          "primaryNotificationChannel": {
+            "$ref": "#/components/schemas/NotificationChannel"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "description": "UpdateUserRequest represents the request body for updating a user",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "UserId is the ID of the user to update"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username is the new username for the user"
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "description": "CreateUserRequest represents the request body for creating a user",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "UserId is the ID of the user"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username is the username of the user"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key authentication",
+        "name": "X-API-Key",
+        "in": "header"
+      },
+      "basicAuth": {
+        "type": "http",
+        "description": "Basic HTTP authentication",
+        "scheme": "basic"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "description": "JWT Bearer token authentication",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Operations related to auth"
+    },
+    {
+      "name": "users",
+      "description": "Operations related to users"
+    }
+  ]
+}
