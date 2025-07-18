@@ -23,6 +23,14 @@ go install github.com/example/openapi-gen/cmd/openapi-gen@latest
 1. Define your models with validator tags:
 
 ```go
+type CreateUserRequest struct {
+    Email    string `json:"email" validate:"required,email,max=255"`
+    Username string `json:"username" validate:"required,alphanum,min=3,max=50"`
+    Password string `json:"password" validate:"required,min=8"`
+    Age      int    `json:"age,omitempty" validate:"omitempty,gte=0,lte=150"`
+    Role     string `json:"role" validate:"required,oneof=admin user moderator"`
+}
+
 type User struct {
     ID       string `json:"id" validate:"required,uuid"`
     Email    string `json:"email" validate:"required,email,max=255"`
@@ -35,23 +43,95 @@ type User struct {
 2. Create handlers with typed signatures:
 
 ```go
+package handlers
+
+import (
+    "context"
+    "github.com/google/uuid"
+)
+
 func CreateUser(ctx context.Context, req CreateUserRequest) (*User, error) {
-    // Implementation
-    return nil, nil
+    // Validate and create user
+    user := &User{
+        ID:       uuid.New().String(),
+        Email:    req.Email,
+        Username: req.Username,
+        Age:      req.Age,
+        Role:     req.Role,
+    }
+    // Save to database...
+    return user, nil
+}
+
+func GetUser(ctx context.Context, req GetUserRequest) (*User, error) {
+    // req.ID is automatically extracted from path parameter
+    // Fetch user from database...
+    return &User{
+        ID:       req.ID,
+        Email:    "user@example.com",
+        Username: "johndoe",
+        Role:     "user",
+    }, nil
+}
+
+func ListUsers(ctx context.Context, req ListUsersRequest) (*ListUsersResponse, error) {
+    // req contains query parameters like page, limit, etc.
+    // Fetch users from database...
+    return &ListUsersResponse{
+        Users: []User{},
+        Total: 0,
+    }, nil
 }
 ```
 
-3. Register routes:
+3. Register routes with API wrapper, tags, and authentication:
 
 ```go
-mux.HandleFunc("/api/v1/users", handlers.CreateUser)
-mux.HandleFunc("/api/v1/users/{id}", handlers.GetUser)
+package main
+
+import (
+    "net/http"
+    "github.com/example/openapi-gen/pkg/api"
+    "github.com/example/myapp/handlers"
+)
+
+func setupRoutes() {
+    mux := http.NewServeMux()
+    
+    // Public endpoints
+    mux.HandleFunc("POST /api/v1/auth/login", 
+        api.HandlerFunc(handlers.Login, api.WithTags("auth")))
+    
+    // Protected endpoints with authentication
+    mux.HandleFunc("POST /api/v1/users", 
+        api.HandlerFunc(handlers.CreateUser, 
+            api.WithTags("users"), 
+            api.WithBearerTokenAuth("admin")))
+    
+    mux.HandleFunc("GET /api/v1/users/{id}", 
+        api.HandlerFunc(handlers.GetUser, 
+            api.WithTags("users"), 
+            api.WithBearerTokenAuth("read:users")))
+    
+    mux.HandleFunc("GET /api/v1/users", 
+        api.HandlerFunc(handlers.ListUsers, 
+            api.WithTags("users"), 
+            api.WithAPIKeyAuth()))
+    
+    // Basic auth example
+    mux.HandleFunc("DELETE /api/v1/users/{id}", 
+        api.HandlerFunc(handlers.DeleteUser, 
+            api.WithTags("users"), 
+            api.WithBasicAuth()))
+    
+    http.ListenAndServe(":8080", mux)
+}
 ```
 
 4. Generate OpenAPI spec:
 
 ```bash
-openapi-gen -i ./models -r ./routes.go -o openapi.json
+openapi-gen -i ./handlers -r ./main.go -o openapi.json -t "User Management API" -v "1.0.0"
 ```
 
 ## CLI Options
