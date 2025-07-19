@@ -25,9 +25,7 @@ func (g *Generator) RegisterUnionTypeSchema(typeName string, unionInfo UnionInfo
 		memberType = strings.TrimSpace(memberType)
 		
 		// Handle pointer types
-		if strings.HasPrefix(memberType, "*") {
-			memberType = strings.TrimPrefix(memberType, "*")
-		}
+		memberType = strings.TrimPrefix(memberType, "*")
 		
 		// Generate schema reference
 		memberSchemaName := g.normalizeTypeName(memberType)

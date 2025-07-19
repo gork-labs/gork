@@ -1,201 +1,131 @@
-.PHONY: all clean test test-unit test-integration test-e2e test-bench test-race test-coverage test-verbose clean-test build
+# Root Makefile for gork monorepo
+.PHONY: all test build clean lint list-modules coverage coverage-html deps verify fmt vuln test-%
 
-# Build the CLI binary
-build:
-	@echo "Building openapi-gen..."
-	@go build -o bin/openapi-gen ./cmd/openapi-gen
-	@echo "Binary built at bin/openapi-gen"
+# Dynamically read modules from go.work
+MODULES := $(shell go work edit -json | jq -r '.Use[].DiskPath' | sed 's|^\./||')
 
-# Install dependencies
-deps:
-	@echo "Installing dependencies..."
-	@go mod download
-	@go mod tidy
+# Also define specific module groups for targeted operations
+PKG_MODULES := $(filter pkg/%,$(MODULES))
+TOOL_MODULES := $(filter-out pkg/% examples,$(MODULES))
 
-# Run all tests with coverage
+all: test build
+
 test:
-	@echo "Running all tests with coverage..."
-	@go test ./... -v -race -coverprofile=coverage.out -covermode=atomic
-	@go tool cover -html=coverage.out -o coverage.html
-	@echo "Tests completed. Coverage report generated at coverage.html"
+	@for module in $(MODULES); do \
+		echo "Testing $$module..."; \
+		(cd $$module && go test ./... -v) || exit 1; \
+	done
 
-# Run only unit tests
-test-unit:
-	@echo "Running unit tests..."
-	@go test ./internal/generator -v -run "Test[^E2E]" -race
-
-# Run integration tests
-test-integration:
-	@echo "Running integration tests..."
-	@go test ./internal/generator -v -run "TestIntegration|TestFullGeneration" -race
-
-# Run end-to-end tests
-test-e2e:
-	@echo "Running E2E tests..."
-	@go test ./cmd/openapi-gen -v -run "TestE2E" -race
-
-# Run benchmark tests
-test-bench:
-	@echo "Running benchmark tests..."
-	@go test ./internal/generator -bench=. -benchmem -run=^Benchmark
-
-# Run tests with race detection
-test-race:
-	@echo "Running tests with race detection..."
-	@go test ./... -race -short
-
-# Generate test coverage report
-test-coverage:
-	@echo "Generating test coverage report..."
-	@go test ./... -coverprofile=coverage.out -covermode=atomic
-	@go tool cover -html=coverage.out -o coverage.html
-	@go tool cover -func=coverage.out | grep total
-	@echo "Coverage report generated at coverage.html"
-
-# Run tests with verbose output
-test-verbose:
-	@echo "Running tests with verbose output..."
-	@go test ./... -v -race
-
-# Run tests for specific package
-test-pkg:
-	@if [ -z "$(PKG)" ]; then echo "Usage: make test-pkg PKG=package_name"; exit 1; fi
-	@echo "Running tests for package $(PKG)..."
-	@go test ./$(PKG) -v -race
-
-# Run specific test
-test-run:
-	@if [ -z "$(TEST)" ]; then echo "Usage: make test-run TEST=TestName"; exit 1; fi
-	@echo "Running test $(TEST)..."
-	@go test ./... -v -run "$(TEST)" -race
-
-# Lint the code
-lint:
-	@echo "Running linters..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not installed. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest" && exit 1)
-	@golangci-lint run
-
-# Format the code
-fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
-	@goimports -w . 2>/dev/null || echo "goimports not available, skipping import formatting"
-
-# Vet the code
-vet:
-	@echo "Vetting code..."
-	@go vet ./...
-
-# Run all quality checks
-check: fmt vet lint test
-	@echo "All quality checks passed!"
-
-# Generate test data
-generate-testdata:
-	@echo "Generating test data..."
-	@mkdir -p testdata/generated
-	@go run ./cmd/openapi-gen -input ./testdata/simple_api -output ./testdata/generated/simple_api.json -title "Simple API" -version "1.0.0"
-	@go run ./cmd/openapi-gen -input ./testdata/complex_api -output ./testdata/generated/complex_api.json -title "Complex API" -version "1.0.0"
-	@echo "Test data generated in testdata/generated/"
-
-# Generate example - runs OpenAPI generation
-generate-example:
-	@echo "Generating OpenAPI spec for examples..."
-	@go run ./cmd/openapi-gen -i examples -r examples/routes.go -o examples/openapi.json -t "Example API" -v "1.0.0"
-	@echo "Example generation complete!"
-
-# Clean test artifacts
-clean-test:
-	@echo "Cleaning test artifacts..."
-	@rm -f coverage.out coverage.html
-	@rm -rf testdata/generated
-	@find . -name "*.test" -delete
-	@find . -name "*.prof" -delete
-
-# Clean all build artifacts
-clean: clean-test
-	@echo "Cleaning build artifacts..."
-	@rm -rf bin/
-	@rm -f openapi-gen
-
-# Run tests in CI mode (strict)
-test-ci:
-	@echo "Running tests in CI mode..."
-	@go test ./... -race -coverprofile=coverage.out -covermode=atomic -timeout=10m
-	@go tool cover -func=coverage.out
-
-# Performance testing
-perf:
-	@echo "Running performance tests..."
-	@go test ./internal/generator -bench=. -benchmem -count=3 -run=^Benchmark | tee benchmark.txt
-
-# Memory profile
-profile-mem:
-	@echo "Running memory profiling..."
-	@go test ./internal/generator -bench=BenchmarkFullGeneration -memprofile=mem.prof -run=^Benchmark
-	@go tool pprof mem.prof
-
-# CPU profile  
-profile-cpu:
-	@echo "Running CPU profiling..."
-	@go test ./internal/generator -bench=BenchmarkFullGeneration -cpuprofile=cpu.prof -run=^Benchmark
-	@go tool pprof cpu.prof
-
-# Update golden files (use with caution)
-update-golden:
-	@echo "Updating golden files..."
-	@echo "WARNING: This will overwrite existing golden files!"
-	@read -p "Are you sure? [y/N] " -r; if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		go run ./cmd/openapi-gen -input ./testdata/simple_api -output ./testdata/golden/simple_api_expected.json -title "Test API" -version "1.0.0"; \
-		echo "Golden files updated!"; \
+# List all modules detected from go.work
+list-modules:
+	@if [ "$(FORMAT)" = "json" ]; then \
+		go work edit -json | jq -c '[.Use[].DiskPath | sub("^\\./"; "")]'; \
 	else \
-		echo "Cancelled."; \
+		echo "All modules:"; \
+		for module in $(MODULES); do echo "  - $$module"; done; \
+		echo ""; \
+		echo "Package modules:"; \
+		for module in $(PKG_MODULES); do echo "  - $$module"; done; \
+		echo ""; \
+		echo "Tool modules:"; \
+		for module in $(TOOL_MODULES); do echo "  - $$module"; done; \
 	fi
 
-# Quick test (no race detection, faster for development)
-test-quick:
-	@echo "Running quick tests..."
-	@go test ./... -short
+build:
+	@for module in $(TOOL_MODULES); do \
+		echo "Building $$module..."; \
+		if [ -d "$$module/cmd" ]; then \
+			for cmd in $$module/cmd/*; do \
+				if [ -d "$$cmd" ]; then \
+					cmdname=$$(basename $$cmd); \
+					echo "  Building $$cmdname..."; \
+					outpath=$$(echo "$$module" | sed 's|[^/]*|..|g')/bin/$$cmdname; \
+					(cd $$module && go build -o $$outpath ./cmd/$$cmdname) || exit 1; \
+				fi; \
+			done; \
+		fi; \
+	done
 
-# Test with timeout
-test-timeout:
-	@echo "Running tests with timeout..."
-	@go test ./... -timeout=5m -race
+clean:
+	rm -rf bin/
+	@for module in $(MODULES); do \
+		(cd $$module && go clean -cache -testcache); \
+	done
 
-# Generate mocks (if using mockgen)
-generate-mocks:
-	@echo "Generating mocks..."
-	@which mockgen > /dev/null || (echo "mockgen not installed. Install with: go install github.com/golang/mock/mockgen@latest" && exit 1)
-	@go generate ./...
+# Dynamic module-specific test targets
+# Usage: make test-unions, make test-api, make test-openapi-gen, etc.
+test-%:
+	@target="$*"; \
+	found=0; \
+	for module in $(MODULES); do \
+		if echo "$$module" | grep -qE "(^|/)$$target$$"; then \
+			echo "Testing $$module..."; \
+			cd $$module && go test ./... -v -cover; \
+			found=1; \
+			break; \
+		fi; \
+	done; \
+	if [ $$found -eq 0 ]; then \
+		echo "Module '$$target' not found in workspace"; \
+		echo "Available modules: $(MODULES)"; \
+		exit 1; \
+	fi
 
-# Help target
-help:
-	@echo "Available targets:"
-	@echo "  build              - Build the CLI binary"
-	@echo "  deps               - Install dependencies"
-	@echo "  test               - Run all tests with coverage"
-	@echo "  test-unit          - Run unit tests only"
-	@echo "  test-integration   - Run integration tests"
-	@echo "  test-e2e           - Run end-to-end tests"
-	@echo "  test-bench         - Run benchmark tests"
-	@echo "  test-race          - Run tests with race detection"
-	@echo "  test-coverage      - Generate test coverage report"
-	@echo "  test-verbose       - Run tests with verbose output"
-	@echo "  test-pkg PKG=name  - Run tests for specific package"
-	@echo "  test-run TEST=name - Run specific test"
-	@echo "  test-quick         - Run quick tests (no race detection)"
-	@echo "  test-timeout       - Run tests with timeout"
-	@echo "  test-ci            - Run tests in CI mode"
-	@echo "  lint               - Run linters"
-	@echo "  fmt                - Format code"
-	@echo "  vet                - Vet code"
-	@echo "  check              - Run all quality checks"
-	@echo "  perf               - Run performance tests"
-	@echo "  profile-mem        - Run memory profiling"
-	@echo "  profile-cpu        - Run CPU profiling"
-	@echo "  generate-testdata  - Generate test data"
-	@echo "  generate-example   - Generate OpenAPI spec for examples"
-	@echo "  update-golden      - Update golden files"
-	@echo "  clean              - Clean all artifacts"
-	@echo "  clean-test         - Clean test artifacts"
-	@echo "  help               - Show this help"
+# Lint all modules
+lint:
+	@for module in $(MODULES); do \
+		echo "Linting $$module..."; \
+		(cd $$module && golangci-lint run) || exit 1; \
+	done
+
+# Run tests with coverage and enforce thresholds
+coverage:
+	@for module in $(MODULES); do \
+		if [ "$$module" = "examples" ]; then \
+			echo "⏭️ Skipping coverage check for examples module"; \
+			continue; \
+		fi; \
+		echo "Checking coverage for $$module (requires 100%)..."; \
+		(cd $$module && go test ./... -coverprofile=coverage.out) || exit 1; \
+		./scripts/check-coverage.sh $$module 100 || exit 1; \
+	done
+
+# Generate HTML coverage reports for all modules
+coverage-html:
+	@for module in $(MODULES); do \
+		if [ "$$module" = "examples" ]; then \
+			echo "⏭️ Skipping coverage report for examples module"; \
+			continue; \
+		fi; \
+		echo "Generating HTML coverage for $$module..."; \
+		(cd $$module && go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out -o coverage.html) || exit 1; \
+		echo "Coverage report generated: $$module/coverage.html"; \
+	done
+
+# Update dependencies
+deps:
+	@for module in $(MODULES); do \
+		echo "Updating dependencies for $$module..."; \
+		(cd $$module && go mod tidy) || exit 1; \
+	done
+
+# Verify all modules
+verify:
+	@for module in $(MODULES); do \
+		echo "Verifying $$module..."; \
+		(cd $$module && go mod verify) || exit 1; \
+	done
+
+# Format all Go code
+fmt:
+	@for module in $(MODULES); do \
+		echo "Formatting $$module..."; \
+		(cd $$module && go fmt ./...) || exit 1; \
+	done
+
+# Check for vulnerabilities
+vuln:
+	@for module in $(MODULES); do \
+		echo "Checking vulnerabilities in $$module..."; \
+		(cd $$module && go run golang.org/x/vuln/cmd/govulncheck@latest ./...) || exit 1; \
+	done

@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 
-	"github.com/example/openapi-gen/pkg/unions"
+	"github.com/gork-labs/gork/pkg/unions"
 )
 
 // PaymentRequest represents a payment request with different payment methods

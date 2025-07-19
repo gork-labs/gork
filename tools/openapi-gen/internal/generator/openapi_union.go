@@ -41,9 +41,7 @@ func (g *Generator) GenerateUnionSchema(unionInfo UnionInfo, fieldName string, f
 		typeName = strings.TrimSpace(typeName)
 
 		// Handle pointer types
-		if strings.HasPrefix(typeName, "*") {
-			typeName = strings.TrimPrefix(typeName, "*")
-		}
+		typeName = strings.TrimPrefix(typeName, "*")
 
 		// Check if it's an array type
 		isArray := false
@@ -81,21 +79,6 @@ func (g *Generator) GenerateUnionSchema(unionInfo UnionInfo, fieldName string, f
 	return schema
 }
 
-// isRequiredField checks if a field is required based on validator tags
-func (g *Generator) isRequiredField(field ExtractedField) bool {
-	// Check for "required" in validate tag
-	if strings.Contains(field.ValidateTags, "required") {
-		return true
-	}
-
-	// Check for pointer types (non-pointer fields are typically required in JSON)
-	if !strings.HasPrefix(field.Type, "*") && field.JSONTag != "" && field.JSONTag != "-" {
-		// Non-pointer fields with JSON tags are typically required unless marked omitempty
-		return !strings.Contains(field.JSONTag, "omitempty")
-	}
-
-	return false
-}
 
 // getJSONFieldName gets the JSON field name for a field
 func (g *Generator) getJSONFieldName(field ExtractedField) string {
@@ -133,30 +116,6 @@ func extractDiscriminator(openapiTag string) string {
 	return info.Discriminator
 }
 
-// generateDiscriminatorMapping creates the discriminator mapping for union types
-func (g *Generator) generateDiscriminatorMapping(types []string, discriminatorField string) map[string]string {
-	mapping := make(map[string]string)
-
-	for _, typeName := range types {
-		// Clean up type name
-		typeName = strings.TrimSpace(typeName)
-		if strings.HasPrefix(typeName, "*") {
-			typeName = strings.TrimPrefix(typeName, "*")
-		}
-
-		// Normalize the type name for the schema reference
-		normalizedName := g.normalizeTypeName(typeName)
-
-		// Create mapping key (lowercase version of the type name)
-		// You might want to make this configurable or smarter
-		key := strings.ToLower(normalizedName)
-
-		// Map to the schema reference
-		mapping[key] = "#/components/schemas/" + normalizedName
-	}
-
-	return mapping
-}
 
 // addUnionWarnings adds warnings for potential issues with union types
 func (g *Generator) addUnionWarnings(unionTypes []string) {
@@ -285,9 +244,7 @@ func (g *Generator) detectDiscriminatorImplementations(types []string) map[strin
 	for _, typeName := range types {
 		// Clean up type name
 		typeName = strings.TrimSpace(typeName)
-		if strings.HasPrefix(typeName, "*") {
-			typeName = strings.TrimPrefix(typeName, "*")
-		}
+		typeName = strings.TrimPrefix(typeName, "*")
 
 		normalizedName := g.normalizeTypeName(typeName)
 

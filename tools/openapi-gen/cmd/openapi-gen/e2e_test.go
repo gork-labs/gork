@@ -15,7 +15,7 @@ import (
 func TestE2EGeneration(t *testing.T) {
 	// Build the binary first
 	binary := buildBinary(t)
-	defer os.Remove(binary)
+	defer func() { _ = os.Remove(binary) }()
 
 	tests := []struct {
 		name       string
@@ -123,7 +123,7 @@ func TestE2EGeneration(t *testing.T) {
 
 func TestCLIArguments(t *testing.T) {
 	binary := buildBinary(t)
-	defer os.Remove(binary)
+	defer func() { _ = os.Remove(binary) }()
 
 	tests := []struct {
 		name        string
@@ -205,7 +205,7 @@ func TestCLIArguments(t *testing.T) {
 
 func TestOutputFormats(t *testing.T) {
 	binary := buildBinary(t)
-	defer os.Remove(binary)
+	defer func() { _ = os.Remove(binary) }()
 
 	tests := []struct {
 		name       string
@@ -274,7 +274,7 @@ func TestOutputFormats(t *testing.T) {
 
 func TestRouteDetection(t *testing.T) {
 	binary := buildBinary(t)
-	defer os.Remove(binary)
+	defer func() { _ = os.Remove(binary) }()
 
 	// Create test file with different routing patterns
 	tempDir := t.TempDir()

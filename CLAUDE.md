@@ -130,17 +130,16 @@ This feature is opt-in via the `--generate-union-accessors` flag.
 ## Module Structure
 
 ```
-github.com/example/openapi-gen/
-├── cmd/openapi-gen/           # CLI entry point
-├── internal/generator/        # Core generation logic
-├── internal/validator/        # Validation utilities  
+github.com/gork-labs/gork/
+├── tools/openapi-gen/         # OpenAPI generator tool
+│   ├── cmd/openapi-gen/       # CLI entry point
+│   └── internal/              # Core generation logic
 ├── pkg/api/                   # HTTP adapter for type-safe handlers
 ├── pkg/unions/                # Union type utilities
 └── examples/                  # Complete example API
     ├── handlers/              # HTTP handlers
-    ├── models/                # Request/response types
-    ├── routes/                # Route registration
-    └── validators/            # Custom validators
+    ├── cmd/                   # Example commands
+    └── routes.go              # Route registration
 ```
 
 ## Development Notes
