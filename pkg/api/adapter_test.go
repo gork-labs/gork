@@ -21,9 +21,7 @@ func TestParseQueryParams(t *testing.T) {
 
 	r := httptest.NewRequest("GET", "/test?name=Alice&age=30&count=5&active=true&tags=foo&tags=bar&csvTags=alpha,beta", nil)
 
-	if err := parseQueryParams(r, reqStruct); err != nil {
-		t.Fatalf("parseQueryParams returned error: %v", err)
-	}
+	parseQueryParams(r, reqStruct)
 
 	if reqStruct.Name != "Alice" {
 		t.Errorf("expected Name to be 'Alice', got %q", reqStruct.Name)

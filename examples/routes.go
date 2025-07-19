@@ -1,3 +1,4 @@
+// Package examples provides example API handlers and routes for the OpenAPI generator.
 package examples
 
 import (
@@ -7,7 +8,7 @@ import (
 	"github.com/gork-labs/gork/pkg/api"
 )
 
-// RegisterRoutes registers all API routes
+// RegisterRoutes registers all API routes.
 func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/login", api.HandlerFunc(handlers.Login, api.WithTags("auth")))
 

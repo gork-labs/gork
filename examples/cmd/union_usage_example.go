@@ -1,3 +1,4 @@
+// Package main demonstrates usage of union types in the examples.
 package main
 
 import (
@@ -53,7 +54,7 @@ func main() {
 	adminUsers := []handlers.AdminUserResponse{
 		{
 			UserResponse: handlers.UserResponse{
-				UserId:   "admin1",
+				UserID:   "admin1",
 				Username: "superadmin",
 			},
 			CreatedAt: "2024-01-01",
@@ -70,7 +71,7 @@ func main() {
 	}
 }
 
-// processPayment demonstrates using the Value() method
+// processPayment demonstrates using the Value() method.
 func processPayment(payment *handlers.PaymentRequest) {
 	value := payment.Value()
 

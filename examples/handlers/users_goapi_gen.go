@@ -2,27 +2,27 @@
 
 package handlers
 
-// IsAdminUserResponseSlice returns true if the union contains []AdminUserResponse
+// IsAdminUserResponseSlice returns true if the union contains []AdminUserResponse.
 func (u *ListUsersResponse) IsAdminUserResponseSlice() bool {
 	return u.A != nil
 }
 
-// AdminUserResponseSlice returns the []AdminUserResponse value if present, nil otherwise
+// AdminUserResponseSlice returns the []AdminUserResponse value if present, nil otherwise.
 func (u *ListUsersResponse) AdminUserResponseSlice() *[]AdminUserResponse {
 	return u.A
 }
 
-// IsUserResponseSlice returns true if the union contains []UserResponse
+// IsUserResponseSlice returns true if the union contains []UserResponse.
 func (u *ListUsersResponse) IsUserResponseSlice() bool {
 	return u.B != nil
 }
 
-// UserResponseSlice returns the []UserResponse value if present, nil otherwise
+// UserResponseSlice returns the []UserResponse value if present, nil otherwise.
 func (u *ListUsersResponse) UserResponseSlice() *[]UserResponse {
 	return u.B
 }
 
-// Value returns the non-nil value from the union
+// Value returns the non-nil value from the union.
 func (u *ListUsersResponse) Value() interface{} {
 	if u.A != nil {
 		return u.A
@@ -33,7 +33,7 @@ func (u *ListUsersResponse) Value() interface{} {
 	return nil
 }
 
-// SetAdminUserResponseSlice sets the union to contain []AdminUserResponse
+// SetAdminUserResponseSlice sets the union to contain []AdminUserResponse.
 func (u *ListUsersResponse) SetAdminUserResponseSlice(value *[]AdminUserResponse) {
 	// Clear all fields first
 	u.A = nil
@@ -43,7 +43,7 @@ func (u *ListUsersResponse) SetAdminUserResponseSlice(value *[]AdminUserResponse
 	u.A = value
 }
 
-// SetUserResponseSlice sets the union to contain []UserResponse
+// SetUserResponseSlice sets the union to contain []UserResponse.
 func (u *ListUsersResponse) SetUserResponseSlice(value *[]UserResponse) {
 	// Clear all fields first
 	u.A = nil
@@ -53,14 +53,14 @@ func (u *ListUsersResponse) SetUserResponseSlice(value *[]UserResponse) {
 	u.B = value
 }
 
-// NewListUsersResponseFromAdminUserResponseSlice creates a new ListUsersResponse containing []AdminUserResponse
+// NewListUsersResponseFromAdminUserResponseSlice creates a new ListUsersResponse containing []AdminUserResponse.
 func NewListUsersResponseFromAdminUserResponseSlice(value *[]AdminUserResponse) ListUsersResponse {
 	return ListUsersResponse{
 		A: value,
 	}
 }
 
-// NewListUsersResponseFromUserResponseSlice creates a new ListUsersResponse containing []UserResponse
+// NewListUsersResponseFromUserResponseSlice creates a new ListUsersResponse containing []UserResponse.
 func NewListUsersResponseFromUserResponseSlice(value *[]UserResponse) ListUsersResponse {
 	return ListUsersResponse{
 		B: value,
