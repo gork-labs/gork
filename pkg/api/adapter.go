@@ -11,29 +11,29 @@ import (
 	"strings"
 )
 
-// HandlerOption represents an option for configuring a handler
+// HandlerOption represents an option for configuring a handler.
 type HandlerOption struct {
 	Tags     []string
 	Security []SecurityRequirement
 }
 
-// SecurityRequirement represents a security requirement for an operation
+// SecurityRequirement represents a security requirement for an operation.
 type SecurityRequirement struct {
 	Type   string   // "basic", "bearer", "apiKey"
 	Scopes []string // For OAuth2
 }
 
-// Option is a function that modifies HandlerOption
+// Option is a function that modifies HandlerOption.
 type Option func(*HandlerOption)
 
-// WithTags adds tags to the handler
+// WithTags adds tags to the handler.
 func WithTags(tags ...string) Option {
 	return func(h *HandlerOption) {
 		h.Tags = append(h.Tags, tags...)
 	}
 }
 
-// WithBasicAuth adds basic authentication requirement
+// WithBasicAuth adds basic authentication requirement.
 func WithBasicAuth() Option {
 	return func(h *HandlerOption) {
 		h.Security = append(h.Security, SecurityRequirement{
@@ -42,7 +42,7 @@ func WithBasicAuth() Option {
 	}
 }
 
-// WithBearerTokenAuth adds bearer token authentication requirement
+// WithBearerTokenAuth adds bearer token authentication requirement.
 func WithBearerTokenAuth(scopes ...string) Option {
 	return func(h *HandlerOption) {
 		h.Security = append(h.Security, SecurityRequirement{
@@ -52,7 +52,7 @@ func WithBearerTokenAuth(scopes ...string) Option {
 	}
 }
 
-// WithAPIKeyAuth adds API key authentication requirement
+// WithAPIKeyAuth adds API key authentication requirement.
 func WithAPIKeyAuth() Option {
 	return func(h *HandlerOption) {
 		h.Security = append(h.Security, SecurityRequirement{
@@ -61,7 +61,7 @@ func WithAPIKeyAuth() Option {
 	}
 }
 
-// HandlerFunc creates an http.HandlerFunc from a typed handler with options
+// HandlerFunc creates an http.HandlerFunc from a typed handler with options.
 func HandlerFunc[Req any, Resp any](handler func(context.Context, Req) (Resp, error), opts ...Option) http.HandlerFunc {
 	// Apply options
 	options := &HandlerOption{}
@@ -80,10 +80,7 @@ func HandlerFunc[Req any, Resp any](handler func(context.Context, Req) (Resp, er
 		switch r.Method {
 		case http.MethodGet, http.MethodDelete:
 			// Parse query parameters into request struct
-			if err := parseQueryParams(r, req); err != nil {
-				writeError(w, http.StatusBadRequest, err.Error())
-				return
-			}
+			parseQueryParams(r, req)
 		case http.MethodPost, http.MethodPut, http.MethodPatch:
 			// Parse JSON body
 			if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -107,10 +104,10 @@ func HandlerFunc[Req any, Resp any](handler func(context.Context, Req) (Resp, er
 	}
 }
 
-// handlerMetadata stores metadata for handlers (used by the generator)
+// handlerMetadata stores metadata for handlers (used by the generator).
 var handlerMetadata = make(map[string]*HandlerOption)
 
-// GetHandlerMetadata returns metadata for a handler by name
+// GetHandlerMetadata returns metadata for a handler by name.
 func GetHandlerMetadata(name string) *HandlerOption {
 	return handlerMetadata[name]
 }
@@ -136,11 +133,8 @@ func writeError(w http.ResponseWriter, code int, message string) {
 	})
 }
 
-func parseQueryParams(r *http.Request, req interface{}) error {
-	// Simple query parameter parsing
-	// In a real implementation, this would use reflection to map query params to struct fields
+func parseQueryParams(r *http.Request, req interface{}) {
 	values := r.URL.Query()
-
 	v := reflect.ValueOf(req).Elem()
 	t := v.Type()
 
@@ -151,51 +145,63 @@ func parseQueryParams(r *http.Request, req interface{}) error {
 			continue
 		}
 
-		// Get the query parameter value
 		paramValue := values.Get(jsonTag)
 		if paramValue == "" {
 			continue
 		}
 
-		// Set the field value based on kind
-		switch field.Type.Kind() {
-		case reflect.String:
-			v.Field(i).SetString(paramValue)
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			if iv, err := strconv.ParseInt(paramValue, 10, 64); err == nil {
-				v.Field(i).SetInt(iv)
-			}
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			if uv, err := strconv.ParseUint(paramValue, 10, 64); err == nil {
-				v.Field(i).SetUint(uv)
-			}
-		case reflect.Bool:
-			if bv, err := strconv.ParseBool(paramValue); err == nil {
-				v.Field(i).SetBool(bv)
-			}
-		case reflect.Slice:
-			// Support both repeated-key (?tag=a&tag=b) and comma-separated list (?tag=a,b)
-			if field.Type.Elem().Kind() == reflect.String {
-				parts := values[jsonTag] // repeated keys (may include single element with comma)
-				if len(parts) == 0 && paramValue != "" {
-					// paramValue comes from Get, might include commas
-					parts = strings.Split(paramValue, ",")
-				} else if len(parts) == 1 && strings.Contains(parts[0], ",") {
-					// Single param but comma-separated list
-					parts = strings.Split(parts[0], ",")
-				}
-				if len(parts) > 0 {
-					sliceVal := reflect.MakeSlice(field.Type, len(parts), len(parts))
-					for idx, p := range parts {
-						sliceVal.Index(idx).SetString(p)
-					}
-					v.Field(i).Set(sliceVal)
-				}
-			}
+		setFieldValue(v.Field(i), field, paramValue, values[jsonTag])
+	}
+}
+
+func setFieldValue(fieldValue reflect.Value, fieldType reflect.StructField, paramValue string, allValues []string) {
+	switch fieldType.Type.Kind() {
+	case reflect.String:
+		fieldValue.SetString(paramValue)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if iv, err := strconv.ParseInt(paramValue, 10, 64); err == nil {
+			fieldValue.SetInt(iv)
 		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if uv, err := strconv.ParseUint(paramValue, 10, 64); err == nil {
+			fieldValue.SetUint(uv)
+		}
+	case reflect.Bool:
+		if bv, err := strconv.ParseBool(paramValue); err == nil {
+			fieldValue.SetBool(bv)
+		}
+	case reflect.Float32, reflect.Float64:
+		if fv, err := strconv.ParseFloat(paramValue, 64); err == nil {
+			fieldValue.SetFloat(fv)
+		}
+	case reflect.Slice:
+		setSliceFieldValue(fieldValue, fieldType, paramValue, allValues)
+	case reflect.Invalid, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
+		reflect.Array, reflect.Chan, reflect.Func, reflect.Interface,
+		reflect.Map, reflect.Ptr, reflect.Struct, reflect.UnsafePointer:
+		// Unsupported types are silently ignored
+	}
+}
+
+func setSliceFieldValue(fieldValue reflect.Value, fieldType reflect.StructField, paramValue string, allValues []string) {
+	if fieldType.Type.Elem().Kind() != reflect.String {
+		return
 	}
 
-	return nil
+	parts := allValues
+	if len(parts) == 0 && paramValue != "" {
+		parts = strings.Split(paramValue, ",")
+	} else if len(parts) == 1 && strings.Contains(parts[0], ",") {
+		parts = strings.Split(parts[0], ",")
+	}
+
+	if len(parts) > 0 {
+		sliceVal := reflect.MakeSlice(fieldType.Type, len(parts), len(parts))
+		for idx, p := range parts {
+			sliceVal.Index(idx).SetString(p)
+		}
+		fieldValue.Set(sliceVal)
+	}
 }
 
 func getFunctionName(i interface{}) string {

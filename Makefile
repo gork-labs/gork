@@ -1,5 +1,5 @@
 # Root Makefile for gork monorepo
-.PHONY: all test build clean lint list-modules coverage coverage-html deps verify fmt vuln test-% coverage-% openapi-build openapi-gen openapi-validate openapi-swagger-validate
+.PHONY: all test build clean lint lint-% list-modules coverage coverage-html deps verify fmt vuln test-% coverage-% openapi-build openapi-gen openapi-validate openapi-swagger-validate
 
 # Dynamically read modules from go.work
 MODULES := $(shell go work edit -json | jq -r '.Use[].DiskPath' | sed 's|^\./||')
@@ -95,6 +95,25 @@ lint:
 		echo "Linting $$module..."; \
 		(cd $$module && golangci-lint run) || exit 1; \
 	done
+
+# Dynamic module-specific lint targets
+# Usage: make lint-unions, make lint-api, make lint-openapi-gen, etc.
+lint-%:
+	@target="$*"; \
+	found=0; \
+	for module in $(MODULES); do \
+		if echo "$$module" | grep -qE "(^|/)$$target$$"; then \
+			echo "Linting $$module..."; \
+			cd $$module && golangci-lint run; \
+			found=1; \
+			break; \
+		fi; \
+	done; \
+	if [ $$found -eq 0 ]; then \
+		echo "Module '$$target' not found in workspace"; \
+		echo "Available modules: $(MODULES)"; \
+		exit 1; \
+	fi
 
 # Run tests with coverage and enforce thresholds
 coverage:

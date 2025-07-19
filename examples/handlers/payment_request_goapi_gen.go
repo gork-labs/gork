@@ -2,27 +2,27 @@
 
 package handlers
 
-// IsCreditCardPaymentMethod returns true if the union contains CreditCardPaymentMethod
+// IsCreditCardPaymentMethod returns true if the union contains CreditCardPaymentMethod.
 func (u *PaymentRequest) IsCreditCardPaymentMethod() bool {
 	return u.A != nil
 }
 
-// CreditCardPaymentMethod returns the CreditCardPaymentMethod value if present, nil otherwise
+// CreditCardPaymentMethod returns the CreditCardPaymentMethod value if present, nil otherwise.
 func (u *PaymentRequest) CreditCardPaymentMethod() *CreditCardPaymentMethod {
 	return u.A
 }
 
-// IsBankPaymentMethod returns true if the union contains BankPaymentMethod
+// IsBankPaymentMethod returns true if the union contains BankPaymentMethod.
 func (u *PaymentRequest) IsBankPaymentMethod() bool {
 	return u.B != nil
 }
 
-// BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise
+// BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise.
 func (u *PaymentRequest) BankPaymentMethod() *BankPaymentMethod {
 	return u.B
 }
 
-// Value returns the non-nil value from the union
+// Value returns the non-nil value from the union.
 func (u *PaymentRequest) Value() interface{} {
 	if u.A != nil {
 		return u.A
@@ -33,7 +33,7 @@ func (u *PaymentRequest) Value() interface{} {
 	return nil
 }
 
-// SetCreditCardPaymentMethod sets the union to contain CreditCardPaymentMethod
+// SetCreditCardPaymentMethod sets the union to contain CreditCardPaymentMethod.
 func (u *PaymentRequest) SetCreditCardPaymentMethod(value *CreditCardPaymentMethod) {
 	// Clear all fields first
 	u.A = nil
@@ -43,7 +43,7 @@ func (u *PaymentRequest) SetCreditCardPaymentMethod(value *CreditCardPaymentMeth
 	u.A = value
 }
 
-// SetBankPaymentMethod sets the union to contain BankPaymentMethod
+// SetBankPaymentMethod sets the union to contain BankPaymentMethod.
 func (u *PaymentRequest) SetBankPaymentMethod(value *BankPaymentMethod) {
 	// Clear all fields first
 	u.A = nil
@@ -53,14 +53,14 @@ func (u *PaymentRequest) SetBankPaymentMethod(value *BankPaymentMethod) {
 	u.B = value
 }
 
-// NewPaymentRequestFromCreditCardPaymentMethod creates a new PaymentRequest containing CreditCardPaymentMethod
+// NewPaymentRequestFromCreditCardPaymentMethod creates a new PaymentRequest containing CreditCardPaymentMethod.
 func NewPaymentRequestFromCreditCardPaymentMethod(value *CreditCardPaymentMethod) PaymentRequest {
 	return PaymentRequest{
 		A: value,
 	}
 }
 
-// NewPaymentRequestFromBankPaymentMethod creates a new PaymentRequest containing BankPaymentMethod
+// NewPaymentRequestFromBankPaymentMethod creates a new PaymentRequest containing BankPaymentMethod.
 func NewPaymentRequestFromBankPaymentMethod(value *BankPaymentMethod) PaymentRequest {
 	return PaymentRequest{
 		B: value,
