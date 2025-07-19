@@ -32,6 +32,8 @@ func GetUser(_ context.Context, req *GetUserRequest) (*UserResponse, error) {
 type CreateUserRequest struct {
 	// Username is the username of the user to create
 	Username string `json:"username"`
+
+	ReturnTo string `openapi:"return-to,in=query"`
 }
 
 // CreateUser handles user creation requests.
@@ -47,6 +49,8 @@ type UpdateUserRequest struct {
 
 	// Username is the new username for the user
 	Username string `json:"username"`
+
+	Version int `openapi:"X-User-Version,in=header"`
 }
 
 // UpdateUser handles user update requests.
@@ -59,6 +63,8 @@ func UpdateUser(_ context.Context, req *UpdateUserRequest) (*UserResponse, error
 type DeleteUserRequest struct {
 	// UserID is the ID of the user to delete
 	UserID string `json:"userID"`
+
+	Force bool `openapi:"force,in:query"`
 }
 
 // DeleteUser handles user deletion requests.
