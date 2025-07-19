@@ -3,8 +3,8 @@ package generator
 import (
 	"fmt"
 	"go/ast"
-	"sort"
 	"strings"
+	"sync"
 )
 
 // Generator generates OpenAPI specs from Go code
@@ -13,12 +13,13 @@ type Generator struct {
 	routeDetector   *RouteDetector
 	validatorMapper *ValidatorMapper
 	spec            *OpenAPISpec
-	
+
+	mu sync.RWMutex
 	// Maps for lookups
 	typeMap      map[string]ExtractedType
 	handlerMap   map[string]ExtractedHandler
-	parsedFiles  map[string]*ast.File     // filepath -> AST
-	filePackages map[string]string        // filepath -> package name
+	parsedFiles  map[string]*ast.File // filepath -> AST
+	filePackages map[string]string    // filepath -> package name
 }
 
 // New creates a new generator
@@ -33,7 +34,7 @@ func New(title, version string) *Generator {
 				Title:   title,
 				Version: version,
 			},
-			Paths:      make(map[string]*PathItem),
+			Paths: make(map[string]*PathItem),
 			Components: &Components{
 				Schemas:         make(map[string]*Schema),
 				SecuritySchemes: make(map[string]*SecurityScheme),
@@ -58,22 +59,22 @@ func (g *Generator) ParseDirectories(dirs []string) error {
 			return fmt.Errorf("failed to parse directory %s: %w", dir, err)
 		}
 	}
-	
+
 	// Extract types and handlers
 	types := g.extractor.ExtractTypes()
 	for _, t := range types {
-		g.typeMap[t.Name] = t
+		g.setType(t.Name, t)
 		// Also map with package prefix for cross-package references
-		g.typeMap[t.Package+"."+t.Name] = t
+		g.setType(t.Package+"."+t.Name, t)
 	}
-	
+
 	handlers := g.extractor.ExtractHandlers()
 	for _, h := range handlers {
-		g.handlerMap[h.Name] = h
+		g.setHandler(h.Name, h)
 		// Also map with package prefix
-		g.handlerMap[h.Package+"."+h.Name] = h
+		g.setHandler(h.Package+"."+h.Name, h)
 	}
-	
+
 	// Store parsed files
 	for filePath, file := range g.extractor.GetFiles() {
 		g.parsedFiles[filePath] = file
@@ -81,7 +82,7 @@ func (g *Generator) ParseDirectories(dirs []string) error {
 			g.filePackages[filePath] = file.Name.Name
 		}
 	}
-	
+
 	return nil
 }
 
@@ -92,7 +93,7 @@ func (g *Generator) ParseRoutes(files []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse routes from %s: %w", file, err)
 		}
-		
+
 		for _, route := range routes {
 			if err := g.addRoute(route); err != nil {
 				// Log error but continue
@@ -100,7 +101,7 @@ func (g *Generator) ParseRoutes(files []string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -108,174 +109,93 @@ func (g *Generator) ParseRoutes(files []string) error {
 func (g *Generator) Generate() *OpenAPISpec {
 	// Process handler union types first
 	g.ProcessHandlerUnionTypes()
-	
+
 	// Generate schemas for all referenced types
 	for _, t := range g.typeMap {
 		if !strings.Contains(t.Name, ".") { // Skip duplicates with package prefix
 			g.generateSchema(t)
 		}
 	}
-	
+
 	// Generate tags definitions
 	g.generateTags()
-	
+
 	// Generate security schemes
 	g.generateSecuritySchemes()
-	
+
 	return g.spec
 }
 
 // GetHandlers returns the handler map for debugging
 func (g *Generator) GetHandlers() map[string]ExtractedHandler {
-	return g.handlerMap
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	// Return a shallow copy to avoid race conditions on caller modification
+	copyMap := make(map[string]ExtractedHandler, len(g.handlerMap))
+	for k, v := range g.handlerMap {
+		copyMap[k] = v
+	}
+	return copyMap
 }
 
-// generateTags collects all unique tags from operations and creates tag definitions
-func (g *Generator) generateTags() {
-	tagMap := make(map[string]bool)
-	
-	// Collect all unique tags from operations
-	for _, pathItem := range g.spec.Paths {
-		operations := []*Operation{
-			pathItem.Get,
-			pathItem.Post,
-			pathItem.Put,
-			pathItem.Delete,
-			pathItem.Patch,
-		}
-		
-		for _, op := range operations {
-			if op != nil {
-				for _, tag := range op.Tags {
-					tagMap[tag] = true
-				}
-			}
-		}
-	}
-	
-	// Create tag definitions
-	var tags []Tag
-	for tag := range tagMap {
-		tags = append(tags, Tag{
-			Name:        tag,
-			Description: fmt.Sprintf("Operations related to %s", tag),
-		})
-	}
-	
-	// Sort tags by name for consistent output
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Name < tags[j].Name
-	})
-	
-	g.spec.Tags = tags
+// concurrency helpers
+func (g *Generator) getHandler(name string) (ExtractedHandler, bool) {
+	g.mu.RLock()
+	h, ok := g.handlerMap[name]
+	g.mu.RUnlock()
+	return h, ok
 }
 
-// generateSecuritySchemes generates security scheme definitions based on used security requirements
-func (g *Generator) generateSecuritySchemes() {
-	usedSchemes := make(map[string]bool)
-	
-	// Collect all used security schemes from operations
-	for _, pathItem := range g.spec.Paths {
-		operations := []*Operation{
-			pathItem.Get,
-			pathItem.Post,
-			pathItem.Put,
-			pathItem.Delete,
-			pathItem.Patch,
-		}
-		
-		for _, op := range operations {
-			if op != nil && op.Security != nil {
-				for _, sec := range op.Security {
-					for schemeName := range sec {
-						usedSchemes[schemeName] = true
-					}
-				}
-			}
-		}
-	}
-	
-	// Create security scheme definitions for used schemes
-	for schemeName := range usedSchemes {
-		switch schemeName {
-		case "basicAuth":
-			g.spec.Components.SecuritySchemes[schemeName] = &SecurityScheme{
-				Type:        "http",
-				Scheme:      "basic",
-				Description: "Basic HTTP authentication",
-			}
-		case "bearerAuth":
-			g.spec.Components.SecuritySchemes[schemeName] = &SecurityScheme{
-				Type:         "http",
-				Scheme:       "bearer",
-				BearerFormat: "JWT",
-				Description:  "JWT Bearer token authentication",
-			}
-		case "apiKeyAuth":
-			g.spec.Components.SecuritySchemes[schemeName] = &SecurityScheme{
-				Type:        "apiKey",
-				Name:        "X-API-Key",
-				In:          "header",
-				Description: "API key authentication",
-			}
-		}
-	}
+func (g *Generator) setHandler(name string, h ExtractedHandler) {
+	g.mu.Lock()
+	g.handlerMap[name] = h
+	g.mu.Unlock()
 }
 
-// convertSecurityRequirements converts internal security requirements to OpenAPI format
-func (g *Generator) convertSecurityRequirements(requirements []SecurityRequirement) []map[string][]string {
-	var result []map[string][]string
-	
-	for _, req := range requirements {
-		secMap := make(map[string][]string)
-		
-		switch req.Type {
-		case "basic":
-			secMap["basicAuth"] = []string{}
-		case "bearer":
-			if req.Scopes == nil {
-				secMap["bearerAuth"] = []string{}
-			} else {
-				secMap["bearerAuth"] = req.Scopes
-			}
-		case "apiKey":
-			secMap["apiKeyAuth"] = []string{}
-		}
-		
-		if len(secMap) > 0 {
-			result = append(result, secMap)
-		}
-	}
-	
-	return result
+func (g *Generator) getType(name string) (ExtractedType, bool) {
+	g.mu.RLock()
+	t, ok := g.typeMap[name]
+	g.mu.RUnlock()
+	return t, ok
 }
 
+func (g *Generator) setType(name string, t ExtractedType) {
+	g.mu.Lock()
+	g.typeMap[name] = t
+	g.mu.Unlock()
+}
+
+// generateTags moved to tags.go (no functional change)
+
+// generateSecuritySchemes moved to security.go (no functional change)
+
+// convertSecurityRequirements moved to security.go (no functional change)
 
 // addRoute adds a route to the OpenAPI spec
 func (g *Generator) addRoute(route ExtractedRoute) error {
-	handler, ok := g.handlerMap[route.HandlerName]
+	handler, ok := g.getHandler(route.HandlerName)
 	if !ok {
 		// Try with package prefix removed
 		parts := strings.Split(route.HandlerName, ".")
 		if len(parts) > 1 {
-			handler, ok = g.handlerMap[parts[len(parts)-1]]
+			handler, ok = g.getHandler(parts[len(parts)-1])
 		}
 		if !ok {
 			fmt.Printf("Warning: failed to add route %s %s: handler %s not found\n", route.Method, route.Path, route.HandlerName)
 			return nil
 		}
 	}
-	
+
 	// Get or create path item
 	pathItem, ok := g.spec.Paths[route.Path]
 	if !ok {
 		pathItem = &PathItem{}
 		g.spec.Paths[route.Path] = pathItem
 	}
-	
+
 	// Extract path parameters
 	pathParams := ExtractPathParameters(route.Path)
-	
+
 	// Create operation
 	operation := &Operation{
 		OperationID: handler.Name,
@@ -283,12 +203,12 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 		Responses:   make(map[string]*Response),
 		Tags:        route.Tags,
 	}
-	
+
 	// Add security requirements
 	if len(route.Security) > 0 {
 		operation.Security = g.convertSecurityRequirements(route.Security)
 	}
-	
+
 	// Add path parameters
 	for _, param := range pathParams {
 		operation.Parameters = append(operation.Parameters, Parameter{
@@ -300,23 +220,23 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 			},
 		})
 	}
-	
+
 	// Determine method if not specified
 	method := route.Method
 	if method == "" {
 		method = InferMethodFromHandler(handler.Name)
 	}
-	
+
 	// Handle request based on method
 	// First check if request is a union type
 	if unionInfo := DetectUnionType(handler.RequestType); unionInfo.IsUnion {
 		// Process union types
 		g.ProcessUnionRequestResponse(handler)
-		
+
 		// For union requests, create a reference to the union type itself
 		// The union type name needs to be registered as a schema
 		unionTypeName := g.normalizeTypeName(handler.RequestType)
-		
+
 		switch method {
 		case "POST", "PUT", "PATCH":
 			operation.RequestBody = &RequestBody{
@@ -339,24 +259,45 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 			for _, param := range pathParams {
 				pathParamNames[param] = true
 			}
-			
+
 			for _, field := range requestType.Fields {
-				if field.JSONTag != "" && field.JSONTag != "-" {
-					// Skip if this field is already a path parameter
-					if pathParamNames[field.JSONTag] {
-						continue
-					}
-					
-					schema := g.fieldToSchema(field, requestType.Name)
-					param := Parameter{
-						Name:        field.JSONTag,
-						In:          "query",
-						Required:    IsRequired(field.ValidateTags),
-						Description: field.Description,
-						Schema:      schema,
-					}
-					operation.Parameters = append(operation.Parameters, param)
+				// Determine OpenAPI tag info
+				tagInfo := parseOpenAPITag(field.OpenAPITag)
+
+				// Determine parameter "in" location
+				paramIn := tagInfo.In
+				if paramIn == "" {
+					paramIn = "query" // default for GET/DELETE
 				}
+
+				// Skip if param location not query/header
+				if paramIn != "query" && paramIn != "header" {
+					continue
+				}
+
+				// Determine parameter name
+				paramName := tagInfo.Name
+				if paramName == "" {
+					paramName = field.JSONTag
+				}
+				if paramName == "" || paramName == "-" {
+					continue // skip unexported
+				}
+
+				// Avoid duplicating path params
+				if pathParamNames[paramName] {
+					continue
+				}
+
+				schema := g.fieldToSchema(field, requestType.Name)
+				param := Parameter{
+					Name:        paramName,
+					In:          paramIn,
+					Required:    IsRequired(field.ValidateTags),
+					Description: field.Description,
+					Schema:      schema,
+				}
+				operation.Parameters = append(operation.Parameters, param)
 			}
 		case "POST", "PUT", "PATCH":
 			// Use request struct as body
@@ -374,16 +315,16 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 			g.generateSchema(*requestType)
 		}
 	}
-	
+
 	// Handle response
 	// First check if response is a union type
 	if unionInfo := DetectUnionType(handler.ResponseType); unionInfo.IsUnion {
 		// Process union types
 		g.ProcessUnionRequestResponse(handler)
-		
+
 		// For union responses, create a reference to the union type itself
 		unionTypeName := g.normalizeTypeName(handler.ResponseType)
-		
+
 		operation.Responses["200"] = &Response{
 			Description: "Successful response",
 			Content: map[string]*MediaType{
@@ -413,7 +354,7 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 			Description: "Successful response",
 		}
 	}
-	
+
 	// Add error responses
 	operation.Responses["400"] = &Response{
 		Description: "Bad request",
@@ -431,7 +372,7 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 			},
 		},
 	}
-	
+
 	operation.Responses["500"] = &Response{
 		Description: "Internal server error",
 		Content: map[string]*MediaType{
@@ -448,7 +389,7 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 			},
 		},
 	}
-	
+
 	// Assign operation to method
 	switch method {
 	case "GET":
@@ -462,7 +403,7 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 	case "PATCH":
 		pathItem.Patch = operation
 	}
-	
+
 	return nil
 }
 
@@ -470,20 +411,20 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 func (g *Generator) findType(typeName string) *ExtractedType {
 	// Remove pointer prefix
 	typeName = strings.TrimPrefix(typeName, "*")
-	
+
 	// Try direct lookup
-	if t, ok := g.typeMap[typeName]; ok {
+	if t, ok := g.getType(typeName); ok {
 		return &t
 	}
-	
+
 	// Try without package prefix
 	parts := strings.Split(typeName, ".")
 	if len(parts) > 1 {
-		if t, ok := g.typeMap[parts[len(parts)-1]]; ok {
+		if t, ok := g.getType(parts[len(parts)-1]); ok {
 			return &t
 		}
 	}
-	
+
 	return nil
 }
 
@@ -492,38 +433,38 @@ func (g *Generator) generateSchema(t ExtractedType) {
 	if _, exists := g.spec.Components.Schemas[t.Name]; exists {
 		return // already generated
 	}
-	
+
 	// Handle union type aliases first
 	if t.IsUnionAlias {
 		unionSchema := g.generateUnionAliasSchema(t)
 		g.spec.Components.Schemas[t.Name] = unionSchema
 		return
 	}
-	
+
 	// Handle simple type aliases (e.g., type MyString string)
 	if t.IsTypeAlias && t.BaseType != "" {
 		schema := g.generateTypeAliasSchema(t)
 		g.spec.Components.Schemas[t.Name] = schema
 		return
 	}
-	
+
 	schema := &Schema{
 		Type:        "object",
 		Description: t.Description,
 		Properties:  make(map[string]*Schema),
 	}
-	
+
 	var required []string
-	
+
 	// Check if this might be a union options type (all fields are pointers with no JSON tags)
 	isUnionOptions := g.isUnionOptionsType(t)
-	
+
 	// First, process embedded types
 	for _, embeddedTypeName := range t.EmbeddedTypes {
 		if embeddedType := g.findType(embeddedTypeName); embeddedType != nil {
 			// Recursively ensure the embedded type's schema is generated
 			g.generateSchema(*embeddedType)
-			
+
 			// Add fields from embedded type
 			for _, field := range embeddedType.Fields {
 				// For union options types, include fields even without JSON tags
@@ -531,23 +472,23 @@ func (g *Generator) generateSchema(t ExtractedType) {
 				if !isUnionOptions && (field.JSONTag == "" || field.JSONTag == "-") {
 					continue
 				}
-				
+
 				fieldName := field.JSONTag
 				if fieldName == "" {
 					// Use the field name directly for union options
 					fieldName = strings.ToLower(field.Name)
 				}
-				
+
 				fieldSchema := g.fieldToSchema(field, embeddedType.Name)
 				schema.Properties[fieldName] = fieldSchema
-				
+
 				if IsRequired(field.ValidateTags) {
 					required = append(required, fieldName)
 				}
 			}
 		}
 	}
-	
+
 	// Then process regular fields
 	for _, field := range t.Fields {
 		// For union options types, include fields even without JSON tags
@@ -555,25 +496,25 @@ func (g *Generator) generateSchema(t ExtractedType) {
 		if !isUnionOptions && (field.JSONTag == "" || field.JSONTag == "-") {
 			continue
 		}
-		
+
 		fieldName := field.JSONTag
 		if fieldName == "" {
 			// Use the field name directly for union options
 			fieldName = strings.ToLower(field.Name)
 		}
-		
+
 		fieldSchema := g.fieldToSchema(field, t.Name)
 		schema.Properties[fieldName] = fieldSchema
-		
+
 		if IsRequired(field.ValidateTags) {
 			required = append(required, fieldName)
 		}
 	}
-	
+
 	if len(required) > 0 {
 		schema.Required = required
 	}
-	
+
 	g.spec.Components.Schemas[t.Name] = schema
 }
 
@@ -583,21 +524,21 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 	if unionInfo := DetectUnionType(field.Type); unionInfo.IsUnion {
 		return g.GenerateUnionSchema(unionInfo, field.Name, field)
 	}
-	
+
 	schema := &Schema{
 		Description: field.Description,
 	}
-	
+
 	// Handle pointer types
 	if field.IsPointer {
 		schema.Nullable = true
 	}
-	
+
 	// Determine base type
 	fieldType := field.Type
 	isArray := false
 	isMap := false
-	
+
 	if strings.HasPrefix(fieldType, "[]") {
 		isArray = true
 		fieldType = strings.TrimPrefix(fieldType, "[]")
@@ -608,7 +549,7 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 			fieldType = fieldType[idx+1:]
 		}
 	}
-	
+
 	// Set base type
 	switch fieldType {
 	case "string":
@@ -630,7 +571,7 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 		if refType := g.findType(fieldType); refType != nil {
 			// Ensure schema is generated
 			g.generateSchema(*refType)
-			
+
 			if isArray {
 				schema.Type = "array"
 				schema.Items = &Schema{
@@ -649,7 +590,7 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 			schema.Type = "object"
 		}
 	}
-	
+
 	// Handle array/map wrappers
 	if isArray && schema.Type != "array" {
 		itemSchema := &Schema{
@@ -665,7 +606,7 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 		schema.Type = "object"
 		schema.AdditionalProperties = true
 	}
-	
+
 	// Apply validator constraints
 	if field.ValidateTags != "" {
 		// Handle dive for arrays
@@ -678,7 +619,7 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 			g.validatorMapper.MapValidatorTags(field.ValidateTags, schema, field.Type)
 		}
 	}
-	
+
 	return schema
 }
 
@@ -690,16 +631,16 @@ func (g *Generator) generateUnionAliasSchema(t ExtractedType) *Schema {
 		Type:        t.AliasedType,
 		Description: t.Description,
 	}
-	
+
 	// Generate the union schema using the appropriate method
 	var unionSchema *Schema
 	unionSchema = g.GenerateUnionSchema(t.UnionInfo, t.Name, dummyField)
-	
+
 	// Ensure all referenced types are processed
 	for _, typeName := range t.UnionInfo.UnionTypes {
 		g.ensureTypeProcessed(typeName)
 	}
-	
+
 	return unionSchema
 }
 
@@ -708,7 +649,7 @@ func (g *Generator) generateTypeAliasSchema(t ExtractedType) *Schema {
 	schema := &Schema{
 		Description: t.Description,
 	}
-	
+
 	// Map Go base types to OpenAPI types
 	switch t.BaseType {
 	case "string":
@@ -723,7 +664,7 @@ func (g *Generator) generateTypeAliasSchema(t ExtractedType) *Schema {
 		// Default to string if unknown
 		schema.Type = "string"
 	}
-	
+
 	// If we have enum values, add them
 	if len(t.EnumValues) > 0 {
 		schema.Enum = make([]interface{}, len(t.EnumValues))
@@ -731,7 +672,7 @@ func (g *Generator) generateTypeAliasSchema(t ExtractedType) *Schema {
 			schema.Enum[i] = v
 		}
 	}
-	
+
 	return schema
 }
 
@@ -751,18 +692,18 @@ func (g *Generator) isUnionOptionsType(t ExtractedType) bool {
 		}
 		return false
 	}
-	
+
 	if len(t.Fields) == 0 {
 		return false
 	}
-	
+
 	// Check if all fields are pointers without JSON tags
 	for _, field := range t.Fields {
 		if !field.IsPointer || field.JSONTag != "" {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -770,7 +711,7 @@ func (g *Generator) isUnionOptionsType(t ExtractedType) bool {
 func (g *Generator) GetExtractedTypes() []ExtractedType {
 	types := make([]ExtractedType, 0, len(g.typeMap))
 	seen := make(map[string]bool)
-	
+
 	for _, t := range g.typeMap {
 		// Avoid duplicates (same type might be mapped with and without package prefix)
 		key := t.Package + "." + t.Name
@@ -779,6 +720,6 @@ func (g *Generator) GetExtractedTypes() []ExtractedType {
 			seen[key] = true
 		}
 	}
-	
+
 	return types
 }

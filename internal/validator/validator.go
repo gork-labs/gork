@@ -11,12 +11,40 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ValidateSpec validates an OpenAPI spec using the official validator API
+// ValidationIssue represents a single validation message (warning or error)
+type ValidationIssue struct {
+	Location string `json:"location"`
+	Message  string `json:"message"`
+}
+
+// ValidateSpec validates an OpenAPI spec and prints human-readable results.
+// If you need machine-readable issues, use ValidateSpecDetailed.
 func ValidateSpec(filename string) error {
+	issues, err := ValidateSpecDetailed(filename)
+	if err != nil {
+		return err
+	}
+
+	if len(issues) == 0 {
+		fmt.Println("\n✅ OpenAPI spec validation passed!")
+		return nil
+	}
+
+	fmt.Printf("\n❌ %d validation issues found:\n", len(issues))
+	for _, iss := range issues {
+		fmt.Printf("- %s: %s\n", iss.Location, iss.Message)
+	}
+	return fmt.Errorf("validation failed with %d issues", len(issues))
+}
+
+// ValidateSpecDetailed returns a slice of issues instead of printing.
+func ValidateSpecDetailed(filename string) ([]ValidationIssue, error) {
+	var issues []ValidationIssue
+
 	// Read the file
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	// Check if it's YAML or JSON
@@ -24,13 +52,13 @@ func ValidateSpec(filename string) error {
 	if err := yaml.Unmarshal(data, &spec); err != nil {
 		// Try JSON
 		if err := json.Unmarshal(data, &spec); err != nil {
-			return fmt.Errorf("failed to parse file as YAML or JSON: %w", err)
+			return nil, fmt.Errorf("failed to parse file as YAML or JSON: %w", err)
 		}
 	}
 
 	// Validate basic structure
 	if err := validateBasicStructure(spec); err != nil {
-		return fmt.Errorf("basic validation failed: %w", err)
+		issues = append(issues, ValidationIssue{Location: "root", Message: err.Error()})
 	}
 
 	fmt.Println("✓ OpenAPI version is valid")
@@ -42,7 +70,7 @@ func ValidateSpec(filename string) error {
 		fmt.Printf("✓ Found %d paths\n", len(paths))
 		for path, pathItem := range paths {
 			if err := validatePath(path, pathItem); err != nil {
-				return fmt.Errorf("path %s validation failed: %w", path, err)
+				issues = append(issues, ValidationIssue{Location: fmt.Sprintf("path %s", path), Message: err.Error()})
 			}
 		}
 	}
@@ -53,14 +81,13 @@ func ValidateSpec(filename string) error {
 			fmt.Printf("✓ Found %d schemas\n", len(schemas))
 			for name, schema := range schemas {
 				if err := validateSchema(name, schema); err != nil {
-					return fmt.Errorf("schema %s validation failed: %w", name, err)
+					issues = append(issues, ValidationIssue{Location: fmt.Sprintf("schema %s", name), Message: err.Error()})
 				}
 			}
 		}
 	}
 
-	fmt.Println("\n✅ OpenAPI spec validation passed!")
-	return nil
+	return issues, nil
 }
 
 func validateBasicStructure(spec map[string]interface{}) error {

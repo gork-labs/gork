@@ -194,6 +194,30 @@ The generator supports union types for polymorphic APIs:
 type PaymentData unions.Union3[CreditCard, BankTransfer, PayPal]
 ```
 
+### Discriminator mapping
+
+If your union members implement a common field (e.g. `Type string \`json:"type"\``) or you mark a field with the tag `openapi:"discriminator:<fieldName>"`, the generator will automatically add an OpenAPI discriminator section:
+
+```yaml
+discriminator:
+  propertyName: type
+  mapping:
+    creditCard:   #/components/schemas/CreditCard
+    bankTransfer: #/components/schemas/BankTransfer
+    payPal:       #/components/schemas/PayPal
+```
+
+This lets Swagger-UI and other tools unmarshal to the correct concrete schema. If no explicit tag is found but all union members share a common field name, the generator will pick that field automatically.
+
+### Accessor helpers
+
+Generated methods include:
+- `IsOptionName()` - Check if a specific option is set
+- `OptionName()` - Get the value of a specific option  
+- `SetOptionName(value)` - Set the union to contain a specific option
+- `Value()` - Get whichever value is currently set
+- `NewTypeFromOption(value)` - Constructor function to create a union with a specific option
+
 ## Handler Patterns
 
 The generator recognizes these handler signatures:
@@ -213,6 +237,10 @@ type GetUserRequest struct {
     ID string `json:"id" validate:"required,uuid"` // Will be path param
 }
 ```
+
+## Example Generated Spec
+
+Run `make example-spec` (or `openapi-gen -i examples/handlers -r examples/routes.go -o examples/openapi.json`) to produce an updated **examples/openapi.json**. A fresh version is committed in the repo for quick inspection.
 
 ## Examples
 

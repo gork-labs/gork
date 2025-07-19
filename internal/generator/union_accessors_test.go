@@ -24,12 +24,12 @@ func TestGenerateAccessors(t *testing.T) {
 	// Check for expected methods
 	expectedMethods := []string{
 		"func (u *PaymentMethod) IsCreditCard() bool",
-		"func (u *PaymentMethod) CreditCard() CreditCard",
+		"func (u *PaymentMethod) CreditCard() *CreditCard",
 		"func (u *PaymentMethod) IsBankAccount() bool",
-		"func (u *PaymentMethod) BankAccount() BankAccount",
+		"func (u *PaymentMethod) BankAccount() *BankAccount",
 		"func (u *PaymentMethod) Value() interface{}",
-		"func (u *PaymentMethod) SetCreditCard(value CreditCard)",
-		"func (u *PaymentMethod) SetBankAccount(value BankAccount)",
+		"func (u *PaymentMethod) SetCreditCard(value *CreditCard)",
+		"func (u *PaymentMethod) SetBankAccount(value *BankAccount)",
 	}
 	
 	for _, expected := range expectedMethods {
@@ -57,8 +57,8 @@ func TestGenerateConstructors(t *testing.T) {
 	
 	// Check for expected constructor functions
 	expectedFuncs := []string{
-		"func NewPaymentMethodFromCreditCard(value CreditCard) PaymentMethod",
-		"func NewPaymentMethodFromBankAccount(value BankAccount) PaymentMethod",
+		"func NewPaymentMethodFromCreditCard(value *CreditCard) PaymentMethod",
+		"func NewPaymentMethodFromBankAccount(value *BankAccount) PaymentMethod",
 	}
 	
 	for _, expected := range expectedFuncs {

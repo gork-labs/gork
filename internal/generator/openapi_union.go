@@ -19,15 +19,15 @@ func (g *Generator) GenerateUnionSchema(unionInfo UnionInfo, fieldName string, f
 	if disc := extractDiscriminator(field.OpenAPITag); disc != "" {
 		discriminatorField = disc
 	}
-	
+
 	// Check if union members implement Discriminator interface
 	discriminatorMapping := g.detectDiscriminatorImplementations(unionInfo.UnionTypes)
-	
+
 	// If we have discriminator implementations, try to detect the field name
 	if len(discriminatorMapping) > 0 && discriminatorField == "" {
 		discriminatorField = g.detectCommonDiscriminatorField(unionInfo.UnionTypes)
 	}
-	
+
 	// Set up discriminator if we have both field and mapping
 	if discriminatorField != "" && len(discriminatorMapping) > 0 {
 		schema.Discriminator = &Discriminator{
@@ -39,19 +39,19 @@ func (g *Generator) GenerateUnionSchema(unionInfo UnionInfo, fieldName string, f
 	// Add each type to oneOf
 	for _, typeName := range unionInfo.UnionTypes {
 		typeName = strings.TrimSpace(typeName)
-		
+
 		// Handle pointer types
 		if strings.HasPrefix(typeName, "*") {
 			typeName = strings.TrimPrefix(typeName, "*")
 		}
-		
+
 		// Check if it's an array type
 		isArray := false
 		if strings.HasPrefix(typeName, "[]") {
 			isArray = true
 			typeName = strings.TrimPrefix(typeName, "[]")
 		}
-		
+
 		// Generate schema
 		var schemaRef *Schema
 		if isArray {
@@ -68,9 +68,9 @@ func (g *Generator) GenerateUnionSchema(unionInfo UnionInfo, fieldName string, f
 				Ref: "#/components/schemas/" + g.normalizeTypeName(typeName),
 			}
 		}
-		
+
 		schema.OneOf = append(schema.OneOf, schemaRef)
-		
+
 		// Ensure the referenced type is processed
 		g.ensureTypeProcessed(typeName)
 	}
@@ -81,20 +81,19 @@ func (g *Generator) GenerateUnionSchema(unionInfo UnionInfo, fieldName string, f
 	return schema
 }
 
-
 // isRequiredField checks if a field is required based on validator tags
 func (g *Generator) isRequiredField(field ExtractedField) bool {
 	// Check for "required" in validate tag
 	if strings.Contains(field.ValidateTags, "required") {
 		return true
 	}
-	
+
 	// Check for pointer types (non-pointer fields are typically required in JSON)
 	if !strings.HasPrefix(field.Type, "*") && field.JSONTag != "" && field.JSONTag != "-" {
 		// Non-pointer fields with JSON tags are typically required unless marked omitempty
 		return !strings.Contains(field.JSONTag, "omitempty")
 	}
-	
+
 	return false
 }
 
@@ -103,13 +102,13 @@ func (g *Generator) getJSONFieldName(field ExtractedField) string {
 	if field.JSONTag == "" || field.JSONTag == "-" {
 		return strings.ToLower(field.Name)
 	}
-	
+
 	// Extract the field name from JSON tag (before any options like omitempty)
 	parts := strings.Split(field.JSONTag, ",")
 	if len(parts) > 0 && parts[0] != "" {
 		return parts[0]
 	}
-	
+
 	return strings.ToLower(field.Name)
 }
 
@@ -119,54 +118,43 @@ func (g *Generator) normalizeTypeName(typeName string) string {
 	if idx := strings.LastIndex(typeName, "."); idx > -1 {
 		typeName = typeName[idx+1:]
 	}
-	
+
 	// Handle generic types (should not happen for union members, but just in case)
 	if idx := strings.Index(typeName, "["); idx > -1 {
 		typeName = typeName[:idx]
 	}
-	
+
 	return typeName
 }
 
 // extractDiscriminator extracts discriminator field name from OpenAPI tag
 func extractDiscriminator(openapiTag string) string {
-	if openapiTag == "" {
-		return ""
-	}
-
-	// Parse "discriminator:fieldName" from tag
-	parts := strings.Split(openapiTag, ";")
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if strings.HasPrefix(part, "discriminator:") {
-			return strings.TrimPrefix(part, "discriminator:")
-		}
-	}
-	return ""
+	info := parseOpenAPITag(openapiTag)
+	return info.Discriminator
 }
 
 // generateDiscriminatorMapping creates the discriminator mapping for union types
 func (g *Generator) generateDiscriminatorMapping(types []string, discriminatorField string) map[string]string {
 	mapping := make(map[string]string)
-	
+
 	for _, typeName := range types {
 		// Clean up type name
 		typeName = strings.TrimSpace(typeName)
 		if strings.HasPrefix(typeName, "*") {
 			typeName = strings.TrimPrefix(typeName, "*")
 		}
-		
+
 		// Normalize the type name for the schema reference
 		normalizedName := g.normalizeTypeName(typeName)
-		
+
 		// Create mapping key (lowercase version of the type name)
 		// You might want to make this configurable or smarter
 		key := strings.ToLower(normalizedName)
-		
+
 		// Map to the schema reference
 		mapping[key] = "#/components/schemas/" + normalizedName
 	}
-	
+
 	return mapping
 }
 
@@ -178,11 +166,11 @@ func (g *Generator) addUnionWarnings(unionTypes []string) {
 			if i >= j {
 				continue
 			}
-			
+
 			// Clean up type names
 			typeA = strings.TrimSpace(strings.TrimPrefix(typeA, "*"))
 			typeB = strings.TrimSpace(strings.TrimPrefix(typeB, "*"))
-			
+
 			if g.isSubsetType(typeA, typeB) {
 				warning := fmt.Sprintf(
 					"WARNING: %s appears to be a subset of %s in union. "+
@@ -209,27 +197,27 @@ func (g *Generator) isSubsetType(typeA, typeB string) bool {
 	// Normalize type names
 	typeA = g.normalizeTypeName(typeA)
 	typeB = g.normalizeTypeName(typeB)
-	
+
 	// Look up types in our type map
 	defA, okA := g.typeMap[typeA]
 	defB, okB := g.typeMap[typeB]
-	
+
 	if !okA || !okB || typeA == typeB {
 		return false
 	}
-	
+
 	// Check if all fields in A exist in B with compatible types
 	for _, fieldA := range defA.Fields {
 		if fieldA.JSONTag == "" || fieldA.JSONTag == "-" {
 			continue
 		}
-		
+
 		found := false
 		for _, fieldB := range defB.Fields {
 			if fieldB.JSONTag == "" || fieldB.JSONTag == "-" {
 				continue
 			}
-			
+
 			if fieldA.JSONTag == fieldB.JSONTag {
 				// Found matching field by JSON tag
 				// You could add type compatibility checking here
@@ -237,16 +225,16 @@ func (g *Generator) isSubsetType(typeA, typeB string) bool {
 				break
 			}
 		}
-		
+
 		if !found {
 			return false
 		}
 	}
-	
+
 	// If A has fewer fields than B and all A's fields exist in B, A is a subset
 	aFieldCount := countJSONFields(defA.Fields)
 	bFieldCount := countJSONFields(defB.Fields)
-	
+
 	return aFieldCount > 0 && aFieldCount < bFieldCount
 }
 
@@ -261,18 +249,17 @@ func countJSONFields(fields []ExtractedField) int {
 	return count
 }
 
-
 // ensureTypeProcessed makes sure a type is processed and added to schemas
 func (g *Generator) ensureTypeProcessed(typeName string) {
 	// Clean up the type name
 	typeName = strings.TrimSpace(strings.TrimPrefix(typeName, "*"))
 	normalizedName := g.normalizeTypeName(typeName)
-	
+
 	// Check if already processed
 	if _, exists := g.spec.Components.Schemas[normalizedName]; exists {
 		return
 	}
-	
+
 	// Try to find the type in our type map
 	if typeInfo, ok := g.typeMap[typeName]; ok {
 		g.generateSchema(typeInfo)
@@ -294,16 +281,16 @@ func (g *Generator) addWarning(warning string) {
 // indicate they implement the Discriminator interface
 func (g *Generator) detectDiscriminatorImplementations(types []string) map[string]string {
 	mapping := make(map[string]string)
-	
+
 	for _, typeName := range types {
 		// Clean up type name
 		typeName = strings.TrimSpace(typeName)
 		if strings.HasPrefix(typeName, "*") {
 			typeName = strings.TrimPrefix(typeName, "*")
 		}
-		
+
 		normalizedName := g.normalizeTypeName(typeName)
-		
+
 		// Check if we have metadata about this type implementing Discriminator
 		// Look for a method named DiscriminatorValue
 		if g.typeImplementsDiscriminator(typeName) {
@@ -316,7 +303,7 @@ func (g *Generator) detectDiscriminatorImplementations(types []string) map[strin
 			}
 		}
 	}
-	
+
 	return mapping
 }
 
@@ -324,7 +311,7 @@ func (g *Generator) detectDiscriminatorImplementations(types []string) map[strin
 func (g *Generator) typeImplementsDiscriminator(typeName string) bool {
 	// Check our parsed AST files for the type and its methods
 	normalizedName := g.normalizeTypeName(typeName)
-	
+
 	// Look through all parsed files
 	for _, file := range g.parsedFiles {
 		for _, decl := range file.Decls {
@@ -339,7 +326,7 @@ func (g *Generator) typeImplementsDiscriminator(typeName string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -348,9 +335,9 @@ func (g *Generator) isMethodOnType(funcDecl *ast.FuncDecl, typeName string) bool
 	if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
 		return false
 	}
-	
+
 	recv := funcDecl.Recv.List[0]
-	
+
 	// Handle pointer receivers
 	switch t := recv.Type.(type) {
 	case *ast.Ident:
@@ -360,14 +347,14 @@ func (g *Generator) isMethodOnType(funcDecl *ast.FuncDecl, typeName string) bool
 			return ident.Name == typeName
 		}
 	}
-	
+
 	return false
 }
 
 // getDiscriminatorValue attempts to extract the discriminator value for a type
 func (g *Generator) getDiscriminatorValue(typeName string) string {
 	normalizedName := g.normalizeTypeName(typeName)
-	
+
 	// Look for the DiscriminatorValue method and check for a comment with the value
 	for _, file := range g.parsedFiles {
 		for _, decl := range file.Decls {
@@ -389,7 +376,7 @@ func (g *Generator) getDiscriminatorValue(typeName string) string {
 			}
 		}
 	}
-	
+
 	// Fallback: use snake_case version of type name
 	return camelToSnake(normalizedName)
 }
@@ -398,14 +385,14 @@ func (g *Generator) getDiscriminatorValue(typeName string) string {
 func (g *Generator) detectCommonDiscriminatorField(types []string) string {
 	// Common discriminator field names
 	commonNames := []string{"type", "kind", "@type", "_type", "discriminator"}
-	
+
 	// Check if all types have one of the common field names
 	for _, fieldName := range commonNames {
 		if g.allTypesHaveField(types, fieldName) {
 			return fieldName
 		}
 	}
-	
+
 	return ""
 }
 
@@ -415,7 +402,7 @@ func (g *Generator) allTypesHaveField(types []string, jsonFieldName string) bool
 		// Clean up type name
 		typeName = strings.TrimSpace(strings.TrimPrefix(typeName, "*"))
 		normalizedName := g.normalizeTypeName(typeName)
-		
+
 		// Look up type definition
 		typeDef, ok := g.typeMap[normalizedName]
 		if !ok {
@@ -424,7 +411,7 @@ func (g *Generator) allTypesHaveField(types []string, jsonFieldName string) bool
 				return false
 			}
 		}
-		
+
 		// Check if type has the field
 		hasField := false
 		for _, field := range typeDef.Fields {
@@ -433,12 +420,12 @@ func (g *Generator) allTypesHaveField(types []string, jsonFieldName string) bool
 				break
 			}
 		}
-		
+
 		if !hasField {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -463,7 +450,7 @@ func (g *Generator) ProcessUnionRequestResponse(handler ExtractedHandler) {
 			g.ensureTypeProcessed(uType)
 		}
 	}
-	
+
 	// Check if response type is a union
 	if unionInfo := DetectUnionType(handler.ResponseType); unionInfo.IsUnion {
 		// Ensure all union member types are processed
