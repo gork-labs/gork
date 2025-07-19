@@ -3,8 +3,8 @@ package examples
 import (
 	"net/http"
 
-	"github.com/example/openapi-gen/examples/handlers"
-	"github.com/example/openapi-gen/pkg/api"
+	"github.com/gork-labs/gork/examples/handlers"
+	"github.com/gork-labs/gork/pkg/api"
 )
 
 // RegisterRoutes registers all API routes

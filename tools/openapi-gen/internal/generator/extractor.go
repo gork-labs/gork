@@ -11,7 +11,6 @@ import (
 
 // Extractor handles extracting types and handlers from Go source
 type Extractor struct {
-	packages map[string]*ast.Package
 	fileSet  *token.FileSet
 	files    map[string]*ast.File  // filepath -> AST
 }
@@ -19,7 +18,6 @@ type Extractor struct {
 // NewExtractor creates a new extractor
 func NewExtractor() *Extractor {
 	return &Extractor{
-		packages: make(map[string]*ast.Package),
 		fileSet:  token.NewFileSet(),
 		files:    make(map[string]*ast.File),
 	}
@@ -32,8 +30,7 @@ func (e *Extractor) ParseDirectory(dir string) error {
 		return fmt.Errorf("failed to parse directory %s: %w", dir, err)
 	}
 	
-	for name, pkg := range pkgs {
-		e.packages[name] = pkg
+	for _, pkg := range pkgs {
 		// Store individual files
 		for filePath, file := range pkg.Files {
 			e.files[filePath] = file
@@ -48,37 +45,44 @@ func (e *Extractor) GetFiles() map[string]*ast.File {
 	return e.files
 }
 
+// extractPackageName extracts the package name from an AST file
+func extractPackageName(file *ast.File) string {
+	if file.Name != nil {
+		return file.Name.Name
+	}
+	return ""
+}
+
 // ExtractTypes extracts all struct types from parsed packages
 func (e *Extractor) ExtractTypes() []ExtractedType {
 	var types []ExtractedType
 	
-	for pkgName, pkg := range e.packages {
-		for filePath, file := range pkg.Files {
-			ast.Inspect(file, func(node ast.Node) bool {
-				genDecl, ok := node.(*ast.GenDecl)
-				if !ok || genDecl.Tok != token.TYPE {
-					return true
-				}
-				
-				for _, spec := range genDecl.Specs {
-					typeSpec, ok := spec.(*ast.TypeSpec)
-					if !ok {
-						continue
-					}
-					
-					// Handle struct types
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						e.extractStructType(typeSpec, structType, pkgName, genDecl, filePath, &types)
-						continue
-					}
-					
-					// Handle type aliases (including union type aliases)
-					e.extractTypeAlias(typeSpec, pkgName, genDecl, filePath, &types)
-				}
-				
+	for filePath, file := range e.files {
+		pkgName := extractPackageName(file)
+		ast.Inspect(file, func(node ast.Node) bool {
+			genDecl, ok := node.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
 				return true
-			})
-		}
+			}
+			
+			for _, spec := range genDecl.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				
+				// Handle struct types
+				if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+					e.extractStructType(typeSpec, structType, pkgName, genDecl, filePath, &types)
+					continue
+				}
+				
+				// Handle type aliases (including union type aliases)
+				e.extractTypeAlias(typeSpec, pkgName, genDecl, filePath, &types)
+			}
+			
+			return true
+		})
 	}
 	
 	// Extract enum values for type aliases
@@ -91,9 +95,9 @@ func (e *Extractor) ExtractTypes() []ExtractedType {
 func (e *Extractor) ExtractHandlers() []ExtractedHandler {
 	var handlers []ExtractedHandler
 	
-	for pkgName, pkg := range e.packages {
-		for _, file := range pkg.Files {
-			ast.Inspect(file, func(node ast.Node) bool {
+	for _, file := range e.files {
+		pkgName := extractPackageName(file)
+		ast.Inspect(file, func(node ast.Node) bool {
 				funcDecl, ok := node.(*ast.FuncDecl)
 				if !ok {
 					return true
@@ -153,9 +157,8 @@ func (e *Extractor) ExtractHandlers() []ExtractedHandler {
 				
 				handlers = append(handlers, handler)
 				
-				return true
-			})
-		}
+			return true
+		})
 	}
 	
 	return handlers
@@ -396,9 +399,8 @@ func (e *Extractor) extractEnumValues(types *[]ExtractedType) {
 	}
 	
 	// Look for constants in all files
-	for _, pkg := range e.packages {
-		for _, file := range pkg.Files {
-			ast.Inspect(file, func(node ast.Node) bool {
+	for _, file := range e.files {
+		ast.Inspect(file, func(node ast.Node) bool {
 				genDecl, ok := node.(*ast.GenDecl)
 				if !ok || genDecl.Tok != token.CONST {
 					return true
@@ -429,9 +431,8 @@ func (e *Extractor) extractEnumValues(types *[]ExtractedType) {
 					}
 				}
 				
-				return true
-			})
-		}
+			return true
+		})
 	}
 }
 

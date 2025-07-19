@@ -851,7 +851,7 @@ func setupRoutes() {
 	// Write to temporary file
 	tmpfile, err := createTempFile(content)
 	require.NoError(t, err)
-	defer tmpfile.Close()
+	defer func() { _ = tmpfile.Close() }()
 
 	rd := NewRouteDetector()
 	routes, err := rd.DetectRoutesFromFile(tmpfile.Name())
@@ -899,7 +899,7 @@ func createTempFile(content string) (*os.File, error) {
 	}
 	
 	if _, err := tmpfile.Write([]byte(content)); err != nil {
-		tmpfile.Close()
+		_ = tmpfile.Close()
 		return nil, err
 	}
 	

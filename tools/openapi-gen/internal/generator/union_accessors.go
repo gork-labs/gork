@@ -387,7 +387,7 @@ func (g *UnionAccessorGenerator) GenerateFile(unions []UserDefinedUnion, outputP
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
 		// Write unformatted code for debugging
-		writeFile(outputPath+".debug", buf.Bytes())
+		_ = writeFile(outputPath+".debug", buf.Bytes())
 		return fmt.Errorf("failed to format generated code: %w", err)
 	}
 

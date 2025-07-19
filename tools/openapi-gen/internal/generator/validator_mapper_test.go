@@ -311,9 +311,10 @@ func TestValidatorTagMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := &Schema{Type: tt.fieldType}
-			if tt.fieldType == "array" {
+			switch tt.fieldType {
+			case "array":
 				schema.Type = "array"
-			} else if tt.fieldType == "number" {
+			case "number":
 				schema.Type = "number"
 			}
 			

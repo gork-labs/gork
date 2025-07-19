@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	
-	"github.com/example/openapi-gen/internal/generator"
+	"github.com/gork-labs/gork/tools/openapi-gen/internal/generator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -140,7 +141,11 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Warning: failed to close output file: %v", err)
+		}
+	}()
 	
 	switch strings.ToLower(format) {
 	case "json":

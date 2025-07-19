@@ -121,7 +121,7 @@ package routes
 import (
 	"net/http"
 	"../handlers"
-	"github.com/example/openapi-gen/pkg/api"
+	"github.com/gork-labs/gork/pkg/api"
 )
 
 func SetupRoutes() {

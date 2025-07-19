@@ -27,7 +27,7 @@ func GetFoo(ctx context.Context, req FooRequest) (*struct{}, error) { return nil
 import (
     "net/http"
     "../handlers"
-    "github.com/example/openapi-gen/pkg/api"
+    "github.com/gork-labs/gork/pkg/api"
 )
 
 func Setup() {

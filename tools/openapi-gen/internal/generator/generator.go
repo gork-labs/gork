@@ -613,10 +613,24 @@ func (g *Generator) fieldToSchema(field ExtractedField, parentType string) *Sche
 		if isArray && strings.Contains(field.ValidateTags, "dive") {
 			// Apply validation to items
 			if schema.Items != nil {
-				g.validatorMapper.MapValidatorTags(field.ValidateTags, schema.Items, fieldType)
+				if err := g.validatorMapper.MapValidatorTags(field.ValidateTags, schema.Items, fieldType); err != nil {
+					// Log warning but continue - invalid validator tags shouldn't break generation
+					if schema.Description == "" {
+						schema.Description = fmt.Sprintf("Warning: %v", err)
+					} else {
+						schema.Description += fmt.Sprintf(" (Warning: %v)", err)
+					}
+				}
 			}
 		} else {
-			g.validatorMapper.MapValidatorTags(field.ValidateTags, schema, field.Type)
+			if err := g.validatorMapper.MapValidatorTags(field.ValidateTags, schema, field.Type); err != nil {
+				// Log warning but continue - invalid validator tags shouldn't break generation
+				if schema.Description == "" {
+					schema.Description = fmt.Sprintf("Warning: %v", err)
+				} else {
+					schema.Description += fmt.Sprintf(" (Warning: %v)", err)
+				}
+			}
 		}
 	}
 
@@ -633,8 +647,7 @@ func (g *Generator) generateUnionAliasSchema(t ExtractedType) *Schema {
 	}
 
 	// Generate the union schema using the appropriate method
-	var unionSchema *Schema
-	unionSchema = g.GenerateUnionSchema(t.UnionInfo, t.Name, dummyField)
+	unionSchema := g.GenerateUnionSchema(t.UnionInfo, t.Name, dummyField)
 
 	// Ensure all referenced types are processed
 	for _, typeName := range t.UnionInfo.UnionTypes {

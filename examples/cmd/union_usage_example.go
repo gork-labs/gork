@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/example/openapi-gen/examples/handlers"
+	"github.com/gork-labs/gork/examples/handlers"
 )
 
 func main() {

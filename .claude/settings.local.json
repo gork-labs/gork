@@ -14,7 +14,11 @@
       "Bash(go:*)",
       "Bash(jq:*)",
       "Bash(make:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(./bin/openapi-gen:*)"
     ],
     "deny": []
   }

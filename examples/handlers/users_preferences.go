@@ -3,8 +3,8 @@ package handlers
 import (
 	"context"
 
-	"github.com/example/openapi-gen/pkg/api"
-	"github.com/example/openapi-gen/pkg/unions"
+	"github.com/gork-labs/gork/pkg/api"
+	"github.com/gork-labs/gork/pkg/unions"
 )
 
 // NotificationChannel represents the channel through which notifications are sent

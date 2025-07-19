@@ -133,48 +133,73 @@ func (vm *ValidatorMapper) MapValidatorTags(validateTag string, schema *Schema, 
 		
 		// Numeric constraints
 		case "min", "gte":
-			if val, err := strconv.ParseFloat(tagValue, 64); err == nil {
-				if fieldType == "string" {
-					intVal := int(val)
-					schema.MinLength = &intVal
-				} else if schema.Type == "array" {
-					intVal := int(val)
-					schema.MinItems = &intVal
-				} else {
-					schema.Minimum = &val
-				}
+			if tagValue == "" {
+				return fmt.Errorf("validator tag '%s' requires a value", tagName)
+			}
+			val, err := strconv.ParseFloat(tagValue, 64)
+			if err != nil {
+				return fmt.Errorf("invalid value for '%s': %s", tagName, tagValue)
+			}
+			if fieldType == "string" {
+				intVal := int(val)
+				schema.MinLength = &intVal
+			} else if schema.Type == "array" {
+				intVal := int(val)
+				schema.MinItems = &intVal
+			} else {
+				schema.Minimum = &val
 			}
 		case "max", "lte":
-			if val, err := strconv.ParseFloat(tagValue, 64); err == nil {
-				if fieldType == "string" {
-					intVal := int(val)
-					schema.MaxLength = &intVal
-				} else if schema.Type == "array" {
-					intVal := int(val)
-					schema.MaxItems = &intVal
-				} else {
-					schema.Maximum = &val
-				}
+			if tagValue == "" {
+				return fmt.Errorf("validator tag '%s' requires a value", tagName)
+			}
+			val, err := strconv.ParseFloat(tagValue, 64)
+			if err != nil {
+				return fmt.Errorf("invalid value for '%s': %s", tagName, tagValue)
+			}
+			if fieldType == "string" {
+				intVal := int(val)
+				schema.MaxLength = &intVal
+			} else if schema.Type == "array" {
+				intVal := int(val)
+				schema.MaxItems = &intVal
+			} else {
+				schema.Maximum = &val
 			}
 		case "gt":
-			if val, err := strconv.ParseFloat(tagValue, 64); err == nil {
-				schema.Minimum = &val
-				schema.ExclusiveMinimum = true
+			if tagValue == "" {
+				return fmt.Errorf("validator tag '%s' requires a value", tagName)
 			}
+			val, err := strconv.ParseFloat(tagValue, 64)
+			if err != nil {
+				return fmt.Errorf("invalid value for '%s': %s", tagName, tagValue)
+			}
+			schema.Minimum = &val
+			schema.ExclusiveMinimum = true
 		case "lt":
-			if val, err := strconv.ParseFloat(tagValue, 64); err == nil {
-				schema.Maximum = &val
-				schema.ExclusiveMaximum = true
+			if tagValue == "" {
+				return fmt.Errorf("validator tag '%s' requires a value", tagName)
 			}
+			val, err := strconv.ParseFloat(tagValue, 64)
+			if err != nil {
+				return fmt.Errorf("invalid value for '%s': %s", tagName, tagValue)
+			}
+			schema.Maximum = &val
+			schema.ExclusiveMaximum = true
 		case "len":
-			if val, err := strconv.Atoi(tagValue); err == nil {
-				if fieldType == "string" {
-					schema.MinLength = &val
-					schema.MaxLength = &val
-				} else if schema.Type == "array" {
-					schema.MinItems = &val
-					schema.MaxItems = &val
-				}
+			if tagValue == "" {
+				return fmt.Errorf("validator tag '%s' requires a value", tagName)
+			}
+			val, err := strconv.Atoi(tagValue)
+			if err != nil {
+				return fmt.Errorf("invalid value for '%s': %s", tagName, tagValue)
+			}
+			if fieldType == "string" {
+				schema.MinLength = &val
+				schema.MaxLength = &val
+			} else if schema.Type == "array" {
+				schema.MinItems = &val
+				schema.MaxItems = &val
 			}
 		case "oneof":
 			// Parse enum values
@@ -226,10 +251,8 @@ func (vm *ValidatorMapper) MapValidatorTags(validateTag string, schema *Schema, 
 		
 		// dive - for nested validation
 		case "dive":
-			// Mark that array/map items should have validation applied
-			if schema.Type == "array" && schema.Items != nil {
-				// Validation will be applied to items
-			}
+			// The 'dive' tag indicates that nested validation should be applied to each item in an array or slice.
+			// The actual validation logic for array items is implemented in the caller of the MapValidatorTags function.
 		
 		// Custom validators
 		default:
@@ -258,7 +281,13 @@ func (vm *ValidatorMapper) processOrConditions(conditions []string, schema *Sche
 		subSchema := &Schema{
 			Type: schema.Type,
 		}
-		vm.MapValidatorTags(strings.TrimSpace(condition), subSchema, fieldType)
+		if err := vm.MapValidatorTags(strings.TrimSpace(condition), subSchema, fieldType); err != nil {
+			// For OR conditions, we'll continue processing other conditions
+			// but note the error in the description
+			if subSchema.Description == "" {
+				subSchema.Description = fmt.Sprintf("Validation error: %v", err)
+			}
+		}
 		anyOfSchemas = append(anyOfSchemas, subSchema)
 	}
 	
@@ -333,9 +362,10 @@ func IsRequired(validateTag string) bool {
 	
 	for _, tag := range tags {
 		tag = strings.TrimSpace(tag)
-		if tag == "required" {
+		switch tag {
+		case "required":
 			hasRequired = true
-		} else if tag == "omitempty" {
+		case "omitempty":
 			hasOmitempty = true
 		}
 	}

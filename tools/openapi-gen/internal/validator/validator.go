@@ -275,7 +275,12 @@ func ValidateWithExternalService(filename string) error {
 		fmt.Println("⚠️  Could not reach external validator, using local validation only")
 		return ValidateSpec(filename)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log but don't fail - this is just cleanup
+			fmt.Printf("Warning: failed to close response body: %v\n", err)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
