@@ -267,7 +267,11 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 				// Determine parameter "in" location
 				paramIn := tagInfo.In
 				if paramIn == "" {
-					paramIn = "query" // default for GET/DELETE
+					// If no openapi:in specified and field has json tag, it's body, not query
+					if field.JSONTag != "" && field.JSONTag != "-" {
+						continue // skip body fields for GET/DELETE
+					}
+					paramIn = "query" // default for GET/DELETE when no json tag
 				}
 
 				// Skip if param location not query/header
@@ -300,6 +304,46 @@ func (g *Generator) addRoute(route ExtractedRoute) error {
 				operation.Parameters = append(operation.Parameters, param)
 			}
 		case "POST", "PUT", "PATCH":
+			// Check for query/header parameters first
+			pathParamNames := make(map[string]bool)
+			for _, param := range pathParams {
+				pathParamNames[param] = true
+			}
+
+			for _, field := range requestType.Fields {
+				// Determine OpenAPI tag info
+				tagInfo := parseOpenAPITag(field.OpenAPITag)
+
+				// Only process fields explicitly marked as query or header
+				if tagInfo.In != "query" && tagInfo.In != "header" {
+					continue
+				}
+
+				// Determine parameter name
+				paramName := tagInfo.Name
+				if paramName == "" {
+					paramName = field.JSONTag
+				}
+				if paramName == "" || paramName == "-" {
+					continue // skip unexported
+				}
+
+				// Avoid duplicating path params
+				if pathParamNames[paramName] {
+					continue
+				}
+
+				schema := g.fieldToSchema(field, requestType.Name)
+				param := Parameter{
+					Name:        paramName,
+					In:          tagInfo.In,
+					Required:    IsRequired(field.ValidateTags),
+					Description: field.Description,
+					Schema:      schema,
+				}
+				operation.Parameters = append(operation.Parameters, param)
+			}
+
 			// Use request struct as body
 			operation.RequestBody = &RequestBody{
 				Required: true,
@@ -467,6 +511,13 @@ func (g *Generator) generateSchema(t ExtractedType) {
 
 			// Add fields from embedded type
 			for _, field := range embeddedType.Fields {
+				// Check if this field has an openapi tag that places it outside the body
+				tagInfo := parseOpenAPITag(field.OpenAPITag)
+				if tagInfo.In == "query" || tagInfo.In == "header" || tagInfo.In == "path" {
+					// Skip fields that are not part of the request body
+					continue
+				}
+
 				// For union options types, include fields even without JSON tags
 				// For regular types, skip fields without JSON tags
 				if !isUnionOptions && (field.JSONTag == "" || field.JSONTag == "-") {
@@ -491,6 +542,13 @@ func (g *Generator) generateSchema(t ExtractedType) {
 
 	// Then process regular fields
 	for _, field := range t.Fields {
+		// Check if this field has an openapi tag that places it outside the body
+		tagInfo := parseOpenAPITag(field.OpenAPITag)
+		if tagInfo.In == "query" || tagInfo.In == "header" || tagInfo.In == "path" {
+			// Skip fields that are not part of the request body
+			continue
+		}
+
 		// For union options types, include fields even without JSON tags
 		// For regular types, skip fields without JSON tags
 		if !isUnionOptions && (field.JSONTag == "" || field.JSONTag == "-") {

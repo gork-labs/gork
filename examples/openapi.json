@@ -8,7 +8,7 @@
     "/api/v1/auth/login": {
       "post": {
         "operationId": "Login",
-        "description": "Login handles user login requests",
+        "description": "Login handles user login requests.",
         "requestBody": {
           "required": true,
           "content": {
@@ -71,7 +71,7 @@
     "/api/v1/users": {
       "get": {
         "operationId": "ListUsers",
-        "description": "ListUsers handles listing all users",
+        "description": "ListUsers handles listing all users.",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -129,7 +129,16 @@
       },
       "post": {
         "operationId": "CreateUser",
-        "description": "CreateUser handles user creation requests",
+        "description": "CreateUser handles user creation requests.",
+        "parameters": [
+          {
+            "name": "return-to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -197,6 +206,7 @@
     "/api/v1/users/{userId}": {
       "get": {
         "operationId": "GetUser",
+        "description": "GetUser handles user retrieval requests.",
         "parameters": [
           {
             "name": "userId",
@@ -262,7 +272,7 @@
       },
       "put": {
         "operationId": "UpdateUser",
-        "description": "UpdateUser handles user update requests",
+        "description": "UpdateUser handles user update requests.",
         "parameters": [
           {
             "name": "userId",
@@ -270,6 +280,13 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-User-Version",
+            "in": "header",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -338,7 +355,7 @@
       },
       "delete": {
         "operationId": "DeleteUser",
-        "description": "DeleteUser handles user deletion requests",
+        "description": "DeleteUser handles user deletion requests.",
         "parameters": [
           {
             "name": "userId",
@@ -346,6 +363,13 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -394,7 +418,7 @@
     "/api/v1/users/{userId}/payment-method": {
       "put": {
         "operationId": "UpdateUserPaymentMethod",
-        "description": "UpdateUserPaymentMethod handles user payment method update requests",
+        "description": "UpdateUserPaymentMethod handles user payment method update requests.",
         "parameters": [
           {
             "name": "userId",
@@ -467,7 +491,7 @@
     "/api/v1/users/{userId}/preferences": {
       "put": {
         "operationId": "UpdateUserPreferences",
-        "description": "UpdateUserPreferences handles user preferences update requests",
+        "description": "UpdateUserPreferences handles user preferences update requests.",
         "parameters": [
           {
             "name": "userId",
@@ -542,7 +566,7 @@
     "schemas": {
       "AdminUserResponse": {
         "type": "object",
-        "description": "AdminUserResponse represents an admin user with additional fields",
+        "description": "AdminUserResponse represents an admin user with additional fields.",
         "properties": {
           "createdAt": {
             "type": "string"
@@ -550,9 +574,9 @@
           "updatedAt": {
             "type": "string"
           },
-          "userId": {
+          "userID": {
             "type": "string",
-            "description": "UserId is the ID of the user"
+            "description": "UserID is the ID of the user"
           },
           "username": {
             "type": "string",
@@ -562,6 +586,7 @@
       },
       "BankPaymentMethod": {
         "type": "object",
+        "description": "BankPaymentMethod represents a bank account payment method.",
         "properties": {
           "accountNumber": {
             "type": "string",
@@ -582,7 +607,7 @@
       },
       "CreateUserRequest": {
         "type": "object",
-        "description": "CreateUserRequest represents the request body for creating a user",
+        "description": "CreateUserRequest represents the request body for creating a user.",
         "properties": {
           "username": {
             "type": "string",
@@ -592,6 +617,7 @@
       },
       "CreditCardPaymentMethod": {
         "type": "object",
+        "description": "CreditCardPaymentMethod represents a credit card payment method.",
         "properties": {
           "cardNumber": {
             "type": "string",
@@ -608,29 +634,30 @@
       },
       "DeleteUserRequest": {
         "type": "object",
-        "description": "DeleteUserRequest represents the request body for deleting a user",
+        "description": "DeleteUserRequest represents the request body for deleting a user.",
         "properties": {
-          "userId": {
+          "userID": {
             "type": "string",
-            "description": "UserId is the ID of the user to delete"
+            "description": "UserID is the ID of the user to delete"
           }
         }
       },
       "GetUserRequest": {
         "type": "object",
-        "description": "GetUserRequest represents the request body for getting a user",
+        "description": "GetUserRequest represents the request body for getting a user.",
         "properties": {
-          "userId": {
+          "userID": {
             "type": "string",
-            "description": "UserId is the ID of the user to retrieve"
+            "description": "UserID is the ID of the user to retrieve"
           }
         }
       },
       "ListUsersRequest": {
         "type": "object",
-        "description": "ListUsersRequest represents the request body for listing users"
+        "description": "ListUsersRequest represents the request body for listing users."
       },
       "ListUsersResponse": {
+        "description": "ListUsersResponse represents the response for listing users.",
         "oneOf": [
           {
             "type": "array",
@@ -648,7 +675,7 @@
       },
       "LoginRequest": {
         "type": "object",
-        "description": "LoginRequest represents the request body for the login endpoint",
+        "description": "LoginRequest represents the request body for the login endpoint.",
         "properties": {
           "password": {
             "type": "string",
@@ -662,7 +689,7 @@
       },
       "LoginResponse": {
         "type": "object",
-        "description": "LoginResponse represents the response body for the login endpoint",
+        "description": "LoginResponse represents the response body for the login endpoint.",
         "properties": {
           "token": {
             "type": "string",
@@ -672,7 +699,7 @@
       },
       "NotificationChannel": {
         "type": "string",
-        "description": "NotificationChannel represents the channel through which notifications are sent",
+        "description": "NotificationChannel represents the channel through which notifications are sent.",
         "enum": [
           "email",
           "sms",
@@ -680,7 +707,7 @@
         ]
       },
       "PaymentMethodRequest": {
-        "description": "PaymentMethodRequest is the request body which is a union of payment methods",
+        "description": "PaymentMethodRequest is the request body which is a union of payment methods.",
         "oneOf": [
           {
             "$ref": "#/components/schemas/BankPaymentMethod"
@@ -698,7 +725,7 @@
         }
       },
       "PaymentRequest": {
-        "description": "PaymentRequest represents a payment request with different payment methods",
+        "description": "PaymentRequest represents a payment request with different payment methods.",
         "oneOf": [
           {
             "$ref": "#/components/schemas/CreditCardPaymentMethod"
@@ -717,7 +744,7 @@
       },
       "ProcessPaymentRequest": {
         "type": "object",
-        "description": "ProcessPaymentRequest represents the full request for processing payment",
+        "description": "ProcessPaymentRequest represents the full request for processing payment.",
         "properties": {
           "amount": {
             "type": "integer",
@@ -728,20 +755,20 @@
             "$ref": "#/components/schemas/PaymentRequest",
             "description": "PaymentMethod contains the payment method details"
           },
-          "userId": {
+          "userID": {
             "type": "string",
             "description": "UserID is the ID of the user making payment"
           }
         },
         "required": [
-          "userId",
+          "userID",
           "amount",
           "paymentMethod"
         ]
       },
       "ProcessPaymentResponse": {
         "type": "object",
-        "description": "ProcessPaymentResponse represents the payment processing response",
+        "description": "ProcessPaymentResponse represents the payment processing response.",
         "properties": {
           "status": {
             "type": "string",
@@ -755,9 +782,10 @@
       },
       "UpdateUserPreferencesRequest": {
         "type": "object",
+        "description": "UpdateUserPreferencesRequest represents the request for updating user preferences.",
         "properties": {
           "paymentMethod": {
-            "description": "Preferences contains the user's updated preferences\nPayment methods are set in the \"paymentMethods\" field",
+            "description": "Preferences contains the user's updated preferences\nPayment methods are set in the \"paymentMethods\" field\nPaymentMethod contains the user's payment method",
             "oneOf": [
               {
                 "$ref": "#/components/schemas/BankPaymentMethod"
@@ -775,17 +803,18 @@
             }
           },
           "primaryNotificationChannel": {
-            "$ref": "#/components/schemas/NotificationChannel"
+            "$ref": "#/components/schemas/NotificationChannel",
+            "description": "PrimaryNotificationChannel is the user's preferred notification channel"
           }
         }
       },
       "UpdateUserRequest": {
         "type": "object",
-        "description": "UpdateUserRequest represents the request body for updating a user",
+        "description": "UpdateUserRequest represents the request body for updating a user.",
         "properties": {
-          "userId": {
+          "userID": {
             "type": "string",
-            "description": "UserId is the ID of the user to update"
+            "description": "UserID is the ID of the user to update"
           },
           "username": {
             "type": "string",
@@ -795,11 +824,11 @@
       },
       "UserResponse": {
         "type": "object",
-        "description": "CreateUserRequest represents the request body for creating a user",
+        "description": "UserResponse represents the response for user operations.",
         "properties": {
-          "userId": {
+          "userID": {
             "type": "string",
-            "description": "UserId is the ID of the user"
+            "description": "UserID is the ID of the user"
           },
           "username": {
             "type": "string",

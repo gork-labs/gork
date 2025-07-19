@@ -24,7 +24,9 @@ jobs:
           echo "Found modules: $MODULES"
 
   test:
-    needs: setup
+    needs:
+      - setup
+      - build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -87,7 +89,9 @@ jobs:
           args: --timeout=5m
 
   validate-openapi:
-    needs: build
+    needs:
+      - build
+      - test
     runs-on: ubuntu-latest
     strategy:
       matrix:

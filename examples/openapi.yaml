@@ -1,20 +1,21 @@
 components:
     schemas:
         AdminUserResponse:
-            description: AdminUserResponse represents an admin user with additional fields
+            description: AdminUserResponse represents an admin user with additional fields.
             properties:
                 createdAt:
                     type: string
                 updatedAt:
                     type: string
-                userId:
-                    description: UserId is the ID of the user
+                userID:
+                    description: UserID is the ID of the user
                     type: string
                 username:
                     description: Username is the username of the user
                     type: string
             type: object
         BankPaymentMethod:
+            description: BankPaymentMethod represents a bank account payment method.
             properties:
                 accountNumber:
                     description: AccountNumber is the bank account number
@@ -29,13 +30,14 @@ components:
                 - type
             type: object
         CreateUserRequest:
-            description: CreateUserRequest represents the request body for creating a user
+            description: CreateUserRequest represents the request body for creating a user.
             properties:
                 username:
                     description: Username is the username of the user to create
                     type: string
             type: object
         CreditCardPaymentMethod:
+            description: CreditCardPaymentMethod represents a credit card payment method.
             properties:
                 cardNumber:
                     description: CardNumber is the credit card number
@@ -47,23 +49,24 @@ components:
                 - type
             type: object
         DeleteUserRequest:
-            description: DeleteUserRequest represents the request body for deleting a user
+            description: DeleteUserRequest represents the request body for deleting a user.
             properties:
-                userId:
-                    description: UserId is the ID of the user to delete
+                userID:
+                    description: UserID is the ID of the user to delete
                     type: string
             type: object
         GetUserRequest:
-            description: GetUserRequest represents the request body for getting a user
+            description: GetUserRequest represents the request body for getting a user.
             properties:
-                userId:
-                    description: UserId is the ID of the user to retrieve
+                userID:
+                    description: UserID is the ID of the user to retrieve
                     type: string
             type: object
         ListUsersRequest:
-            description: ListUsersRequest represents the request body for listing users
+            description: ListUsersRequest represents the request body for listing users.
             type: object
         ListUsersResponse:
+            description: ListUsersResponse represents the response for listing users.
             oneOf:
                 - items:
                     $ref: '#/components/schemas/AdminUserResponse'
@@ -72,7 +75,7 @@ components:
                     $ref: '#/components/schemas/UserResponse'
                   type: array
         LoginRequest:
-            description: LoginRequest represents the request body for the login endpoint
+            description: LoginRequest represents the request body for the login endpoint.
             properties:
                 password:
                     description: Password is the user's password
@@ -82,21 +85,21 @@ components:
                     type: string
             type: object
         LoginResponse:
-            description: LoginResponse represents the response body for the login endpoint
+            description: LoginResponse represents the response body for the login endpoint.
             properties:
                 token:
                     description: Token is the JWT token for the authenticated user
                     type: string
             type: object
         NotificationChannel:
-            description: NotificationChannel represents the channel through which notifications are sent
+            description: NotificationChannel represents the channel through which notifications are sent.
             enum:
                 - email
                 - sms
                 - push
             type: string
         PaymentMethodRequest:
-            description: PaymentMethodRequest is the request body which is a union of payment methods
+            description: PaymentMethodRequest is the request body which is a union of payment methods.
             discriminator:
                 mapping:
                     bank_account: '#/components/schemas/BankPaymentMethod'
@@ -106,7 +109,7 @@ components:
                 - $ref: '#/components/schemas/BankPaymentMethod'
                 - $ref: '#/components/schemas/CreditCardPaymentMethod'
         PaymentRequest:
-            description: PaymentRequest represents a payment request with different payment methods
+            description: PaymentRequest represents a payment request with different payment methods.
             discriminator:
                 mapping:
                     bank_account: '#/components/schemas/BankPaymentMethod'
@@ -116,7 +119,7 @@ components:
                 - $ref: '#/components/schemas/CreditCardPaymentMethod'
                 - $ref: '#/components/schemas/BankPaymentMethod'
         ProcessPaymentRequest:
-            description: ProcessPaymentRequest represents the full request for processing payment
+            description: ProcessPaymentRequest represents the full request for processing payment.
             properties:
                 amount:
                     description: Amount is the payment amount in cents
@@ -125,16 +128,16 @@ components:
                 paymentMethod:
                     $ref: '#/components/schemas/PaymentRequest'
                     description: PaymentMethod contains the payment method details
-                userId:
+                userID:
                     description: UserID is the ID of the user making payment
                     type: string
             required:
-                - userId
+                - userID
                 - amount
                 - paymentMethod
             type: object
         ProcessPaymentResponse:
-            description: ProcessPaymentResponse represents the payment processing response
+            description: ProcessPaymentResponse represents the payment processing response.
             properties:
                 status:
                     description: Status indicates if the payment was successful
@@ -144,11 +147,13 @@ components:
                     type: string
             type: object
         UpdateUserPreferencesRequest:
+            description: UpdateUserPreferencesRequest represents the request for updating user preferences.
             properties:
                 paymentMethod:
                     description: |-
                         Preferences contains the user's updated preferences
                         Payment methods are set in the "paymentMethods" field
+                        PaymentMethod contains the user's payment method
                     discriminator:
                         mapping:
                             bank_account: '#/components/schemas/BankPaymentMethod'
@@ -159,22 +164,23 @@ components:
                         - $ref: '#/components/schemas/CreditCardPaymentMethod'
                 primaryNotificationChannel:
                     $ref: '#/components/schemas/NotificationChannel'
+                    description: PrimaryNotificationChannel is the user's preferred notification channel
             type: object
         UpdateUserRequest:
-            description: UpdateUserRequest represents the request body for updating a user
+            description: UpdateUserRequest represents the request body for updating a user.
             properties:
-                userId:
-                    description: UserId is the ID of the user to update
+                userID:
+                    description: UserID is the ID of the user to update
                     type: string
                 username:
                     description: Username is the new username for the user
                     type: string
             type: object
         UserResponse:
-            description: CreateUserRequest represents the request body for creating a user
+            description: UserResponse represents the response for user operations.
             properties:
-                userId:
-                    description: UserId is the ID of the user
+                userID:
+                    description: UserID is the ID of the user
                     type: string
                 username:
                     description: Username is the username of the user
@@ -202,7 +208,7 @@ openapi: 3.1.0
 paths:
     /api/v1/auth/login:
         post:
-            description: Login handles user login requests
+            description: Login handles user login requests.
             operationId: Login
             requestBody:
                 content:
@@ -241,7 +247,7 @@ paths:
                 - auth
     /api/v1/users:
         get:
-            description: ListUsers handles listing all users
+            description: ListUsers handles listing all users.
             operationId: ListUsers
             responses:
                 "200":
@@ -276,8 +282,13 @@ paths:
             tags:
                 - users
         post:
-            description: CreateUser handles user creation requests
+            description: CreateUser handles user creation requests.
             operationId: CreateUser
+            parameters:
+                - in: query
+                  name: return-to
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
@@ -317,7 +328,7 @@ paths:
                 - users
     /api/v1/users/{userId}:
         delete:
-            description: DeleteUser handles user deletion requests
+            description: DeleteUser handles user deletion requests.
             operationId: DeleteUser
             parameters:
                 - in: path
@@ -325,6 +336,10 @@ paths:
                   required: true
                   schema:
                     type: string
+                - in: query
+                  name: force
+                  schema:
+                    type: boolean
             responses:
                 "200":
                     description: Successful response
@@ -351,6 +366,7 @@ paths:
             tags:
                 - users
         get:
+            description: GetUser handles user retrieval requests.
             operationId: GetUser
             parameters:
                 - in: path
@@ -390,7 +406,7 @@ paths:
             tags:
                 - users
         put:
-            description: UpdateUser handles user update requests
+            description: UpdateUser handles user update requests.
             operationId: UpdateUser
             parameters:
                 - in: path
@@ -398,6 +414,10 @@ paths:
                   required: true
                   schema:
                     type: string
+                - in: header
+                  name: X-User-Version
+                  schema:
+                    type: integer
             requestBody:
                 content:
                     application/json:
@@ -437,7 +457,7 @@ paths:
                 - users
     /api/v1/users/{userId}/payment-method:
         put:
-            description: UpdateUserPaymentMethod handles user payment method update requests
+            description: UpdateUserPaymentMethod handles user payment method update requests.
             operationId: UpdateUserPaymentMethod
             parameters:
                 - in: path
@@ -481,7 +501,7 @@ paths:
                 - users
     /api/v1/users/{userId}/preferences:
         put:
-            description: UpdateUserPreferences handles user preferences update requests
+            description: UpdateUserPreferences handles user preferences update requests.
             operationId: UpdateUserPreferences
             parameters:
                 - in: path
