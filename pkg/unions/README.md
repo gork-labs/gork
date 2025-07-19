@@ -1,5 +1,7 @@
 # pkg/unions - Type-Safe Union Types for Go
 
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Funions)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/unions)
+
 This package provides type-safe union types (discriminated unions) for Go with full JSON marshaling support.
 
 ## Installation

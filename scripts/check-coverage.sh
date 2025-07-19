@@ -1,12 +1,19 @@
 #!/bin/bash
 
 # Coverage enforcement script for CI/CD pipelines
-# Usage: ./scripts/check-coverage.sh [module_path] [threshold]
+# Usage: ./scripts/check-coverage.sh [module_path] [threshold] [--html]
 
 set -e
 
 MODULE_PATH="${1:-.}"
 THRESHOLD="${2:-100}"
+GENERATE_HTML=false
+
+# Check for --html flag
+if [[ "$3" == "--html" ]]; then
+    GENERATE_HTML=true
+fi
+
 COVERAGE_FILE="${MODULE_PATH}/coverage.out"
 
 # Colors for output
@@ -25,18 +32,28 @@ fi
 echo -e "${BLUE}🔍 Checking coverage for module: ${MODULE_PATH}${NC}"
 echo -e "${BLUE}📊 Required threshold: ${THRESHOLD}%${NC}"
 
-# Check if coverage file exists
-if [ ! -f "$COVERAGE_FILE" ]; then
-    echo -e "${RED}❌ Coverage file not found: $COVERAGE_FILE${NC}"
+# Run tests with coverage
+cd "$MODULE_PATH"
+if [[ "$MODULE_PATH" == "tools/openapi-gen" || "$MODULE_PATH" == "./tools/openapi-gen" ]]; then
+    echo -e "${BLUE}📦 Excluding cmd/ directory from tests and coverage${NC}"
+    TEST_PACKAGES=$(go list ./... | grep -v '/cmd/')
+    go test $TEST_PACKAGES -v -race -coverprofile=coverage.out || exit 1
+else
+    go test ./... -v -race -coverprofile=coverage.out || exit 1
+fi
+
+# Check if coverage file exists (we're now in the module directory)
+if [ ! -f "coverage.out" ]; then
+    echo -e "${RED}❌ Coverage file not found: coverage.out${NC}"
     echo -e "${YELLOW}💡 Run 'go test ./... -coverprofile=coverage.out' first${NC}"
     exit 1
 fi
 
 # Get coverage percentage
-COVERAGE=$(go tool cover -func="$COVERAGE_FILE" | grep total | awk '{print $3}' | sed 's/%//')
+COVERAGE=$(go tool cover -func="coverage.out" | grep total | awk '{print $3}' | sed 's/%//')
 
 if [ -z "$COVERAGE" ]; then
-    echo -e "${RED}❌ Could not parse coverage from $COVERAGE_FILE${NC}"
+    echo -e "${RED}❌ Could not parse coverage from coverage.out${NC}"
     exit 1
 fi
 
@@ -68,7 +85,15 @@ if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
             COLOR="orange"
         fi
 
-        echo "COVERAGE_BADGE=https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}" >> "$GITHUB_ENV" 2>/dev/null || true
+        if [ -n "$GITHUB_ENV" ]; then
+            echo "COVERAGE_BADGE=https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}" >> "$GITHUB_ENV" 2>/dev/null || true
+        fi
+    fi
+
+    # Generate HTML report if requested
+    if [ "$GENERATE_HTML" = true ]; then
+        go tool cover -html="coverage.out" -o coverage.html
+        echo -e "${GREEN}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
     fi
 
     exit 0
@@ -77,10 +102,10 @@ else
 
     # Show detailed coverage breakdown for missing coverage
     echo -e "${YELLOW}📋 Functions with missing coverage:${NC}"
-    go tool cover -func="$COVERAGE_FILE" | grep -v "100.0%" | head -20
+    go tool cover -func="coverage.out" | grep -v "100.0%" | head -20
 
     echo -e "${YELLOW}📋 Summary by file:${NC}"
-    go tool cover -func="$COVERAGE_FILE" | grep -E "\.(go):" | sort -k3 -nr | head -10
+    go tool cover -func="coverage.out" | grep -E "\.(go):" | sort -k3 -nr | head -10
 
     if [ -t 1 ]; then  # Only if running in terminal
         echo -e "${YELLOW}💡 To achieve 100% coverage:${NC}"
@@ -88,8 +113,14 @@ else
         echo -e "   2. Test all error paths and edge cases"
         echo -e "   3. Test all conditional branches (if/else/switch)"
         echo -e "   4. Add integration tests for complex workflows"
-        echo -e "   5. Generate HTML report: go tool cover -html=$COVERAGE_FILE -o coverage.html"
+        echo -e "   5. Generate HTML report: go tool cover -html=coverage.out -o coverage.html"
         echo -e "${BLUE}🎯 Goal: Every line of code should be tested!${NC}"
+    fi
+
+    # Generate HTML report even on failure if requested
+    if [ "$GENERATE_HTML" = true ]; then
+        go tool cover -html="coverage.out" -o coverage.html
+        echo -e "${YELLOW}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
     fi
 
     exit 1

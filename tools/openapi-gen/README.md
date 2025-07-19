@@ -1,5 +1,7 @@
 # openapi-gen - OpenAPI 3.1.0 Code Generator for Go
 
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=tools%2Fopenapi-gen)](https://codecov.io/gh/gork-labs/gork/tree/main/tools/openapi-gen)
+
 A powerful tool that generates OpenAPI 3.1.0 specifications from Go source code by analyzing struct tags, handler signatures, and route definitions.
 
 ## Installation

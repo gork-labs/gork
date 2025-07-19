@@ -1,5 +1,10 @@
 # Gork - Go Development Tools Monorepo
 
+[![CI](https://github.com/gork-labs/gork/workflows/CI/badge.svg)](https://github.com/gork-labs/gork/actions)
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg)](https://codecov.io/gh/gork-labs/gork)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gork-labs/gork)](https://goreportcard.com/report/github.com/gork-labs/gork)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Gork is a collection of Go development tools designed to enhance productivity and code quality. This monorepo contains multiple tools and libraries that work together to provide a comprehensive development experience.
 
 ## Repository Structure
@@ -20,6 +25,8 @@ gork/
 
 ### openapi-gen
 
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=tools%2Fopenapi-gen)](https://codecov.io/gh/gork-labs/gork/tree/main/tools/openapi-gen)
+
 An OpenAPI 3.1.0 specification generator that extracts API documentation from Go source code using struct tags and type information.
 
 **Installation:**
@@ -37,6 +44,8 @@ go install github.com/gork-labs/gork/tools/openapi-gen/cmd/openapi-gen@latest
 
 ### pkg/unions
 
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Funions)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/unions)
+
 Type-safe union types for Go with JSON marshaling/unmarshaling support.
 
 **Installation:**
@@ -53,6 +62,8 @@ go get github.com/gork-labs/gork/pkg/unions
 [Read more →](./pkg/unions/README.md)
 
 ### pkg/api
+
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fapi)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
 
 HTTP handler adapter for building type-safe APIs with automatic OpenAPI metadata extraction.
 
