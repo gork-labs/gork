@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,32 +135,36 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 	
-	// Write output
-	file, err := os.Create(outputFile)
+	// First, generate JSON representation
+	jsonData, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
+		return fmt.Errorf("failed to marshal to JSON: %w", err)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			log.Printf("Warning: failed to close output file: %v", err)
-		}
-	}()
 	
+	// Write output based on format
+	var outputData []byte
 	switch strings.ToLower(format) {
 	case "json":
-		encoder := json.NewEncoder(file)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(spec); err != nil {
-			return fmt.Errorf("failed to encode JSON: %w", err)
-		}
+		outputData = jsonData
 	case "yaml", "yml":
-		encoder := yaml.NewEncoder(file)
-		encoder.SetIndent(2)
-		if err := encoder.Encode(spec); err != nil {
-			return fmt.Errorf("failed to encode YAML: %w", err)
+		// Convert JSON to YAML
+		var jsonObj interface{}
+		if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
+			return fmt.Errorf("failed to unmarshal JSON for YAML conversion: %w", err)
 		}
+		
+		yamlData, err := yaml.Marshal(jsonObj)
+		if err != nil {
+			return fmt.Errorf("failed to convert to YAML: %w", err)
+		}
+		outputData = yamlData
 	default:
 		return fmt.Errorf("unsupported format: %s (use json or yaml)", format)
+	}
+	
+	// Write to file
+	if err := os.WriteFile(outputFile, outputData, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
 	}
 	
 	fmt.Printf("OpenAPI spec generated successfully: %s\n", outputFile)

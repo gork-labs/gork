@@ -18,7 +18,13 @@
       "Bash(tree:*)",
       "Bash(cp:*)",
       "Bash(mv:*)",
-      "Bash(./bin/openapi-gen:*)"
+      "Bash(./bin/openapi-gen:*)",
+      "Bash(open /tmp/coverage.html)",
+      "Bash(sed:*)",
+      "Bash(/dev/null)",
+      "Bash(echo:*)",
+      "Bash(chmod:*)",
+      "WebFetch(domain:golangci-lint.run)"
     ],
     "deny": []
   }

@@ -1,5 +1,7 @@
 # pkg/api - Type-Safe HTTP Handler Adapter
 
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fapi)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
+
 This package provides a type-safe HTTP handler adapter that bridges between your business logic and HTTP transport layer.
 
 ## Installation

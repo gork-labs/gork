@@ -1,0 +1,60 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - gofumpt
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosec
+    - asciicheck
+    - bodyclose
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - gocognit
+    - gocritic
+    - gocyclo
+    - godot
+    - goprintffuncname
+    - misspell
+    - nakedret
+    - nilerr
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - thelper
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+  
+  settings:
+    gocognit:
+      min-complexity: 15
+    gocyclo:
+      min-complexity: 15
+    govet:
+      enable:
+        - shadow
+  
+  exclusions:
+    paths:
+      - vendor
+      - testdata
+      - ".*_test\\.go$"
+
+run:
+  timeout: 5m
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

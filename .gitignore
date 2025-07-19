@@ -34,9 +34,12 @@ dist/
 
 # Coverage reports
 coverage.html
+*coverage*.html
+*coverage*.out
 coverage.out
 *.cover
 
 # Temporary files
 *.tmp
 *.bak
+*.log
