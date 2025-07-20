@@ -1,8 +1,15 @@
 go 1.24
 
 use (
+	./cmd/gork
+	./cmd/lintgork
 	./examples
-	./tools/openapi-gen
+	./internal/lintgork
+	./pkg/adapters/chi
+	./pkg/adapters/echo
+	./pkg/adapters/gin
+	./pkg/adapters/gorilla
+	./pkg/adapters/stdlib
 	./pkg/api
 	./pkg/unions
 )

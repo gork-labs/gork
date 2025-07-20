@@ -45,6 +45,7 @@ linters:
     govet:
       enable:
         - shadow
+        - lintgork
   
   exclusions:
     paths:

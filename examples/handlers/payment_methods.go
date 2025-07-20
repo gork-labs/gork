@@ -12,7 +12,7 @@ type CreditCardPaymentMethod struct {
 	// Type is the payment method type discriminator
 	Type string `json:"type" validate:"required,eq=credit_card"`
 	// CardNumber is the credit card number
-	CardNumber string `json:"cardNumber"`
+	CardNumber string `json:"cardNumber" validate:"required"`
 }
 
 // DiscriminatorValue implements unions.Discriminator interface
@@ -26,9 +26,9 @@ type BankPaymentMethod struct {
 	// Type is the payment method type discriminator
 	Type string `json:"type" validate:"required,eq=bank_account"`
 	// AccountNumber is the bank account number
-	AccountNumber string `json:"accountNumber"`
+	AccountNumber string `json:"accountNumber" validate:"required"`
 	// RoutingNumber is the bank routing number
-	RoutingNumber string `json:"routingNumber"`
+	RoutingNumber string `json:"routingNumber" validate:"required"`
 }
 
 // DiscriminatorValue implements unions.Discriminator interface

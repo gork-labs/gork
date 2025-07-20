@@ -91,6 +91,8 @@ coverage-%:
 
 # Lint all modules
 lint:
+	@echo "Installing custom linter...";
+	@go install ./cmd/lintgork >/dev/null 2>&1 || { echo "failed to install lintgork"; exit 1; };
 	@for module in $(MODULES); do \
 		echo "Linting $$module..."; \
 		(cd $$module && golangci-lint run) || exit 1; \
@@ -157,25 +159,20 @@ vuln:
 
 # Build the openapi-gen tool
 openapi-build:
-	@echo "Building openapi-gen tool..."
-	@(cd tools/openapi-gen && go build -o ../../bin/openapi-gen ./cmd/openapi-gen)
+	@echo "Building gork CLI..."
+	@(cd cmd/gork && go build -o ../../bin/gork .)
 
 # Generate OpenAPI specs for examples and testdata
 openapi-gen: openapi-build
-	@if [ -d "examples" ] && [ -f "examples/routes.go" ]; then \
+	@if [ -d "examples/cmd/openapi_export" ]; then \
 		echo "Generating OpenAPI specs for examples..."; \
-		./bin/openapi-gen -i examples -r examples/routes.go -o examples/openapi.json; \
-		./bin/openapi-gen -i examples -r examples/routes.go -o examples/openapi.yaml -f yaml; \
-	fi
-	@if [ -d "tools/openapi-gen/testdata" ] && [ -f "tools/openapi-gen/testdata/routes.go" ]; then \
-		echo "Generating OpenAPI specs for testdata..."; \
-		./bin/openapi-gen -i tools/openapi-gen/testdata -r tools/openapi-gen/testdata/routes.go -o tools/openapi-gen/testdata/openapi.json; \
-		./bin/openapi-gen -i tools/openapi-gen/testdata -r tools/openapi-gen/testdata/routes.go -o tools/openapi-gen/testdata/openapi.yaml -f yaml; \
+		./bin/gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output ./examples/openapi.json --title "API" --version "1.0.0"; \
+		./bin/gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output ./examples/openapi.yaml --format yaml --title "API" --version "1.0.0"; \
 	fi
 
 # Validate OpenAPI specs with Swagger validator API
 openapi-swagger-validate:
-	@echo "Validating OpenAPI specs with Swagger validator..."
+	@echo "Validating OpenAPI specs with Swagger validator...";
 	@validation_failed=0; \
 	if [ -f "examples/openapi.json" ]; then \
 		echo "Validating examples/openapi.json..."; \
@@ -184,14 +181,6 @@ openapi-swagger-validate:
 	if [ -f "examples/openapi.yaml" ]; then \
 		echo "Validating examples/openapi.yaml..."; \
 		./scripts/validate-openapi.sh examples/openapi.yaml || validation_failed=1; \
-	fi; \
-	if [ -f "tools/openapi-gen/testdata/openapi.json" ]; then \
-		echo "Validating testdata/openapi.json..."; \
-		./scripts/validate-openapi.sh tools/openapi-gen/testdata/openapi.json || validation_failed=1; \
-	fi; \
-	if [ -f "tools/openapi-gen/testdata/openapi.yaml" ]; then \
-		echo "Validating testdata/openapi.yaml..."; \
-		./scripts/validate-openapi.sh tools/openapi-gen/testdata/openapi.yaml || validation_failed=1; \
 	fi; \
 	if [ $$validation_failed -eq 1 ]; then \
 		echo "ERROR: One or more OpenAPI specs failed Swagger validation"; \
@@ -203,7 +192,7 @@ openapi-swagger-validate:
 openapi-validate: openapi-gen openapi-swagger-validate
 	@echo "Comparing generated OpenAPI specs with committed ones..."
 	@if [ -f "examples/openapi.json" ]; then \
-		./bin/openapi-gen -i examples -r examples/routes.go -o examples/openapi-new.json; \
+		./bin/gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output ./examples/openapi-new.json --title "API" --version "1.0.0"; \
 		if ! diff -q examples/openapi.json examples/openapi-new.json > /dev/null; then \
 			echo "ERROR: examples/openapi.json is out of date!"; \
 			echo "Run 'make openapi-gen' to regenerate."; \
@@ -212,38 +201,5 @@ openapi-validate: openapi-gen openapi-swagger-validate
 			exit 1; \
 		fi; \
 		rm -f examples/openapi-new.json; \
-	fi
-	@if [ -f "examples/openapi.yaml" ]; then \
-		./bin/openapi-gen -i examples -r examples/routes.go -o examples/openapi-new.yaml -f yaml; \
-		if ! diff -q examples/openapi.yaml examples/openapi-new.yaml > /dev/null; then \
-			echo "ERROR: examples/openapi.yaml is out of date!"; \
-			echo "Run 'make openapi-gen' to regenerate."; \
-			diff -u examples/openapi.yaml examples/openapi-new.yaml || true; \
-			rm -f examples/openapi-new.yaml; \
-			exit 1; \
-		fi; \
-		rm -f examples/openapi-new.yaml; \
-	fi
-	@if [ -f "tools/openapi-gen/testdata/openapi.json" ]; then \
-		./bin/openapi-gen -i tools/openapi-gen/testdata -r tools/openapi-gen/testdata/routes.go -o tools/openapi-gen/testdata/openapi-new.json; \
-		if ! diff -q tools/openapi-gen/testdata/openapi.json tools/openapi-gen/testdata/openapi-new.json > /dev/null; then \
-			echo "ERROR: testdata/openapi.json is out of date!"; \
-			echo "Run 'make openapi-gen' to regenerate."; \
-			diff -u tools/openapi-gen/testdata/openapi.json tools/openapi-gen/testdata/openapi-new.json || true; \
-			rm -f tools/openapi-gen/testdata/openapi-new.json; \
-			exit 1; \
-		fi; \
-		rm -f tools/openapi-gen/testdata/openapi-new.json; \
-	fi
-	@if [ -f "tools/openapi-gen/testdata/openapi.yaml" ]; then \
-		./bin/openapi-gen -i tools/openapi-gen/testdata -r tools/openapi-gen/testdata/routes.go -o tools/openapi-gen/testdata/openapi-new.yaml -f yaml; \
-		if ! diff -q tools/openapi-gen/testdata/openapi.yaml tools/openapi-gen/testdata/openapi-new.yaml > /dev/null; then \
-			echo "ERROR: testdata/openapi.yaml is out of date!"; \
-			echo "Run 'make openapi-gen' to regenerate."; \
-			diff -u tools/openapi-gen/testdata/openapi.yaml tools/openapi-gen/testdata/openapi-new.yaml || true; \
-			rm -f tools/openapi-gen/testdata/openapi-new.yaml; \
-			exit 1; \
-		fi; \
-		rm -f tools/openapi-gen/testdata/openapi-new.yaml; \
 	fi
 	@echo "All OpenAPI specs are up to date!"

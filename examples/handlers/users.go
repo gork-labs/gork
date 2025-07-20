@@ -10,7 +10,7 @@ import (
 // GetUserRequest represents the request body for getting a user.
 type GetUserRequest struct {
 	// UserID is the ID of the user to retrieve
-	UserID string `json:"userID"`
+	UserID string `json:"userID" validate:"required"`
 }
 
 // UserResponse represents the response for user operations.
@@ -31,7 +31,7 @@ func GetUser(_ context.Context, req *GetUserRequest) (*UserResponse, error) {
 // CreateUserRequest represents the request body for creating a user.
 type CreateUserRequest struct {
 	// Username is the username of the user to create
-	Username string `json:"username"`
+	Username string `json:"username" validate:"required"`
 
 	ReturnTo string `openapi:"return-to,in=query"`
 }
@@ -45,10 +45,10 @@ func CreateUser(_ context.Context, req *CreateUserRequest) (*UserResponse, error
 // UpdateUserRequest represents the request body for updating a user.
 type UpdateUserRequest struct {
 	// UserID is the ID of the user to update
-	UserID string `json:"userID"`
+	UserID string `json:"userID" validate:"required"`
 
 	// Username is the new username for the user
-	Username string `json:"username"`
+	Username string `json:"username" validate:"required"`
 
 	Version int `openapi:"X-User-Version,in=header"`
 }
@@ -62,7 +62,7 @@ func UpdateUser(_ context.Context, req *UpdateUserRequest) (*UserResponse, error
 // DeleteUserRequest represents the request body for deleting a user.
 type DeleteUserRequest struct {
 	// UserID is the ID of the user to delete
-	UserID string `json:"userID"`
+	UserID string `json:"userID" validate:"required"`
 
 	Force bool `openapi:"force,in=query"`
 }
