@@ -6,10 +6,10 @@ import "context"
 // LoginRequest represents the request body for the login endpoint.
 type LoginRequest struct {
 	// Username is the user's username
-	Username string `json:"username"`
+	Username string `json:"username" validate:"required"`
 
 	// Password is the user's password
-	Password string `json:"password"`
+	Password string `json:"password" validate:"required"`
 }
 
 // LoginResponse represents the response body for the login endpoint.

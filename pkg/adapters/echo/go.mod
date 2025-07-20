@@ -1,10 +1,12 @@
-module github.com/gork-labs/gork/examples
+module github.com/gork-labs/gork/pkg/adapters/echo
 
 go 1.24
 
+replace github.com/gork-labs/gork/pkg/api => ../../api
+
 require (
-	github.com/gork-labs/gork/pkg/api v0.0.0
-	github.com/gork-labs/gork/pkg/unions v0.0.0
+	github.com/gork-labs/gork/pkg/api v0.0.0-00010101000000-000000000000
+	github.com/labstack/echo/v4 v4.11.1
 )
 
 require (
@@ -12,15 +14,14 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
+	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
-)
-
-replace (
-	github.com/gork-labs/gork/pkg/api => ../pkg/api
-	github.com/gork-labs/gork/pkg/unions => ../pkg/unions
 )
