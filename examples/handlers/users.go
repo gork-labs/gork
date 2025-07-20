@@ -64,7 +64,7 @@ type DeleteUserRequest struct {
 	// UserID is the ID of the user to delete
 	UserID string `json:"userID"`
 
-	Force bool `openapi:"force,in:query"`
+	Force bool `openapi:"force,in=query"`
 }
 
 // DeleteUser handles user deletion requests.

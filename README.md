@@ -12,13 +12,18 @@ Gork is a collection of Go development tools designed to enhance productivity an
 ```
 gork/
 ├── pkg/
-│   ├── api/           # HTTP API adapter utilities
+│   ├── api/           # HTTP API adapter utilities  
 │   ├── unions/        # Type-safe union types for Go
 │   └── webhooks/      # (Future) Webhook handling utilities
 ├── tools/
 │   └── openapi-gen/   # OpenAPI 3.1.0 code generator
-├── examples/          # Example projects
-└── bin/               # Compiled binaries
+│       ├── cmd/       # CLI entry point
+│       └── internal/  # Core generation logic
+├── examples/          # Example implementations
+│   ├── handlers/      # Example HTTP handlers
+│   └── routes/        # Route registration examples
+├── bin/               # Compiled binaries
+└── Makefile           # Build and test automation
 ```
 
 ## Modules
@@ -37,8 +42,24 @@ go install github.com/gork-labs/gork/tools/openapi-gen/cmd/openapi-gen@latest
 **Features:**
 - Automatic OpenAPI spec generation from Go code
 - Support for go-playground/validator tags
-- Union type support with discriminators
-- Multiple web framework support (Gin, Echo, Chi, etc.)
+- Union type support with discriminators  
+- Multiple web framework support (Gin, Echo, Chi, Gorilla Mux, Fiber, standard library)
+- JSON and YAML output formats
+- Optional union accessor method generation
+- Co-located code generation
+- Custom validator support
+
+**Usage:**
+```bash
+# Basic usage
+openapi-gen -i ./handlers -r ./routes.go -o openapi.json
+
+# With union accessor generation
+openapi-gen -i ./handlers --generate-union-accessors --union-output ./unions_gen.go
+
+# YAML output with custom metadata
+openapi-gen -i ./pkg -r ./main.go -o spec.yaml -f yaml -t "My API" -v "2.0.0"
+```
 
 [Read more →](./tools/openapi-gen/README.md)
 
@@ -99,12 +120,25 @@ make build
 make test-openapi
 make test-unions
 make test-api
+
+# Generate coverage reports
+make coverage
+
+# Run linting
+make lint-api
+make lint-unions
+make lint-openapi
+
+# Example OpenAPI generation
+make openapi-gen
+make openapi-validate
 ```
 
 ### Requirements
 
 - Go 1.24 or higher
 - Make (for using the Makefile)
+- Go workspace support
 
 ### Project Structure
 
@@ -141,16 +175,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-### Current
-- ✅ OpenAPI generator with union type support
-- ✅ Type-safe union types
-- ✅ HTTP API adapter
+### Current (Implemented)
+- ✅ OpenAPI 3.1.0 generator with full validator tag support
+- ✅ Type-safe union types (Union2, Union3, Union4)
+- ✅ HTTP API adapter with metadata extraction
+- ✅ Multi-framework route detection
+- ✅ Union accessor method generation
+- ✅ JSON/YAML output formats
+- ✅ 100% test coverage enforcement
 
 ### Planned
 - 🚧 Webhook signature verification utilities
-- 🚧 gRPC to HTTP gateway generator
-- 🚧 Schema validation tools
-- 🚧 API linting tools
 
 ## Support
 

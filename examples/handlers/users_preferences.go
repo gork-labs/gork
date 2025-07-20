@@ -24,7 +24,7 @@ const (
 // UpdateUserPreferencesRequest represents the request for updating user preferences.
 type UpdateUserPreferencesRequest struct {
 	// UserID is the ID of the user whose preferences are being updated
-	UserID string `openapi:"'userID',in:path"`
+	UserID string `openapi:"userID,in=path"`
 
 	// Preferences contains the user's updated preferences
 	// Payment methods are set in the "paymentMethods" field

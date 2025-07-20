@@ -86,17 +86,72 @@ type UpdateUserRequest struct {
 }
 ```
 
-### Path Parameters
+### Parameter Handling
 
-Path parameters are automatically extracted and merged into the request:
+The adapter supports multiple parameter locations through the `openapi` tag:
+
+#### Query Parameters
+
+Query parameters are automatically parsed from the URL for GET and DELETE requests:
 
 ```go
-type GetUserRequest struct {
-    ID string `json:"id" validate:"required,uuid"` // From path: /users/{id}
+type ListUsersRequest struct {
+    // Using json tag (default behavior)
+    Page     int    `json:"page" validate:"min=1"`
+    PageSize int    `json:"page_size" validate:"min=1,max=100"`
+    
+    // Using openapi tag for explicit query parameters
+    Filter   string `openapi:"filter,in=query"`
+    Sort     string `openapi:"sort_by,in=query"` // Custom parameter name
 }
 
-// Router setup (example with chi)
-r.Get("/users/{id}", api.HandlerFunc(GetUser))
+// Usage: GET /users?page=1&page_size=20&filter=active&sort_by=name
+```
+
+#### Mixed Parameters
+
+The same struct can have parameters from different sources:
+
+```go
+type UpdateUserRequest struct {
+    // From path (handled by router)
+    UserID   string `openapi:"userID,in=path"`
+    
+    // From request body (JSON)
+    Name     string `json:"name"`
+    Email    string `json:"email"`
+    
+    // From query string
+    Notify   bool   `openapi:"notify,in=query"`
+    
+    // From headers (not automatically parsed by adapter)
+    Version  int    `openapi:"X-User-Version,in=header"`
+}
+```
+
+**Note**: The adapter automatically parses in this order:
+1. **Headers** (for all HTTP methods) with `openapi:"name,in=header"`
+2. **JSON body** (for POST/PUT/PATCH requests)
+3. **Query parameters** (for all HTTP methods) with `in=query` or from `json` tags
+
+This parsing order means:
+- Headers are parsed first and can be overridden by body/query values
+- For POST/PUT/PATCH: body values can be overridden by query parameters
+- Path parameters must still be handled by your router
+
+Example with all parameter types:
+```go
+// POST /users/123?notify=true
+// Headers: X-User-Version: 2
+// Body: {"name": "John", "email": "john@example.com"}
+
+type UpdateUserRequest struct {
+    UserID  string `openapi:"userID,in=path"`      // From router
+    Version int    `openapi:"X-User-Version,in=header"` // Parsed from headers
+    Name    string `json:"name"`                   // From JSON body
+    Email   string `json:"email"`                  // From JSON body  
+    Notify  bool   `openapi:"notify,in=query"`     // From query string
+}
 ```
 
 ### Context Usage
@@ -125,7 +180,7 @@ func GetUser(ctx context.Context, req GetUserRequest) (*User, error) {
 - **Type Safety**: Compile-time type checking for requests and responses
 - **Automatic Validation**: Built-in request validation using struct tags
 - **Error Handling**: Consistent error responses with proper HTTP status codes
-- **Path Parameters**: Automatic extraction and merging of path parameters
+- **Multi-Source Parameters**: Automatic parsing from headers, body, and query string
 - **Context Propagation**: Full support for context cancellation and values
 - **Framework Agnostic**: Works with any router that accepts `http.HandlerFunc`
 
