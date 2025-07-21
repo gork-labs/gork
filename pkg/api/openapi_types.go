@@ -10,6 +10,11 @@ type OpenAPISpec struct {
 	Info       Info                 `json:"info" yaml:"info"`
 	Paths      map[string]*PathItem `json:"paths" yaml:"paths"`
 	Components *Components          `json:"components,omitempty" yaml:"components,omitempty"`
+
+	// routeFilter allows callers to skip specific RouteInfo entries during
+	// spec generation. It is internal-only and therefore excluded from JSON
+	// and YAML output.
+	routeFilter func(*RouteInfo) bool `json:"-" yaml:"-"`
 }
 
 type Info struct {
@@ -65,6 +70,11 @@ type Response struct {
 }
 
 type Schema struct {
+	// Title provides a human-readable name for the schema. Some documentation UIs
+	// (e.g. ReDoc, Swagger UI) display this value in type signatures. We set it
+	// automatically from the Go type name where available so that arrays like
+	// []UserResponse are shown as array[UserResponse] instead of array[object].
+	Title         string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Ref           string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	Type          string             `json:"type,omitempty" yaml:"type,omitempty"`
 	Properties    map[string]*Schema `json:"properties,omitempty" yaml:"properties,omitempty"`
@@ -78,6 +88,7 @@ type Schema struct {
 	MaxLength     *int               `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
 	Pattern       string             `json:"pattern,omitempty" yaml:"pattern,omitempty"`
 	Enum          []string           `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Items         *Schema            `json:"items,omitempty" yaml:"items,omitempty"`
 }
 
 type Discriminator struct {
@@ -94,6 +105,16 @@ type SecurityScheme struct {
 
 // OpenAPIOption allows callers to tweak the generated specification.
 type OpenAPIOption func(*OpenAPISpec)
+
+// WithRouteFilter lets callers provide a predicate deciding whether a given
+// RouteInfo should be included in the generated spec. Returning false skips
+// the route. Passing this option replaces the default filter (which currently
+// removes documentation-serving endpoints).
+func WithRouteFilter(f func(*RouteInfo) bool) OpenAPIOption {
+	return func(spec *OpenAPISpec) {
+		spec.routeFilter = f
+	}
+}
 
 // WithTitle sets the spec title.
 func WithTitle(title string) OpenAPIOption {

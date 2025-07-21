@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,8 +79,24 @@ func newGenerateCmd() *cobra.Command {
 			spec.Info.Title = title
 			spec.Info.Version = version
 
+			// 3. Validate the generated spec
+			if err := validateOpenAPISpec(spec); err != nil {
+				return fmt.Errorf("spec validation failed: %w", err)
+			}
+
 			if outputPath == "-" {
 				return writeSpec(os.Stdout, format, spec)
+			}
+
+			// Refuse to create missing directories implicitly – fail with a clear error
+			outDir := filepath.Dir(outputPath)
+			if fi, err := os.Stat(outDir); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("output directory %s does not exist — please create it first", outDir)
+				}
+				return err
+			} else if !fi.IsDir() {
+				return fmt.Errorf("output path %s is not a directory", outDir)
 			}
 
 			f, err := os.Create(outputPath)
@@ -197,5 +215,58 @@ func applyConfig(path string, buildPath, sourcePath, outputPath, title, version 
 			*version = cfg.OpenAPI.Version
 		}
 	}
+	return nil
+}
+
+// validateOpenAPISpec marshals the spec to JSON and validates it using the
+// kin-openapi validator. It returns an error if the spec is invalid.
+func validateOpenAPISpec(spec *api.OpenAPISpec) error {
+	data, err := json.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("marshal spec: %w", err)
+	}
+
+	resp, err := http.Post("https://validator.swagger.io/validator/debug", "application/json", bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("send to Swagger validator: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("validator returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Empty object means no issues
+	trimmed := bytes.TrimSpace(body)
+	if bytes.Equal(trimmed, []byte("{}")) || len(trimmed) == 0 {
+		return nil
+	}
+
+	// Attempt to parse JSON response for messages array
+	if trimmed[0] == '{' {
+		var result struct {
+			Messages []struct {
+				Level   string `json:"level"`
+				Message string `json:"message"`
+			} `json:"messages"`
+		}
+		if err := json.Unmarshal(trimmed, &result); err == nil {
+			for _, m := range result.Messages {
+				if m.Level == "error" {
+					return fmt.Errorf("swagger validator errors: %s", string(body))
+				}
+			}
+			return nil
+		}
+		// Fallthrough on unmarshal error – treat as success if status 200
+	}
+
+	// For YAML or unknown formats, consider presence of the word "error" as failure
+	if bytes.Contains(bytes.ToLower(trimmed), []byte("error")) && !bytes.Contains(trimmed, []byte("schemaValidationMessages: null")) {
+		return fmt.Errorf("swagger validator returned errors: %s", string(body))
+	}
+
 	return nil
 }

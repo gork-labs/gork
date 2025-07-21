@@ -94,8 +94,17 @@ func (r *Router) Group(prefix string) *Router {
 func (r *Router) GetRegistry() *api.RouteRegistry { return r.registry }
 
 func toNativePath(p string) string {
+	// Convert named params {id} -> :id
 	s := strings.ReplaceAll(p, "{", ":")
 	s = strings.ReplaceAll(s, "}", "")
+
+	// Convert catch-all wildcard "/*" to "/*all" so that Gin treats it as a
+	// wildcard parameter. We only transform a trailing "/*" to avoid
+	// unexpected replacements in the middle of the path.
+	if strings.HasSuffix(s, "/*") {
+		s = strings.TrimSuffix(s, "/*") + "/*all"
+	}
+
 	return s
 }
 

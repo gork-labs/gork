@@ -19,6 +19,16 @@ func GenerateOpenAPIWithDocs(reg *RouteRegistry, extractor *DocExtractor, opts .
 		if doc.Description != "" {
 			schema.Description = doc.Description
 		}
+		// Propagate field descriptions to component schema properties.
+		if len(doc.Fields) > 0 && schema.Properties != nil {
+			for propName, propSchema := range schema.Properties {
+				if fd, ok := doc.Fields[propName]; ok {
+					if propSchema.Description == "" {
+						propSchema.Description = fd.Description
+					}
+				}
+			}
+		}
 	}
 
 	// Update path operations.
@@ -87,6 +97,16 @@ func EnhanceOpenAPISpecWithDocs(spec *OpenAPISpec, extractor *DocExtractor) {
 			doc := extractor.ExtractTypeDoc(name)
 			if doc.Description != "" {
 				schema.Description = doc.Description
+			}
+			// Attach field-level descriptions to schema properties if any.
+			if len(doc.Fields) > 0 && schema.Properties != nil {
+				for propName, propSchema := range schema.Properties {
+					if fd, ok := doc.Fields[propName]; ok {
+						if propSchema.Description == "" {
+							propSchema.Description = fd.Description
+						}
+					}
+				}
 			}
 		}
 	}

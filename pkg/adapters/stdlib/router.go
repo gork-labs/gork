@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gork-labs/gork/pkg/api"
 )
@@ -38,7 +39,7 @@ func NewRouter(mux *http.ServeMux, opts ...api.Option) *Router {
 
 	// Callback for route registration into the stdlib mux.
 	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
-		pattern := method + " " + path
+		pattern := method + " " + toNativePath(path)
 		mux.HandleFunc(pattern, handler)
 	}
 
@@ -67,7 +68,7 @@ func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
 
 	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
-		pattern := method + " " + newPrefix + path
+		pattern := method + " " + toNativePath(newPrefix+path)
 		r.mux.HandleFunc(pattern, handler)
 	}
 
@@ -92,3 +93,15 @@ func (r *Router) Group(prefix string) *Router {
 
 // GetRegistry returns the shared registry instance.
 func (r *Router) GetRegistry() *api.RouteRegistry { return r.registry }
+
+// toNativePath converts the generic goapi wildcard pattern ("/*") into the
+// format expected by Go's net/http ServeMux (Go 1.22+). A trailing "/*" is
+// replaced with a rest-of-path capture segment "{rest...}". All other paths
+// are returned unchanged because ServeMux already understands `{param}` style
+// placeholders.
+func toNativePath(p string) string {
+	if strings.HasSuffix(p, "/*") {
+		return strings.TrimSuffix(p, "/*") + "/{rest...}"
+	}
+	return p
+}
