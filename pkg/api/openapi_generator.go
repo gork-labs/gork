@@ -7,6 +7,27 @@ import (
 	"strings"
 )
 
+// defaultRouteFilter excludes the internal documentation endpoint (whose
+// response type is *OpenAPISpec) from the generated specification.
+func defaultRouteFilter(info *RouteInfo) bool {
+	if info == nil || info.ResponseType == nil {
+		return true
+	}
+
+	// Detect *api.OpenAPISpec (exact pointer match)
+	specPtrType := reflect.TypeOf(&OpenAPISpec{})
+	if info.ResponseType == specPtrType {
+		return false
+	}
+
+	// If the response is a pointer to something else, unwrap once and compare
+	if info.ResponseType.Kind() == reflect.Ptr && info.ResponseType.Elem() == specPtrType.Elem() {
+		return false
+	}
+
+	return true
+}
+
 // GenerateOpenAPI converts the runtime RouteRegistry into a basic OpenAPI 3.1
 // specification. The implementation focuses on the essential structure needed
 // by clients; we will enrich it iteratively.
@@ -28,7 +49,16 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		o(spec)
 	}
 
+	// Determine active filter (user-provided or default)
+	routeFilter := spec.routeFilter
+	if routeFilter == nil {
+		routeFilter = defaultRouteFilter
+	}
+
 	for _, route := range registry.GetRoutes() {
+		if !routeFilter(route) {
+			continue
+		}
 		path := normalizePath(route.Path)
 		if spec.Paths[path] == nil {
 			spec.Paths[path] = &PathItem{}
@@ -240,6 +270,30 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 				continue
 			}
 
+			// Special-case: flatten embedded structs (anonymous field with no explicit JSON name).
+			if f.Anonymous && f.Type.Kind() == reflect.Struct && f.Tag.Get("json") == "" {
+				embeddedSchema := reflectTypeToSchema(f.Type, registry)
+
+				// If embeddedSchema is a reference, resolve to actual for property extraction.
+				if embeddedSchema.Ref != "" {
+					refName := strings.TrimPrefix(embeddedSchema.Ref, "#/components/schemas/")
+					if resolved, ok := registry[refName]; ok {
+						embeddedSchema = resolved
+					}
+				}
+
+				if embeddedSchema.Properties != nil {
+					for propName, propSchema := range embeddedSchema.Properties {
+						s.Properties[propName] = propSchema
+					}
+				}
+				if len(embeddedSchema.Required) > 0 {
+					s.Required = append(s.Required, embeddedSchema.Required...)
+				}
+				// No separate property for the embedded struct itself.
+				continue
+			}
+
 			fieldSchema := reflectTypeToSchema(f.Type, registry)
 
 			// after fieldSchema assigned, before validation tag parsing
@@ -261,9 +315,11 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 			if comma := strings.Index(jsonName, ","); comma != -1 {
 				jsonName = jsonName[:comma]
 			}
+
 			s.Properties[jsonName] = fieldSchema
 		}
 		if typeName != "" {
+			s.Title = typeName
 			registry[typeName] = s
 			return &Schema{Ref: "#/components/schemas/" + typeName}
 		}
@@ -279,7 +335,13 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 		return &Schema{Type: "boolean"}
 	case reflect.Slice, reflect.Array:
 		itemSchema := reflectTypeToSchema(t.Elem(), registry)
-		return &Schema{Type: "array", Properties: map[string]*Schema{"items": itemSchema}}
+		var title, desc string
+		// If the element type has a name, expose it for nicer UI rendering.
+		if elemName := t.Elem().Name(); elemName != "" {
+			title = "[]" + elemName
+			desc = "Array of " + elemName
+		}
+		return &Schema{Title: title, Description: desc, Type: "array", Items: itemSchema}
 	default:
 		return &Schema{Type: "object"}
 	}
@@ -288,7 +350,7 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 // generateUnionSchema builds a oneOf schema for unions.UnionX types.
 func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 	var (
-		variants           []*Schema
+		variants           []*Schema // schemas for the full variant types
 		discProp           string
 		mapping            = map[string]string{}
 		validDiscriminator = true
@@ -299,16 +361,19 @@ func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 		if f.Type.Kind() != reflect.Ptr {
 			continue
 		}
+
 		vt := f.Type.Elem()
+
+		// Store full variant schema.
 		variants = append(variants, reflectTypeToSchema(vt, registry))
 
-		// Inspect variant type for discriminator field – only makes sense for struct variants.
+		// Discriminator inspection only makes sense for struct variants (non-slice).
 		if !validDiscriminator || vt.Kind() != reflect.Struct {
 			validDiscriminator = false
 			continue
 		}
 
-		// search fields in vt
+		// search fields in vt for discriminator tag
 		found := false
 		for j := 0; j < vt.NumField(); j++ {
 			vf := vt.Field(j)
@@ -327,7 +392,7 @@ func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 					validDiscriminator = false
 					break
 				}
-				// build mapping
+				// build mapping for discriminator
 				mapping[value] = "#/components/schemas/" + vt.Name()
 				found = true
 				break
@@ -338,6 +403,11 @@ func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 		}
 	}
 
+	// Regardless of whether the variants are slices or not, model the union as a
+	// oneOf across the full variant schemas. This preserves the semantics of the
+	// Go union types: the entire value must conform to exactly one variant. For
+	// unions of slices this means the array must be homogeneous (either all
+	// AdminUserResponse or all UserResponse), not a mixture.
 	schema := &Schema{OneOf: variants}
 	if validDiscriminator && discProp != "" {
 		schema.Discriminator = &Discriminator{PropertyName: discProp, Mapping: mapping}

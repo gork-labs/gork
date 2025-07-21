@@ -21,6 +21,7 @@ require (
 )
 
 replace (
+	github.com/gork-labs/gork/cmd/gork => ../cmd/gork
 	github.com/gork-labs/gork/pkg/api => ../pkg/api
 	github.com/gork-labs/gork/pkg/unions => ../pkg/unions
 )

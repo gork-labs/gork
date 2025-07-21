@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -68,9 +69,55 @@ func (d *DocExtractor) ParseDirectory(dir string) error {
 							for _, spec := range decl.Specs {
 								if ts, ok := spec.(*ast.TypeSpec); ok {
 									name := ts.Name.Name
-									d.docs[name] = Documentation{
-										Description: extractDescription(decl.Doc.Text()),
+									// Retrieve or initialize existing doc entry for the type so that we can
+									// merge struct-level and field-level information.
+									doc := d.docs[name]
+									// Top-level type description (paragraph above `type X struct`)
+									if decl.Doc != nil {
+										doc.Description = extractDescription(decl.Doc.Text())
 									}
+
+									// If the underlying type is a struct, iterate over its fields and grab
+									// their doc comments. We store them in doc.Fields keyed by the field
+									// identifier so that later integration can attach them to schema
+									// properties.
+									if st, ok := ts.Type.(*ast.StructType); ok {
+										if doc.Fields == nil {
+											doc.Fields = map[string]FieldDoc{}
+										}
+										for _, fld := range st.Fields.List {
+											var desc string
+											if fld.Doc != nil {
+												desc = extractDescription(fld.Doc.Text())
+											} else if fld.Comment != nil {
+												desc = extractDescription(fld.Comment.Text())
+											}
+											if desc == "" {
+												continue
+											}
+											for _, ident := range fld.Names {
+												// Store by Go identifier
+												doc.Fields[ident.Name] = FieldDoc{Description: desc}
+
+												// Also store by JSON tag name if present and differs
+												if fld.Tag != nil {
+													tagVal := strings.Trim(fld.Tag.Value, "`")
+													st := reflect.StructTag(tagVal)
+													jsonTag := st.Get("json")
+													if jsonTag != "" {
+														if comma := strings.Index(jsonTag, ","); comma != -1 {
+															jsonTag = jsonTag[:comma]
+														}
+														if jsonTag != "" {
+															doc.Fields[jsonTag] = FieldDoc{Description: desc}
+														}
+													}
+												}
+											}
+										}
+									}
+
+									d.docs[name] = doc
 								}
 							}
 						}

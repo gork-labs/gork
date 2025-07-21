@@ -2,6 +2,7 @@ package gorilla
 
 import (
 	"net/http"
+	"strings"
 
 	muxpkg "github.com/gorilla/mux"
 
@@ -44,7 +45,7 @@ func NewRouter(r *muxpkg.Router, opts ...api.Option) *Router {
 
 	// initial prefix ""
 	registerFn = func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
-		r.Path(path).Methods(method).Handler(handler)
+		r.Path(toNativePath(path)).Methods(method).Handler(handler)
 	}
 
 	tr := api.NewTypedRouter[*muxpkg.Router](
@@ -65,7 +66,7 @@ func (wr *Router) Group(prefix string) *Router {
 	sub := wr.router.PathPrefix(prefix).Subrouter()
 
 	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
-		sub.Path(newPrefix + path).Methods(method).Handler(handler)
+		sub.Path(toNativePath(newPrefix + path)).Methods(method).Handler(handler)
 	}
 
 	return &Router{
@@ -88,3 +89,13 @@ func (wr *Router) Group(prefix string) *Router {
 }
 
 func (wr *Router) GetRegistry() *api.RouteRegistry { return wr.registry }
+
+// toNativePath converts goapi wildcard patterns ("/*") to gorilla/mux compatible
+// patterns using a regex catch-all segment. Example: "/docs/*" -> "/docs/{rest:.*}".
+// For all other paths it returns the input unchanged.
+func toNativePath(p string) string {
+	if strings.HasSuffix(p, "/*") {
+		return strings.TrimSuffix(p, "/*") + "/{rest:.*}"
+	}
+	return p
+}

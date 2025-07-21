@@ -125,7 +125,14 @@ func (r *Router) GetRegistry() *api.RouteRegistry { return r.registry }
 
 // toNativePath converts {param} placeholders to :param expected by Echo.
 func toNativePath(p string) string {
+	// Convert named params {id} -> :id
 	s := strings.ReplaceAll(p, "{", ":")
 	s = strings.ReplaceAll(s, "}", "")
+
+	// Echo treats trailing /* with parameter name, e.g. /*.
+	if strings.HasSuffix(s, "/*") {
+		s = strings.TrimSuffix(s, "/*") + "/*"
+	}
+
 	return s
 }
