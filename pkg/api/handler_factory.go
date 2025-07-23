@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"reflect"
 
@@ -14,11 +15,29 @@ import (
 // and constructs a corresponding RouteInfo structure.
 func createHandlerFromAny(adapter ParameterAdapter, handler interface{}, opts ...Option) (http.HandlerFunc, *RouteInfo) {
 	v := reflect.ValueOf(handler)
-	if v.Kind() != reflect.Func {
-		panic("handler must be a function")
+	t := v.Type()
+
+	// Validate handler signature
+	validateHandlerSignature(t)
+
+	reqType := t.In(1)
+	respType := t.Out(0)
+
+	// Prepare options and build RouteInfo
+	info := buildRouteInfo(handler, reqType, respType, opts)
+
+	// Build the http.HandlerFunc
+	httpHandler := func(w http.ResponseWriter, r *http.Request) {
+		executeHandler(w, r, v, reqType, adapter)
 	}
 
-	t := v.Type()
+	return httpHandler, info
+}
+
+func validateHandlerSignature(t reflect.Type) {
+	if t.Kind() != reflect.Func {
+		panic("handler must be a function")
+	}
 	if t.NumIn() != 2 {
 		panic("handler must accept exactly 2 parameters (context.Context, Request)")
 	}
@@ -31,160 +50,181 @@ func createHandlerFromAny(adapter ParameterAdapter, handler interface{}, opts ..
 	if !t.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
 		panic("second handler return value must be error")
 	}
+}
 
-	reqType := t.In(1)
-	respType := t.Out(0)
-
+func buildRouteInfo(handler interface{}, reqType, respType reflect.Type, opts []Option) *RouteInfo {
 	// Prepare options.
 	optionCfg := &HandlerOption{}
 	for _, o := range opts {
 		o(optionCfg)
 	}
 
-	// Build RouteInfo now so that the caller can enrich it further.
-	info := &RouteInfo{
+	return &RouteInfo{
 		Handler:      handler,
 		HandlerName:  getFunctionName(handler),
 		RequestType:  reqType,
 		ResponseType: respType,
 		Options:      optionCfg,
 	}
+}
 
-	// Build the http.HandlerFunc. We copy the logic from HandlerFunc in
-	// adapter.go but rely on reflection to call the typed handler.
-	httpHandler := func(w http.ResponseWriter, r *http.Request) {
-		// Instantiate request struct.
-		reqPtr := reflect.New(reqType)
+func executeHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqType reflect.Type, adapter ParameterAdapter) {
+	// Instantiate request struct
+	reqPtr := reflect.New(reqType)
 
-		// Parse path parameters using adapter if provided; fall back to generic helper.
-		if adapter != nil {
-			vStruct := reqPtr.Elem()
-			tStruct := vStruct.Type()
-			for i := 0; i < tStruct.NumField(); i++ {
-				field := tStruct.Field(i)
-				openapiTag := field.Tag.Get("openapi")
-				if openapiTag == "" {
-					continue
-				}
-				tagInfo := parseOpenAPITag(openapiTag)
-				if tagInfo.In != "path" {
-					continue
-				}
-				name := tagInfo.Name
-				if name == "" {
-					name = field.Tag.Get("json")
-					if name == "" || name == "-" {
-						name = field.Name
-					}
-				}
-				if val, ok := adapter.Path(r, name); ok {
-					setFieldValue(vStruct.Field(i), field, val, []string{val})
-				}
-			}
-		}
+	// Process request parameters
+	if err := processRequestParameters(reqPtr, r, adapter); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 
-		// Decode JSON body for methods that typically carry one
-		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
-			if err := json.NewDecoder(r.Body).Decode(reqPtr.Interface()); err != nil {
-				writeError(w, http.StatusUnprocessableEntity, "Unable to parse request body")
-				return
-			}
-		}
+	// Validate request
+	if err := validateRequest(w, reqPtr.Interface()); err != nil {
+		return // Error already written to response
+	}
 
-		// Populate query, header, cookie parameters using the adapter
-		if adapter != nil {
-			vStruct := reqPtr.Elem()
-			tStruct := vStruct.Type()
-			for i := 0; i < tStruct.NumField(); i++ {
-				field := tStruct.Field(i)
-				openapiTag := field.Tag.Get("openapi")
-				if openapiTag == "" {
-					continue
-				}
-				tagInfo := parseOpenAPITag(openapiTag)
-				var val string
-				var ok bool
-				switch tagInfo.In {
-				case "query":
-					name := tagInfo.Name
-					if name == "" {
-						name = field.Tag.Get("json")
-					}
-					val, ok = adapter.Query(r, name)
-				case "header":
-					name := tagInfo.Name
-					if name == "" {
-						name = field.Tag.Get("json")
-					}
-					val, ok = adapter.Header(r, name)
-				case "cookie":
-					name := tagInfo.Name
-					if name == "" {
-						name = field.Tag.Get("json")
-					}
-					val, ok = adapter.Cookie(r, name)
-				}
-				if ok {
-					setFieldValue(vStruct.Field(i), field, val, []string{val})
-				}
-			}
-		}
+	// Call handler and process response
+	processHandlerResponse(w, r, handlerValue, reqPtr)
+}
 
-		// Custom discriminator validation prior to running validator package rules.
-		discErrs := CheckDiscriminatorErrors(reqPtr.Interface())
-		if len(discErrs) > 0 {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ValidationErrorResponse{
-				Error:   "Validation failed",
-				Details: discErrs,
-			})
-			return
-		}
+func processRequestParameters(reqPtr reflect.Value, r *http.Request, adapter ParameterAdapter) error {
+	// Parse path parameters
+	if adapter != nil {
+		parsePathParameters(reqPtr, r, adapter)
+	}
 
-		// Validate the fully populated request struct
-		if err := validate.Struct(reqPtr.Interface()); err != nil {
-			// Convert validation errors to detailed map
-			validationErrors := make(map[string][]string)
-			if verrs, ok := err.(validator.ValidationErrors); ok {
-				for _, ve := range verrs {
-					field := ve.Field()
-					validationErrors[field] = append(validationErrors[field], ve.Tag())
-				}
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ValidationErrorResponse{
-				Error:   "Validation failed",
-				Details: validationErrors,
-			})
-			return
-		}
-
-		// Call the handler via reflection.
-		results := v.Call([]reflect.Value{
-			reflect.ValueOf(r.Context()),
-			reqPtr.Elem(),
-		})
-
-		// Extract response and error.
-		respVal := results[0]
-		errInterface := results[1].Interface()
-		if errInterface != nil {
-			if errVal, ok := errInterface.(error); ok {
-				writeError(w, http.StatusInternalServerError, errVal.Error())
-				return
-			}
-			writeError(w, http.StatusInternalServerError, "unknown error")
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(respVal.Interface()); err != nil {
-			writeError(w, http.StatusInternalServerError, "Failed to encode response")
+	// Decode JSON body for methods that typically carry one
+	if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+		if err := json.NewDecoder(r.Body).Decode(reqPtr.Interface()); err != nil {
+			return errors.New("unable to parse request body")
 		}
 	}
 
-	return httpHandler, info
+	// Parse query, header, cookie parameters
+	if adapter != nil {
+		parseOtherParameters(reqPtr, r, adapter)
+	}
+
+	return nil
+}
+
+func parsePathParameters(reqPtr reflect.Value, r *http.Request, adapter ParameterAdapter) {
+	vStruct := reqPtr.Elem()
+	tStruct := vStruct.Type()
+	for i := 0; i < tStruct.NumField(); i++ {
+		field := tStruct.Field(i)
+		openapiTag := field.Tag.Get("openapi")
+		if openapiTag == "" {
+			continue
+		}
+		tagInfo := parseOpenAPITag(openapiTag)
+		if tagInfo.In != "path" {
+			continue
+		}
+		name := getParameterName(tagInfo, field)
+		if val, ok := adapter.Path(r, name); ok {
+			setFieldValue(vStruct.Field(i), field, val, []string{val})
+		}
+	}
+}
+
+func parseOtherParameters(reqPtr reflect.Value, r *http.Request, adapter ParameterAdapter) {
+	vStruct := reqPtr.Elem()
+	tStruct := vStruct.Type()
+	for i := 0; i < tStruct.NumField(); i++ {
+		field := tStruct.Field(i)
+		openapiTag := field.Tag.Get("openapi")
+		if openapiTag == "" {
+			continue
+		}
+		tagInfo := parseOpenAPITag(openapiTag)
+		name := getParameterName(tagInfo, field)
+
+		var val string
+		var ok bool
+		switch tagInfo.In {
+		case "query":
+			val, ok = adapter.Query(r, name)
+		case "header":
+			val, ok = adapter.Header(r, name)
+		case "cookie":
+			val, ok = adapter.Cookie(r, name)
+		}
+		if ok {
+			setFieldValue(vStruct.Field(i), field, val, []string{val})
+		}
+	}
+}
+
+func getParameterName(tagInfo struct{ Name, In string }, field reflect.StructField) string {
+	name := tagInfo.Name
+	if name == "" {
+		name = field.Tag.Get("json")
+		if name == "" || name == "-" {
+			name = field.Name
+		}
+	}
+	return name
+}
+
+func validateRequest(w http.ResponseWriter, req interface{}) error {
+	// Custom discriminator validation
+	discErrs := CheckDiscriminatorErrors(req)
+	if len(discErrs) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(ValidationErrorResponse{
+			Error:   "Validation failed",
+			Details: discErrs,
+		})
+		return errors.New("discriminator validation failed")
+	}
+
+	// Standard validation
+	if err := validate.Struct(req); err != nil {
+		validationErrors := make(map[string][]string)
+		var verrs validator.ValidationErrors
+		if errors.As(err, &verrs) {
+			for _, ve := range verrs {
+				field := ve.Field()
+				validationErrors[field] = append(validationErrors[field], ve.Tag())
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(ValidationErrorResponse{
+			Error:   "Validation failed",
+			Details: validationErrors,
+		})
+		return errors.New("validation failed")
+	}
+
+	return nil
+}
+
+func processHandlerResponse(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value) {
+	// Call the handler via reflection
+	results := handlerValue.Call([]reflect.Value{
+		reflect.ValueOf(r.Context()),
+		reqPtr.Elem(),
+	})
+
+	// Extract response and error
+	respVal := results[0]
+	errInterface := results[1].Interface()
+
+	if errInterface != nil {
+		if errVal, ok := errInterface.(error); ok {
+			writeError(w, http.StatusInternalServerError, errVal.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "unknown error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(respVal.Interface()); err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to encode response")
+	}
 }

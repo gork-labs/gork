@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-    title: API
+    title: Example API
     version: 1.0.0
 paths:
     /api/v1/auth/login:
@@ -243,16 +243,20 @@ paths:
 components:
     schemas:
         AdminUserResponse:
+            title: AdminUserResponse
             type: object
             properties:
-                UserResponse:
-                    $ref: '#/components/schemas/UserResponse'
                 createdAt:
                     type: string
                 updatedAt:
                     type: string
+                userID:
+                    type: string
+                username:
+                    type: string
             description: AdminUserResponse represents an admin user with additional fields.
         BankPaymentMethod:
+            title: BankPaymentMethod
             type: object
             properties:
                 accountNumber:
@@ -267,14 +271,17 @@ components:
                 - routingNumber
             description: BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise.
         CreateUserRequest:
+            title: CreateUserRequest
             type: object
             properties:
                 username:
                     type: string
+                    description: Username is the username of the user to create
             required:
                 - username
             description: CreateUserRequest represents the request body for creating a user.
         CreditCardPaymentMethod:
+            title: CreditCardPaymentMethod
             type: object
             properties:
                 cardNumber:
@@ -296,33 +303,41 @@ components:
                 - error
         ListUsersResponse:
             oneOf:
-                - type: array
-                  properties:
-                    items:
-                        $ref: '#/components/schemas/AdminUserResponse'
-                - type: array
-                  properties:
-                    items:
-                        $ref: '#/components/schemas/UserResponse'
+                - title: '[]AdminUserResponse'
+                  type: array
+                  description: Array of AdminUserResponse
+                  items:
+                    $ref: '#/components/schemas/AdminUserResponse'
+                - title: '[]UserResponse'
+                  type: array
+                  description: Array of UserResponse
+                  items:
+                    $ref: '#/components/schemas/UserResponse'
             description: ListUsersResponse represents the response for listing users.
         LoginRequest:
+            title: LoginRequest
             type: object
             properties:
                 password:
                     type: string
+                    description: Password is the user's password
                 username:
                     type: string
+                    description: Username is the user's username
             required:
                 - username
                 - password
             description: LoginRequest represents the request body for the login endpoint.
         LoginResponse:
+            title: LoginResponse
             type: object
             properties:
                 token:
                     type: string
+                    description: Token is the JWT token for the authenticated user
             description: LoginResponse represents the response body for the login endpoint.
         NoContentResponse:
+            title: NoContentResponse
             type: object
         PaymentMethodRequest:
             oneOf:
@@ -334,12 +349,15 @@ components:
                 - $ref: '#/components/schemas/BankPaymentMethod'
                 - $ref: '#/components/schemas/CreditCardPaymentMethod'
         UpdateUserPreferencesRequest:
+            title: UpdateUserPreferencesRequest
             type: object
             properties:
                 paymentMethod:
                     $ref: '#/components/schemas/Union2_BankPaymentMethod_CreditCardPaymentMethod'
+                    description: Preferences contains the user's updated preferences Payment methods are set in the "paymentMethods" field PaymentMethod contains the user's payment method
                 primaryNotificationChannel:
                     type: string
+                    description: PrimaryNotificationChannel is the user's preferred notification channel
                     enum:
                         - email
                         - sms
@@ -349,23 +367,29 @@ components:
                 - primaryNotificationChannel
             description: UpdateUserPreferencesRequest represents the request for updating user preferences.
         UpdateUserRequest:
+            title: UpdateUserRequest
             type: object
             properties:
                 userID:
                     type: string
+                    description: UserID is the ID of the user to update
                 username:
                     type: string
+                    description: Username is the new username for the user
             required:
                 - userID
                 - username
             description: UpdateUserRequest represents the request body for updating a user.
         UserResponse:
+            title: UserResponse
             type: object
             properties:
                 userID:
                     type: string
+                    description: UserID is the ID of the user
                 username:
                     type: string
+                    description: Username is the username of the user
             description: UserResponse represents the response for user operations.
         ValidationErrorResponse:
             type: object

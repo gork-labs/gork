@@ -62,22 +62,27 @@ func (r *TypedRouter[T]) CopyMiddleware() []Option {
 // still provide compile-time safety because callers must pass a function that
 // matches the expected signature. We perform a runtime check to be safe.
 
+// Get registers a GET route with the given path and handler.
 func (r *TypedRouter[T]) Get(path string, handler interface{}, opts ...Option) {
 	r.register("GET", path, handler, opts...)
 }
 
+// Post registers a POST route with the given path and handler.
 func (r *TypedRouter[T]) Post(path string, handler interface{}, opts ...Option) {
 	r.register("POST", path, handler, opts...)
 }
 
+// Put registers a PUT route with the given path and handler.
 func (r *TypedRouter[T]) Put(path string, handler interface{}, opts ...Option) {
 	r.register("PUT", path, handler, opts...)
 }
 
+// Delete registers a DELETE route with the given path and handler.
 func (r *TypedRouter[T]) Delete(path string, handler interface{}, opts ...Option) {
 	r.register("DELETE", path, handler, opts...)
 }
 
+// Patch registers a PATCH route with the given path and handler.
 func (r *TypedRouter[T]) Patch(path string, handler interface{}, opts ...Option) {
 	r.register("PATCH", path, handler, opts...)
 }
@@ -104,7 +109,8 @@ func (r *TypedRouter[T]) register(method, path string, handler interface{}, opts
 	// helper below to reflect on the function and validate its shape. If the
 	// check fails we panic so that issues surface during development.
 
-	allOpts := append(r.middleware, opts...)
+	allOpts := append([]Option{}, r.middleware...)
+	allOpts = append(allOpts, opts...)
 	httpHandler, info := createHandlerFromAny(r.adapter, handler, allOpts...)
 
 	// Fill remaining route information.

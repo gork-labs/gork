@@ -90,11 +90,9 @@ func parseOpenAPITag(tag string) struct {
 			case "in":
 				info.In = val
 			}
-		} else {
+		} else if idx == 0 && info.Name == "" {
 			// no '=' present
-			if idx == 0 && info.Name == "" {
-				info.Name = p
-			}
+			info.Name = p
 		}
 	}
 	return info
@@ -126,30 +124,7 @@ func parseQueryParams(r *http.Request, req interface{}) {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-
-		// Check openapi tag first
-		openapiTag := field.Tag.Get("openapi")
-		var paramName string
-
-		if openapiTag != "" {
-			// Parse openapi tag to check if it's a query parameter
-			tagInfo := parseOpenAPITag(openapiTag)
-			if tagInfo.In == "query" {
-				paramName = tagInfo.Name
-				if paramName == "" {
-					// If no name override, use json tag
-					paramName = field.Tag.Get("json")
-				}
-			}
-		} else {
-			// Fall back to json tag for backward compatibility
-			jsonTag := field.Tag.Get("json")
-			if jsonTag == "" || jsonTag == "-" {
-				continue
-			}
-			paramName = jsonTag
-		}
-
+		paramName := resolveQueryParamName(field)
 		if paramName == "" {
 			continue
 		}
@@ -163,37 +138,29 @@ func parseQueryParams(r *http.Request, req interface{}) {
 	}
 }
 
-func parseHeaders(r *http.Request, req interface{}) {
-	v := reflect.ValueOf(req).Elem()
-	t := v.Type()
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		// Check openapi tag for header parameters
-		openapiTag := field.Tag.Get("openapi")
-		if openapiTag == "" {
-			continue
-		}
-
+func resolveQueryParamName(field reflect.StructField) string {
+	// Check openapi tag first
+	openapiTag := field.Tag.Get("openapi")
+	if openapiTag != "" {
+		// Parse openapi tag to check if it's a query parameter
 		tagInfo := parseOpenAPITag(openapiTag)
-		if tagInfo.In != "header" {
-			continue
+		if tagInfo.In == "query" {
+			paramName := tagInfo.Name
+			if paramName == "" {
+				// If no name override, use json tag
+				paramName = field.Tag.Get("json")
+			}
+			return paramName
 		}
-
-		headerName := tagInfo.Name
-		if headerName == "" {
-			// If no name specified, use field name
-			headerName = field.Name
-		}
-
-		headerValue := r.Header.Get(headerName)
-		if headerValue == "" {
-			continue
-		}
-
-		setFieldValue(v.Field(i), field, headerValue, []string{headerValue})
+		return ""
 	}
+
+	// Fall back to json tag for backward compatibility
+	jsonTag := field.Tag.Get("json")
+	if jsonTag == "" || jsonTag == "-" {
+		return ""
+	}
+	return jsonTag
 }
 
 func setFieldValue(fieldValue reflect.Value, fieldType reflect.StructField, paramValue string, allValues []string) {

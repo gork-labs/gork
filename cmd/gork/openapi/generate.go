@@ -1,3 +1,4 @@
+// Package openapi provides commands for generating OpenAPI specifications.
 package openapi
 
 import (
@@ -39,72 +40,25 @@ func newGenerateCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate an OpenAPI specification",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Load configuration file if provided
-			if configPath != "" {
-				if err := applyConfig(configPath, &buildPath, &sourcePath, &outputPath, &title, &version); err != nil {
-					return err
-				}
-			}
-			// 1. Generate base spec from runtime build (if buildPath provided)
-			var spec *api.OpenAPISpec
-			if buildPath != "" {
-				var err error
-				spec, err = buildAndExtractSpec(buildPath)
-				if err != nil {
-					return err
-				}
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if err := loadConfig(configPath, &buildPath, &sourcePath, &outputPath, &title, &version); err != nil {
+				return err
 			}
 
-			// Fallback to empty spec when build step is skipped or failed
-			if spec == nil {
-				spec = &api.OpenAPISpec{
-					OpenAPI:    "3.1.0",
-					Info:       api.Info{Title: title, Version: version},
-					Paths:      map[string]*api.PathItem{},
-					Components: &api.Components{Schemas: map[string]*api.Schema{}},
-				}
+			spec, err := generateBaseSpec(buildPath, title, version)
+			if err != nil {
+				return err
 			}
 
-			// 2. Parse docs and enrich
-			if sourcePath != "" {
-				extractor := api.NewDocExtractor()
-				if err := extractor.ParseDirectory(sourcePath); err != nil {
-					return fmt.Errorf("failed to parse source: %w", err)
-				}
-				api.EnhanceOpenAPISpecWithDocs(spec, extractor)
+			if err := enrichSpecWithDocs(spec, sourcePath); err != nil {
+				return err
 			}
 
-			// Apply title/version overrides
-			spec.Info.Title = title
-			spec.Info.Version = version
-
-			// 3. Validate the generated spec
 			if err := validateOpenAPISpec(spec); err != nil {
 				return fmt.Errorf("spec validation failed: %w", err)
 			}
 
-			if outputPath == "-" {
-				return writeSpec(os.Stdout, format, spec)
-			}
-
-			// Refuse to create missing directories implicitly – fail with a clear error
-			outDir := filepath.Dir(outputPath)
-			if fi, err := os.Stat(outDir); err != nil {
-				if os.IsNotExist(err) {
-					return fmt.Errorf("output directory %s does not exist — please create it first", outDir)
-				}
-				return err
-			} else if !fi.IsDir() {
-				return fmt.Errorf("output path %s is not a directory", outDir)
-			}
-
-			f, err := os.Create(outputPath)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			return writeSpec(f, format, spec)
+			return writeOutputSpec(outputPath, format, spec)
 		},
 	}
 
@@ -119,6 +73,60 @@ func newGenerateCmd() *cobra.Command {
 	return c
 }
 
+func loadConfig(configPath string, buildPath, sourcePath, outputPath, title, version *string) error {
+	if configPath == "" {
+		return nil
+	}
+	return applyConfig(configPath, buildPath, sourcePath, outputPath, title, version)
+}
+
+func generateBaseSpec(buildPath, title, version string) (*api.OpenAPISpec, error) {
+	if buildPath == "" {
+		return &api.OpenAPISpec{
+			OpenAPI:    "3.1.0",
+			Info:       api.Info{Title: title, Version: version},
+			Paths:      map[string]*api.PathItem{},
+			Components: &api.Components{Schemas: map[string]*api.Schema{}},
+		}, nil
+	}
+	return buildAndExtractSpec(buildPath)
+}
+
+func enrichSpecWithDocs(spec *api.OpenAPISpec, sourcePath string) error {
+	if sourcePath == "" {
+		return nil
+	}
+	extractor := api.NewDocExtractor()
+	if err := extractor.ParseDirectory(sourcePath); err != nil {
+		return fmt.Errorf("failed to parse source: %w", err)
+	}
+	api.EnhanceOpenAPISpecWithDocs(spec, extractor)
+	return nil
+}
+
+func writeOutputSpec(outputPath, format string, spec *api.OpenAPISpec) error {
+	if outputPath == "-" {
+		return writeSpec(os.Stdout, format, spec)
+	}
+
+	outDir := filepath.Dir(outputPath)
+	if fi, err := os.Stat(outDir); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("output directory %s does not exist — please create it first", outDir)
+		}
+		return err
+	} else if !fi.IsDir() {
+		return fmt.Errorf("output path %s is not a directory", outDir)
+	}
+
+	f, err := os.Create(outputPath) // #nosec G304
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	return writeSpec(f, format, spec)
+}
+
 // buildAndExtractSpec compiles the target program with the "openapi" build
 // tag, executes the resulting binary and captures its stdout which is expected
 // to contain a JSON OpenAPI 3.1 specification.
@@ -129,12 +137,12 @@ func buildAndExtractSpec(buildPath string) (*api.OpenAPISpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create temp exe: %w", err)
 	}
-	tmpExe.Close()
-	defer os.Remove(tmpExe.Name())
+	_ = tmpExe.Close()
+	defer func() { _ = os.Remove(tmpExe.Name()) }()
 
 	// Build the binary with the openapi tag so that applications which include
 	// a `//go:build openapi` gated init() can enable export mode.
-	cmdBuild := exec.Command("go", "build", "-tags", "openapi", "-o", tmpExe.Name(), buildPath)
+	cmdBuild := exec.Command("go", "build", "-tags", "openapi", "-o", tmpExe.Name(), buildPath) // #nosec G204
 	cmdBuild.Stdout = os.Stdout
 	cmdBuild.Stderr = os.Stderr
 	if err := cmdBuild.Run(); err != nil {
@@ -143,7 +151,7 @@ func buildAndExtractSpec(buildPath string) (*api.OpenAPISpec, error) {
 
 	// Execute the binary and capture its stdout.
 	var out bytes.Buffer
-	cmdRun := exec.Command(tmpExe.Name())
+	cmdRun := exec.Command(tmpExe.Name()) // #nosec G204
 	cmdRun.Env = append(os.Environ(), "GORK_EXPORT=1")
 	cmdRun.Stdout = &out
 	cmdRun.Stderr = os.Stderr
@@ -226,25 +234,35 @@ func validateOpenAPISpec(spec *api.OpenAPISpec) error {
 		return fmt.Errorf("marshal spec: %w", err)
 	}
 
-	resp, err := http.Post("https://validator.swagger.io/validator/debug", "application/json", bytes.NewReader(data))
+	body, statusCode, err := sendToSwaggerValidator(data)
 	if err != nil {
-		return fmt.Errorf("send to Swagger validator: %w", err)
+		return err
 	}
-	defer resp.Body.Close()
+
+	return interpretValidatorResponse(body, statusCode)
+}
+
+func sendToSwaggerValidator(data []byte) ([]byte, int, error) {
+	resp, err := http.Post("https://validator.swagger.io/validator/debug", "application/json", bytes.NewReader(data)) // #nosec G107
+	if err != nil {
+		return nil, 0, fmt.Errorf("send to Swagger validator: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
+	return body, resp.StatusCode, nil
+}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("validator returned status %d: %s", resp.StatusCode, string(body))
+func interpretValidatorResponse(body []byte, statusCode int) error {
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("validator returned status %d: %s", statusCode, string(body))
 	}
 
-	// Empty object means no issues
 	trimmed := bytes.TrimSpace(body)
 	if bytes.Equal(trimmed, []byte("{}")) || len(trimmed) == 0 {
 		return nil
 	}
 
-	// Attempt to parse JSON response for messages array
 	if trimmed[0] == '{' {
 		var result struct {
 			Messages []struct {
@@ -260,10 +278,8 @@ func validateOpenAPISpec(spec *api.OpenAPISpec) error {
 			}
 			return nil
 		}
-		// Fallthrough on unmarshal error – treat as success if status 200
 	}
 
-	// For YAML or unknown formats, consider presence of the word "error" as failure
 	if bytes.Contains(bytes.ToLower(trimmed), []byte("error")) && !bytes.Contains(trimmed, []byte("schemaValidationMessages: null")) {
 		return fmt.Errorf("swagger validator returned errors: %s", string(body))
 	}

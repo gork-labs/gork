@@ -17,17 +17,20 @@ type OpenAPISpec struct {
 	routeFilter func(*RouteInfo) bool `json:"-" yaml:"-"`
 }
 
+// Info represents the OpenAPI info section containing metadata about the API.
 type Info struct {
 	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
 	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
+// Components represents the OpenAPI components section containing reusable objects.
 type Components struct {
 	Schemas         map[string]*Schema         `json:"schemas,omitempty" yaml:"schemas,omitempty"`
 	SecuritySchemes map[string]*SecurityScheme `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
 	Responses       map[string]*Response       `json:"responses,omitempty" yaml:"responses,omitempty"`
 }
 
+// PathItem represents a path item object containing HTTP operations for a path.
 type PathItem struct {
 	Get    *Operation `json:"get,omitempty" yaml:"get,omitempty"`
 	Post   *Operation `json:"post,omitempty" yaml:"post,omitempty"`
@@ -36,6 +39,7 @@ type PathItem struct {
 	Delete *Operation `json:"delete,omitempty" yaml:"delete,omitempty"`
 }
 
+// Operation represents an OpenAPI operation object describing a single API operation.
 type Operation struct {
 	OperationID string                `json:"operationId,omitempty" yaml:"operationId,omitempty"`
 	Description string                `json:"description,omitempty" yaml:"description,omitempty"`
@@ -47,6 +51,7 @@ type Operation struct {
 	Deprecated  bool                  `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
 }
 
+// Parameter represents an OpenAPI parameter object describing a single operation parameter.
 type Parameter struct {
 	Name     string  `json:"name" yaml:"name"`
 	In       string  `json:"in" yaml:"in"` // "query", "header", "path", "cookie"
@@ -54,21 +59,25 @@ type Parameter struct {
 	Schema   *Schema `json:"schema,omitempty" yaml:"schema,omitempty"`
 }
 
+// RequestBody represents an OpenAPI request body object.
 type RequestBody struct {
 	Required bool                 `json:"required,omitempty" yaml:"required,omitempty"`
 	Content  map[string]MediaType `json:"content,omitempty" yaml:"content,omitempty"`
 }
 
+// MediaType represents an OpenAPI media type object containing schema information.
 type MediaType struct {
 	Schema *Schema `json:"schema,omitempty" yaml:"schema,omitempty"`
 }
 
+// Response represents an OpenAPI response object describing a single response from an API operation.
 type Response struct {
 	Ref         string               `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	Description string               `json:"description,omitempty" yaml:"description,omitempty"`
 	Content     map[string]MediaType `json:"content,omitempty" yaml:"content,omitempty"`
 }
 
+// Schema represents an OpenAPI schema object defining the structure of request/response data.
 type Schema struct {
 	// Title provides a human-readable name for the schema. Some documentation UIs
 	// (e.g. ReDoc, Swagger UI) display this value in type signatures. We set it
@@ -91,11 +100,13 @@ type Schema struct {
 	Items         *Schema            `json:"items,omitempty" yaml:"items,omitempty"`
 }
 
+// Discriminator represents an OpenAPI discriminator object for polymorphic schemas.
 type Discriminator struct {
 	PropertyName string            `json:"propertyName" yaml:"propertyName"`
 	Mapping      map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
 }
 
+// SecurityScheme represents an OpenAPI security scheme object defining authentication methods.
 type SecurityScheme struct {
 	Type   string `json:"type" yaml:"type"`
 	In     string `json:"in,omitempty" yaml:"in,omitempty"`

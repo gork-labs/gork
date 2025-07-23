@@ -1,3 +1,4 @@
+// Package main provides the CLI for Gork development tools.
 package main
 
 import (

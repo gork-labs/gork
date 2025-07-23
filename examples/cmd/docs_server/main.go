@@ -2,8 +2,11 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/gork-labs/gork/examples"
 	"github.com/gork-labs/gork/pkg/api"
@@ -30,6 +33,17 @@ func main() {
 		log.Printf("registered route: %s %s", rt.Method, rt.Path)
 	}
 
+	server := &http.Server{
+		Addr:         ":8800",
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
+		BaseContext: func(_ net.Listener) context.Context {
+			return context.Background()
+		},
+	}
+
 	log.Println("Server listening on :8800 (docs at http://localhost:8800/docs/)")
-	log.Fatal(http.ListenAndServe(":8800", mux))
+	log.Fatal(server.ListenAndServe())
 }
