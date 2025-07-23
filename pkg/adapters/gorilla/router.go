@@ -10,7 +10,6 @@ import (
 )
 
 // Router wraps gorilla/mux Router.
-
 type Router struct {
 	*api.TypedRouter[*muxpkg.Router]
 
@@ -27,6 +26,24 @@ func (gorillaParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	return v, v != ""
 }
 
+func (gorillaParamAdapter) Query(r *http.Request, k string) (string, bool) {
+	v := r.URL.Query().Get(k)
+	return v, v != ""
+}
+
+func (gorillaParamAdapter) Header(r *http.Request, k string) (string, bool) {
+	v := r.Header.Get(k)
+	return v, v != ""
+}
+
+func (gorillaParamAdapter) Cookie(r *http.Request, k string) (string, bool) {
+	if c, _ := r.Cookie(k); c != nil {
+		return c.Value, true
+	}
+	return "", false
+}
+
+// NewRouter creates a new router around the given Gorilla mux router.
 func NewRouter(r *muxpkg.Router, opts ...api.Option) *Router {
 	if r == nil {
 		r = muxpkg.NewRouter()
@@ -44,7 +61,7 @@ func NewRouter(r *muxpkg.Router, opts ...api.Option) *Router {
 	}
 
 	// initial prefix ""
-	registerFn = func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn = func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		r.Path(toNativePath(path)).Methods(method).Handler(handler)
 	}
 
@@ -61,11 +78,12 @@ func NewRouter(r *muxpkg.Router, opts ...api.Option) *Router {
 	return wrapper
 }
 
+// Group creates a sub-router with prefix sharing the same registry.
 func (wr *Router) Group(prefix string) *Router {
 	newPrefix := wr.prefix + prefix
 	sub := wr.router.PathPrefix(prefix).Subrouter()
 
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		sub.Path(toNativePath(newPrefix + path)).Methods(method).Handler(handler)
 	}
 
@@ -88,6 +106,7 @@ func (wr *Router) Group(prefix string) *Router {
 	}
 }
 
+// GetRegistry returns the route registry.
 func (wr *Router) GetRegistry() *api.RouteRegistry { return wr.registry }
 
 // toNativePath converts goapi wildcard patterns ("/*") to gorilla/mux compatible

@@ -14,24 +14,42 @@ func GenerateOpenAPIWithDocs(reg *RouteRegistry, extractor *DocExtractor, opts .
 
 	// Enrich component schemas first so that operations using $ref automatically
 	// pick up descriptions.
+	enrichComponentSchemas(spec, extractor)
+
+	// Update path operations.
+	enrichPathOperations(spec, extractor)
+
+	return spec
+}
+
+func enrichComponentSchemas(spec *OpenAPISpec, extractor *DocExtractor) {
 	for name, schema := range spec.Components.Schemas {
-		doc := extractor.ExtractTypeDoc(name)
-		if doc.Description != "" {
-			schema.Description = doc.Description
-		}
-		// Propagate field descriptions to component schema properties.
-		if len(doc.Fields) > 0 && schema.Properties != nil {
-			for propName, propSchema := range schema.Properties {
-				if fd, ok := doc.Fields[propName]; ok {
-					if propSchema.Description == "" {
-						propSchema.Description = fd.Description
-					}
-				}
+		enrichSchemaWithTypeDoc(schema, name, extractor)
+	}
+}
+
+func enrichSchemaWithTypeDoc(schema *Schema, typeName string, extractor *DocExtractor) {
+	doc := extractor.ExtractTypeDoc(typeName)
+	if doc.Description != "" {
+		schema.Description = doc.Description
+	}
+	enrichSchemaPropertiesWithDocs(schema, doc)
+}
+
+func enrichSchemaPropertiesWithDocs(schema *Schema, doc Documentation) {
+	if len(doc.Fields) == 0 || schema.Properties == nil {
+		return
+	}
+	for propName, propSchema := range schema.Properties {
+		if fd, ok := doc.Fields[propName]; ok {
+			if propSchema.Description == "" {
+				propSchema.Description = fd.Description
 			}
 		}
 	}
+}
 
-	// Update path operations.
+func enrichPathOperations(spec *OpenAPISpec, extractor *DocExtractor) {
 	for _, item := range spec.Paths {
 		updateOperationWithDocs(item.Get, extractor)
 		updateOperationWithDocs(item.Post, extractor)
@@ -39,8 +57,6 @@ func GenerateOpenAPIWithDocs(reg *RouteRegistry, extractor *DocExtractor, opts .
 		updateOperationWithDocs(item.Patch, extractor)
 		updateOperationWithDocs(item.Delete, extractor)
 	}
-
-	return spec
 }
 
 func updateOperationWithDocs(op *Operation, extractor *DocExtractor) {
@@ -93,30 +109,9 @@ func EnhanceOpenAPISpecWithDocs(spec *OpenAPISpec, extractor *DocExtractor) {
 
 	// Component schemas
 	if spec.Components != nil {
-		for name, schema := range spec.Components.Schemas {
-			doc := extractor.ExtractTypeDoc(name)
-			if doc.Description != "" {
-				schema.Description = doc.Description
-			}
-			// Attach field-level descriptions to schema properties if any.
-			if len(doc.Fields) > 0 && schema.Properties != nil {
-				for propName, propSchema := range schema.Properties {
-					if fd, ok := doc.Fields[propName]; ok {
-						if propSchema.Description == "" {
-							propSchema.Description = fd.Description
-						}
-					}
-				}
-			}
-		}
+		enrichComponentSchemas(spec, extractor)
 	}
 
 	// Paths & operations
-	for _, item := range spec.Paths {
-		updateOperationWithDocs(item.Get, extractor)
-		updateOperationWithDocs(item.Post, extractor)
-		updateOperationWithDocs(item.Put, extractor)
-		updateOperationWithDocs(item.Patch, extractor)
-		updateOperationWithDocs(item.Delete, extractor)
-	}
+	enrichPathOperations(spec, extractor)
 }

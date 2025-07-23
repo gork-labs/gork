@@ -7,8 +7,7 @@ import (
 	"github.com/gork-labs/gork/pkg/api"
 )
 
-// Router wraps an *http.ServeMux and provides the higher-level API.Router
-// capabilities defined in the design spec.
+// Router provides routing capabilities using Go's standard library ServeMux.
 //
 // Groups are emulated by keeping track of a path prefix – Go's standard library
 // router does not have a native grouping facility.
@@ -20,6 +19,24 @@ func (stdlibParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	return v, v != ""
 }
 
+func (stdlibParamAdapter) Query(r *http.Request, k string) (string, bool) {
+	v := r.URL.Query().Get(k)
+	return v, v != ""
+}
+
+func (stdlibParamAdapter) Header(r *http.Request, k string) (string, bool) {
+	v := r.Header.Get(k)
+	return v, v != ""
+}
+
+func (stdlibParamAdapter) Cookie(r *http.Request, k string) (string, bool) {
+	if c, _ := r.Cookie(k); c != nil {
+		return c.Value, true
+	}
+	return "", false
+}
+
+// Router is a wrapper around *http.ServeMux that provides higher-level routing capabilities.
 type Router struct {
 	*api.TypedRouter[*http.ServeMux]
 	mux        *http.ServeMux
@@ -38,7 +55,7 @@ func NewRouter(mux *http.ServeMux, opts ...api.Option) *Router {
 	registry := api.NewRouteRegistry()
 
 	// Callback for route registration into the stdlib mux.
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		pattern := method + " " + toNativePath(path)
 		mux.HandleFunc(pattern, handler)
 	}
@@ -67,7 +84,7 @@ func NewRouter(mux *http.ServeMux, opts ...api.Option) *Router {
 func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
 
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		pattern := method + " " + toNativePath(newPrefix+path)
 		r.mux.HandleFunc(pattern, handler)
 	}

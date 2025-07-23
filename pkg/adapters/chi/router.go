@@ -8,7 +8,7 @@ import (
 	"github.com/gork-labs/gork/pkg/api"
 )
 
-// path parameter adapter
+// path parameter adapter.
 type chiParamAdapter struct{ api.RequestParamAdapter }
 
 func (chiParamAdapter) Path(r *http.Request, k string) (string, bool) {
@@ -20,10 +20,12 @@ func (chiParamAdapter) Query(r *http.Request, k string) (string, bool) {
 	v := r.URL.Query().Get(k)
 	return v, v != ""
 }
+
 func (chiParamAdapter) Header(r *http.Request, k string) (string, bool) {
 	v := r.Header.Get(k)
 	return v, v != ""
 }
+
 func (chiParamAdapter) Cookie(r *http.Request, k string) (string, bool) {
 	if c, _ := r.Cookie(k); c != nil {
 		return c.Value, true
@@ -31,14 +33,14 @@ func (chiParamAdapter) Cookie(r *http.Request, k string) (string, bool) {
 	return "", false
 }
 
-// Router wraps a chi.Mux with TypedRouter capabilities.
-
+// Router wraps a chi.Mux with TypedRouter capabilities, enabling integration
+// with Gork's API framework for route registration and middleware handling.
 type Router struct {
-	*api.TypedRouter[*chibase.Mux]
-	mux        *chibase.Mux
-	registry   *api.RouteRegistry
-	prefix     string
-	middleware []api.Option
+	typedRouter *api.TypedRouter[*chibase.Mux]
+	mux         *chibase.Mux
+	registry    *api.RouteRegistry
+	prefix      string
+	middleware  []api.Option
 }
 
 // NewRouter returns a new chi router wrapper. If mux is nil a new one is
@@ -49,7 +51,7 @@ func NewRouter(mux *chibase.Mux, opts ...api.Option) *Router {
 	}
 	registry := api.NewRouteRegistry()
 
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		mux.Method(method, path, handler)
 	}
 
@@ -67,7 +69,7 @@ func NewRouter(mux *chibase.Mux, opts ...api.Option) *Router {
 		chiParamAdapter{},
 		registerFn,
 	)
-	r.TypedRouter = &tr
+	r.typedRouter = &tr
 
 	return r
 }
@@ -76,7 +78,7 @@ func NewRouter(mux *chibase.Mux, opts ...api.Option) *Router {
 func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
 
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		r.mux.Method(method, newPrefix+path, handler)
 	}
 
@@ -85,7 +87,7 @@ func (r *Router) Group(prefix string) *Router {
 		registry:   r.registry,
 		prefix:     newPrefix,
 		middleware: r.middleware,
-		TypedRouter: func() *api.TypedRouter[*chibase.Mux] {
+		typedRouter: func() *api.TypedRouter[*chibase.Mux] {
 			tr2 := api.NewTypedRouter[*chibase.Mux](
 				r.mux,
 				r.registry,
@@ -101,3 +103,38 @@ func (r *Router) Group(prefix string) *Router {
 
 // GetRegistry exposes the shared registry instance.
 func (r *Router) GetRegistry() *api.RouteRegistry { return r.registry }
+
+// Unwrap returns the underlying chi.Mux instance.
+func (r *Router) Unwrap() *chibase.Mux {
+	return r.mux
+}
+
+// Get delegates to the TypedRouter's Get method.
+func (r *Router) Get(path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Get(path, handler, opts...)
+}
+
+// Post delegates to the TypedRouter's Post method.
+func (r *Router) Post(path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Post(path, handler, opts...)
+}
+
+// Put delegates to the TypedRouter's Put method.
+func (r *Router) Put(path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Put(path, handler, opts...)
+}
+
+// Delete delegates to the TypedRouter's Delete method.
+func (r *Router) Delete(path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Delete(path, handler, opts...)
+}
+
+// Patch delegates to the TypedRouter's Patch method.
+func (r *Router) Patch(path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Patch(path, handler, opts...)
+}
+
+// DocsRoute delegates to the TypedRouter's DocsRoute method.
+func (r *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
+	r.typedRouter.DocsRoute(path, cfg...)
+}

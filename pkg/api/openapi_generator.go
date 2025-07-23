@@ -66,37 +66,42 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		op := buildOperation(route, spec.Components)
 
 		// Security mapping
-		if route.Options != nil && len(route.Options.Security) > 0 {
-			if spec.Components.SecuritySchemes == nil {
-				spec.Components.SecuritySchemes = map[string]*SecurityScheme{}
-			}
-
-			for _, sec := range route.Options.Security {
-				var schemeName string
-				var scheme SecurityScheme
-				switch sec.Type {
-				case "basic":
-					schemeName = "BasicAuth"
-					scheme = SecurityScheme{Type: "http", Scheme: "basic"}
-				case "bearer":
-					schemeName = "BearerAuth"
-					scheme = SecurityScheme{Type: "http", Scheme: "bearer"}
-				case "apiKey":
-					schemeName = "ApiKeyAuth"
-					scheme = SecurityScheme{Type: "apiKey", In: "header", Name: "X-API-Key"}
-				default:
-					continue
-				}
-
-				spec.Components.SecuritySchemes[schemeName] = &scheme
-
-				op.Security = append(op.Security, map[string][]string{schemeName: {}})
-			}
-		}
+		applySecurityToOperation(route, spec, op)
 		attachOperation(spec.Paths[path], strings.ToLower(route.Method), op)
 	}
 
 	return spec
+}
+
+func applySecurityToOperation(route *RouteInfo, spec *OpenAPISpec, op *Operation) {
+	if route.Options == nil || len(route.Options.Security) == 0 {
+		return
+	}
+
+	if spec.Components.SecuritySchemes == nil {
+		spec.Components.SecuritySchemes = map[string]*SecurityScheme{}
+	}
+
+	for _, sec := range route.Options.Security {
+		var schemeName string
+		var scheme SecurityScheme
+		switch sec.Type {
+		case "basic":
+			schemeName = "BasicAuth"
+			scheme = SecurityScheme{Type: "http", Scheme: "basic"}
+		case "bearer":
+			schemeName = "BearerAuth"
+			scheme = SecurityScheme{Type: "http", Scheme: "bearer"}
+		case "apiKey":
+			schemeName = "ApiKeyAuth"
+			scheme = SecurityScheme{Type: "apiKey", In: "header", Name: "X-API-Key"}
+		default:
+			continue
+		}
+
+		spec.Components.SecuritySchemes[schemeName] = &scheme
+		op.Security = append(op.Security, map[string][]string{schemeName: {}})
+	}
 }
 
 func normalizePath(p string) string {
@@ -126,7 +131,6 @@ func buildOperation(route *RouteInfo, comps *Components) *Operation {
 	}
 	if route.Options != nil {
 		operation.Tags = route.Options.Tags
-		// TODO: security mapping
 	}
 
 	// Parameters
@@ -203,7 +207,7 @@ func buildOperation(route *RouteInfo, comps *Components) *Operation {
 	return operation
 }
 
-// ensureStdResponses populates common error responses in components
+// ensureStdResponses populates common error responses in components.
 func ensureStdResponses(comps *Components) {
 	if comps.Responses == nil {
 		comps.Responses = map[string]*Response{}
@@ -235,16 +239,42 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 
 	// Check for built-in or user-defined union types
 	if isUnionType(t) || isUnionStruct(t) {
-		u := generateUnionSchema(t, registry)
-		rawName := t.Name()
-		typeName := sanitizeSchemaName(rawName)
-		if typeName != "" {
-			registry[typeName] = u
-			return &Schema{Ref: "#/components/schemas/" + typeName}
-		}
-		return u
+		return handleUnionType(t, registry)
 	}
 
+	// Check if this type is already registered
+	if schema := checkExistingType(t, registry); schema != nil {
+		return schema
+	}
+
+	switch t.Kind() {
+	case reflect.Struct:
+		return buildStructSchema(t, registry)
+	case reflect.Slice, reflect.Array:
+		return buildArraySchema(t, registry)
+	case reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64, reflect.Bool, reflect.Invalid, reflect.Uintptr,
+		reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.Interface,
+		reflect.Map, reflect.Ptr, reflect.UnsafePointer:
+		return buildBasicTypeSchemaWithRegistry(t, registry)
+	default:
+		return buildBasicTypeSchemaWithRegistry(t, registry)
+	}
+}
+
+func handleUnionType(t reflect.Type, registry map[string]*Schema) *Schema {
+	u := generateUnionSchema(t, registry)
+	rawName := t.Name()
+	typeName := sanitizeSchemaName(rawName)
+	if typeName != "" {
+		registry[typeName] = u
+		return &Schema{Ref: "#/components/schemas/" + typeName}
+	}
+	return u
+}
+
+func checkExistingType(t reflect.Type, registry map[string]*Schema) *Schema {
 	rawName := t.Name()
 	typeName := sanitizeSchemaName(rawName)
 	if typeName != "" {
@@ -252,78 +282,99 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 			return &Schema{Ref: "#/components/schemas/" + typeName}
 		}
 	}
+	return nil
+}
 
+func buildStructSchema(t reflect.Type, registry map[string]*Schema) *Schema {
+	s := &Schema{
+		Type:       "object",
+		Properties: map[string]*Schema{},
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.PkgPath != "" { // unexported
+			continue
+		}
+
+		// Skip parameter-only fields
+		if isOpenAPIParam(f) {
+			continue
+		}
+
+		// Handle embedded structs
+		if f.Anonymous && f.Type.Kind() == reflect.Struct && f.Tag.Get("json") == "" {
+			processEmbeddedStruct(f, s, registry)
+			continue
+		}
+
+		// Process regular field
+		processStructField(f, s, registry)
+	}
+
+	// Register named types
+	rawName := t.Name()
+	typeName := sanitizeSchemaName(rawName)
+	if typeName != "" {
+		s.Title = typeName
+		registry[typeName] = s
+		return &Schema{Ref: "#/components/schemas/" + typeName}
+	}
+	return s
+}
+
+func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string]*Schema) {
+	embeddedSchema := reflectTypeToSchema(f.Type, registry)
+
+	// If embeddedSchema is a reference, resolve to actual for property extraction.
+	if embeddedSchema.Ref != "" {
+		refName := strings.TrimPrefix(embeddedSchema.Ref, "#/components/schemas/")
+		if resolved, ok := registry[refName]; ok {
+			embeddedSchema = resolved
+		}
+	}
+
+	if embeddedSchema.Properties != nil {
+		for propName, propSchema := range embeddedSchema.Properties {
+			s.Properties[propName] = propSchema
+		}
+	}
+	if len(embeddedSchema.Required) > 0 {
+		s.Required = append(s.Required, embeddedSchema.Required...)
+	}
+}
+
+func processStructField(f reflect.StructField, s *Schema, registry map[string]*Schema) {
+	fieldSchema := reflectTypeToSchema(f.Type, registry)
+
+	// Handle discriminator values
+	if discVal, ok := parseDiscriminator(f.Tag.Get("openapi")); ok {
+		fieldSchema.Enum = []string{discVal}
+	}
+
+	// Parse validation tag
+	validateTag := f.Tag.Get("validate")
+	if validateTag != "" {
+		applyValidationConstraints(fieldSchema, validateTag, f.Type, s, f)
+	}
+
+	jsonName := getFieldJSONName(f)
+	s.Properties[jsonName] = fieldSchema
+}
+
+func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
+	itemSchema := reflectTypeToSchema(t.Elem(), registry)
+	var title, desc string
+	// If the element type has a name, expose it for nicer UI rendering.
+	if elemName := t.Elem().Name(); elemName != "" {
+		title = "[]" + elemName
+		desc = "Array of " + elemName
+	}
+	return &Schema{Title: title, Description: desc, Type: "array", Items: itemSchema}
+}
+
+func buildBasicTypeSchema(t reflect.Type) *Schema {
 	switch t.Kind() {
-	case reflect.Struct:
-		s := &Schema{
-			Type:       "object",
-			Properties: map[string]*Schema{},
-		}
-		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
-			if f.PkgPath != "" { // unexported
-				continue
-			}
-
-			// Skip parameter-only fields
-			if isOpenAPIParam(f) {
-				continue
-			}
-
-			// Special-case: flatten embedded structs (anonymous field with no explicit JSON name).
-			if f.Anonymous && f.Type.Kind() == reflect.Struct && f.Tag.Get("json") == "" {
-				embeddedSchema := reflectTypeToSchema(f.Type, registry)
-
-				// If embeddedSchema is a reference, resolve to actual for property extraction.
-				if embeddedSchema.Ref != "" {
-					refName := strings.TrimPrefix(embeddedSchema.Ref, "#/components/schemas/")
-					if resolved, ok := registry[refName]; ok {
-						embeddedSchema = resolved
-					}
-				}
-
-				if embeddedSchema.Properties != nil {
-					for propName, propSchema := range embeddedSchema.Properties {
-						s.Properties[propName] = propSchema
-					}
-				}
-				if len(embeddedSchema.Required) > 0 {
-					s.Required = append(s.Required, embeddedSchema.Required...)
-				}
-				// No separate property for the embedded struct itself.
-				continue
-			}
-
-			fieldSchema := reflectTypeToSchema(f.Type, registry)
-
-			// after fieldSchema assigned, before validation tag parsing
-			if discVal, ok := parseDiscriminator(f.Tag.Get("openapi")); ok {
-				fieldSchema.Enum = []string{discVal}
-			}
-
-			// Parse validation tag
-			validateTag := f.Tag.Get("validate")
-			if validateTag != "" {
-				applyValidationConstraints(fieldSchema, validateTag, f.Type, s, f)
-			}
-
-			jsonName := f.Tag.Get("json")
-			if jsonName == "" {
-				jsonName = f.Name
-			}
-			// Remove omitempty option
-			if comma := strings.Index(jsonName, ","); comma != -1 {
-				jsonName = jsonName[:comma]
-			}
-
-			s.Properties[jsonName] = fieldSchema
-		}
-		if typeName != "" {
-			s.Title = typeName
-			registry[typeName] = s
-			return &Schema{Ref: "#/components/schemas/" + typeName}
-		}
-		return s
 	case reflect.String:
 		return &Schema{Type: "string"}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -333,28 +384,64 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 		return &Schema{Type: "number"}
 	case reflect.Bool:
 		return &Schema{Type: "boolean"}
-	case reflect.Slice, reflect.Array:
-		itemSchema := reflectTypeToSchema(t.Elem(), registry)
-		var title, desc string
-		// If the element type has a name, expose it for nicer UI rendering.
-		if elemName := t.Elem().Name(); elemName != "" {
-			title = "[]" + elemName
-			desc = "Array of " + elemName
-		}
-		return &Schema{Title: title, Description: desc, Type: "array", Items: itemSchema}
+	case reflect.Invalid:
+		return &Schema{Type: "null"}
+	case reflect.Uintptr:
+		return &Schema{Type: "integer", Description: "Pointer-sized integer"}
+	case reflect.Complex64, reflect.Complex128:
+		return &Schema{Type: "object", Description: "Complex number"}
+	case reflect.Chan:
+		return &Schema{Type: "object", Description: "Channel"}
+	case reflect.Func:
+		return &Schema{Type: "object", Description: "Function"}
+	case reflect.Interface:
+		return &Schema{Type: "object", Description: "Interface"}
+	case reflect.Map:
+		return &Schema{Type: "object", Description: "Map with dynamic keys"}
+	case reflect.UnsafePointer:
+		return &Schema{Type: "object", Description: "Unsafe pointer"}
+	case reflect.Array, reflect.Ptr, reflect.Slice, reflect.Struct:
+		// These cases should not reach here as they're handled in the main function
+		return &Schema{Type: "object"}
 	default:
 		return &Schema{Type: "object"}
 	}
 }
 
+func buildBasicTypeSchemaWithRegistry(t reflect.Type, registry map[string]*Schema) *Schema {
+	if t.Kind() == reflect.Ptr {
+		return reflectTypeToSchema(t.Elem(), registry)
+	}
+	return buildBasicTypeSchema(t)
+}
+
 // generateUnionSchema builds a oneOf schema for unions.UnionX types.
 func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
-	var (
-		variants           []*Schema // schemas for the full variant types
-		discProp           string
-		mapping            = map[string]string{}
-		validDiscriminator = true
-	)
+	variants, discInfo := extractUnionVariantsAndDiscriminator(t, registry)
+
+	schema := &Schema{OneOf: variants}
+	if discInfo.isValid && discInfo.propertyName != "" {
+		schema.Discriminator = &Discriminator{
+			PropertyName: discInfo.propertyName,
+			Mapping:      discInfo.mapping,
+		}
+	}
+
+	return schema
+}
+
+type discriminatorInfo struct {
+	propertyName string
+	mapping      map[string]string
+	isValid      bool
+}
+
+func extractUnionVariantsAndDiscriminator(t reflect.Type, registry map[string]*Schema) ([]*Schema, discriminatorInfo) {
+	var variants []*Schema
+	discInfo := discriminatorInfo{
+		mapping: make(map[string]string),
+		isValid: true,
+	}
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -363,57 +450,53 @@ func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 		}
 
 		vt := f.Type.Elem()
-
-		// Store full variant schema.
 		variants = append(variants, reflectTypeToSchema(vt, registry))
 
-		// Discriminator inspection only makes sense for struct variants (non-slice).
-		if !validDiscriminator || vt.Kind() != reflect.Struct {
-			validDiscriminator = false
-			continue
+		// Only struct variants can have discriminators
+		if discInfo.isValid && vt.Kind() == reflect.Struct {
+			processVariantDiscriminator(vt, &discInfo)
+		} else {
+			discInfo.isValid = false
 		}
+	}
 
-		// search fields in vt for discriminator tag
-		found := false
-		for j := 0; j < vt.NumField(); j++ {
-			vf := vt.Field(j)
-			if tag, ok := vf.Tag.Lookup("openapi"); ok && strings.HasPrefix(tag, "discriminator=") {
-				value := strings.TrimPrefix(tag, "discriminator=")
-				jsonName := vf.Tag.Get("json")
-				if jsonName == "" {
-					jsonName = vf.Name
-				}
-				if comma := strings.Index(jsonName, ","); comma != -1 {
-					jsonName = jsonName[:comma]
-				}
-				if discProp == "" {
-					discProp = jsonName
-				} else if discProp != jsonName {
-					validDiscriminator = false
-					break
-				}
-				// build mapping for discriminator
-				mapping[value] = "#/components/schemas/" + vt.Name()
-				found = true
-				break
+	return variants, discInfo
+}
+
+func processVariantDiscriminator(vt reflect.Type, discInfo *discriminatorInfo) {
+	found := false
+	for j := 0; j < vt.NumField(); j++ {
+		vf := vt.Field(j)
+		if tag, ok := vf.Tag.Lookup("openapi"); ok && strings.HasPrefix(tag, "discriminator=") {
+			value := strings.TrimPrefix(tag, "discriminator=")
+			jsonName := getFieldJSONName(vf)
+
+			if discInfo.propertyName == "" {
+				discInfo.propertyName = jsonName
+			} else if discInfo.propertyName != jsonName {
+				discInfo.isValid = false
+				return
 			}
-		}
-		if !found {
-			validDiscriminator = false
+
+			discInfo.mapping[value] = "#/components/schemas/" + vt.Name()
+			found = true
+			break
 		}
 	}
-
-	// Regardless of whether the variants are slices or not, model the union as a
-	// oneOf across the full variant schemas. This preserves the semantics of the
-	// Go union types: the entire value must conform to exactly one variant. For
-	// unions of slices this means the array must be homogeneous (either all
-	// AdminUserResponse or all UserResponse), not a mixture.
-	schema := &Schema{OneOf: variants}
-	if validDiscriminator && discProp != "" {
-		schema.Discriminator = &Discriminator{PropertyName: discProp, Mapping: mapping}
+	if !found {
+		discInfo.isValid = false
 	}
+}
 
-	return schema
+func getFieldJSONName(f reflect.StructField) string {
+	jsonName := f.Tag.Get("json")
+	if jsonName == "" {
+		jsonName = f.Name
+	}
+	if comma := strings.Index(jsonName, ","); comma != -1 {
+		jsonName = jsonName[:comma]
+	}
+	return jsonName
 }
 
 // isUnionType checks if the provided type is one of the generic union wrappers
@@ -461,69 +544,84 @@ func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldTy
 	parts := strings.Split(validateTag, ",")
 	for _, p := range parts {
 		if p == "required" {
-			jsonName := sf.Tag.Get("json")
-			if jsonName == "" {
-				jsonName = sf.Name
-			}
-			if comma := strings.Index(jsonName, ","); comma != -1 {
-				jsonName = jsonName[:comma]
-			}
-			// Append if not already present
-			already := false
-			for _, r := range parent.Required {
-				if r == jsonName {
-					already = true
-					break
-				}
-			}
-			if !already {
-				parent.Required = append(parent.Required, jsonName)
-			}
+			addRequiredField(parent, sf)
 			continue
 		}
 
-		var key, val string
-		if idx := strings.Index(p, "="); idx != -1 {
-			key, val = p[:idx], p[idx+1:]
-		} else {
-			key = p
-		}
+		key, val := parseValidationRule(p)
+		applyValidationRule(fieldSchema, key, val, fieldType)
+	}
+}
 
-		switch key {
-		case "min", "gte", "gt":
-			if num, err := strconv.ParseFloat(val, 64); err == nil {
-				if isStringKind(fieldType) {
-					v := int(num)
-					fieldSchema.MinLength = &v
-				} else {
-					fieldSchema.Minimum = &num
-				}
-			}
-		case "max", "lte", "lt":
-			if num, err := strconv.ParseFloat(val, 64); err == nil {
-				if isStringKind(fieldType) {
-					v := int(num)
-					fieldSchema.MaxLength = &v
-				} else {
-					fieldSchema.Maximum = &num
-				}
-			}
-		case "len":
-			if num, err := strconv.Atoi(val); err == nil {
-				if isStringKind(fieldType) {
-					fieldSchema.MinLength = &num
-					fieldSchema.MaxLength = &num
-				}
-			}
-		case "regexp":
-			fieldSchema.Pattern = val
-		case "oneof":
-			// val contains space-separated options
-			opts := strings.Fields(val)
-			if len(opts) > 0 {
-				fieldSchema.Enum = opts
-			}
+func addRequiredField(parent *Schema, sf reflect.StructField) {
+	jsonName := getFieldJSONName(sf)
+
+	// Append if not already present
+	for _, r := range parent.Required {
+		if r == jsonName {
+			return
 		}
+	}
+	parent.Required = append(parent.Required, jsonName)
+}
+
+func parseValidationRule(p string) (key, val string) {
+	if idx := strings.Index(p, "="); idx != -1 {
+		return p[:idx], p[idx+1:]
+	}
+	return p, ""
+}
+
+func applyValidationRule(fieldSchema *Schema, key, val string, fieldType reflect.Type) {
+	switch key {
+	case "min", "gte", "gt":
+		applyMinConstraint(fieldSchema, val, fieldType)
+	case "max", "lte", "lt":
+		applyMaxConstraint(fieldSchema, val, fieldType)
+	case "len":
+		applyLenConstraint(fieldSchema, val, fieldType)
+	case "regexp":
+		fieldSchema.Pattern = val
+	case "oneof":
+		applyOneOfConstraint(fieldSchema, val)
+	}
+}
+
+func applyMinConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
+	if num, err := strconv.ParseFloat(val, 64); err == nil {
+		if isStringKind(fieldType) {
+			v := int(num)
+			fieldSchema.MinLength = &v
+		} else {
+			fieldSchema.Minimum = &num
+		}
+	}
+}
+
+func applyMaxConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
+	if num, err := strconv.ParseFloat(val, 64); err == nil {
+		if isStringKind(fieldType) {
+			v := int(num)
+			fieldSchema.MaxLength = &v
+		} else {
+			fieldSchema.Maximum = &num
+		}
+	}
+}
+
+func applyLenConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
+	if num, err := strconv.Atoi(val); err == nil {
+		if isStringKind(fieldType) {
+			fieldSchema.MinLength = &num
+			fieldSchema.MaxLength = &num
+		}
+	}
+}
+
+func applyOneOfConstraint(fieldSchema *Schema, val string) {
+	opts := strings.Fields(val)
+	if len(opts) > 0 {
+		fieldSchema.Enum = opts
 	}
 }
 
@@ -532,20 +630,6 @@ func isStringKind(t reflect.Type) bool {
 		t = t.Elem()
 	}
 	return t.Kind() == reflect.String
-}
-
-// parseOpenAPILocation returns the value of "in" from the openapi struct tag.
-func parseOpenAPILocation(tag string) string {
-	if tag == "" {
-		return ""
-	}
-	parts := strings.Split(tag, ",")
-	for _, p := range parts {
-		if strings.HasPrefix(p, "in=") {
-			return strings.TrimPrefix(p, "in=")
-		}
-	}
-	return ""
 }
 
 // parseOpenAPIParam expects a struct tag value of the form "<name>,in=<loc>".
@@ -605,33 +689,42 @@ func extractParameters(t reflect.Type, registry map[string]*Schema) []Parameter 
 			continue
 		}
 
-		schema := reflectTypeToSchema(f.Type, registry)
-
-		// apply enum from oneof validation
-		validateTag := f.Tag.Get("validate")
-		if strings.HasPrefix(validateTag, "oneof=") || strings.Contains(validateTag, " oneof=") {
-			parts := strings.Split(validateTag, "oneof=")
-			if len(parts) > 1 {
-				enums := strings.Fields(parts[1])
-				if len(enums) > 0 {
-					schema.Enum = enums
-				}
-			}
-		}
-
-		required := loc == "path" || strings.Contains(validateTag, "required")
-
-		params = append(params, Parameter{
-			Name:     name,
-			In:       loc,
-			Required: required,
-			Schema:   schema,
-		})
+		param := buildParameterFromField(f, name, loc, registry)
+		params = append(params, param)
 	}
 	return params
 }
 
-// helper to decide if field is parameter
+func buildParameterFromField(f reflect.StructField, name, loc string, registry map[string]*Schema) Parameter {
+	schema := reflectTypeToSchema(f.Type, registry)
+
+	// apply enum from oneof validation
+	validateTag := f.Tag.Get("validate")
+	applyOneOfValidationToSchema(schema, validateTag)
+
+	required := loc == "path" || strings.Contains(validateTag, "required")
+
+	return Parameter{
+		Name:     name,
+		In:       loc,
+		Required: required,
+		Schema:   schema,
+	}
+}
+
+func applyOneOfValidationToSchema(schema *Schema, validateTag string) {
+	if strings.HasPrefix(validateTag, "oneof=") || strings.Contains(validateTag, " oneof=") {
+		parts := strings.Split(validateTag, "oneof=")
+		if len(parts) > 1 {
+			enums := strings.Fields(parts[1])
+			if len(enums) > 0 {
+				schema.Enum = enums
+			}
+		}
+	}
+}
+
+// helper to decide if field is parameter.
 func isOpenAPIParam(f reflect.StructField) bool {
 	_, _, ok := parseOpenAPIParam(f.Tag.Get("openapi"))
 	return ok

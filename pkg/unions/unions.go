@@ -9,7 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// validatorInstance is a cached validator to avoid recreation on each unmarshal
+// ValidatorInstance is a cached validator to avoid recreation on each unmarshal.
 var (
 	validatorInstance *validator.Validate
 	validatorOnce     sync.Once
@@ -22,13 +22,13 @@ func getValidator() *validator.Validate {
 	return validatorInstance
 }
 
-// Union2 represents a union of two types
+// Union2 represents a union of two types.
 type Union2[A, B any] struct {
 	A *A
 	B *B
 }
 
-// UnmarshalJSON implements json.Unmarshaler for Union2
+// UnmarshalJSON implements json.Unmarshaler for Union2.
 func (u *Union2[A, B]) UnmarshalJSON(data []byte) error {
 	u.A = nil
 	u.B = nil
@@ -57,7 +57,7 @@ func (u *Union2[A, B]) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("failed to unmarshal into any union type: data does not match any of the union variants")
 }
 
-// MarshalJSON implements json.Marshaler for Union2
+// MarshalJSON implements json.Marshaler for Union2.
 func (u Union2[A, B]) MarshalJSON() ([]byte, error) {
 	switch {
 	case u.A != nil:
@@ -69,7 +69,7 @@ func (u Union2[A, B]) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// Validate validates the active union member
+// Validate validates the active union member.
 func (u Union2[A, B]) Validate(validate *validator.Validate) error {
 	count := 0
 	var value interface{}
@@ -93,7 +93,7 @@ func (u Union2[A, B]) Validate(validate *validator.Validate) error {
 	return validate.Struct(value)
 }
 
-// Value returns the active value and its type index (0-based)
+// Value returns the active value and its type index (0-based).
 func (u Union2[A, B]) Value() (interface{}, int) {
 	switch {
 	case u.A != nil:
@@ -105,14 +105,14 @@ func (u Union2[A, B]) Value() (interface{}, int) {
 	}
 }
 
-// Union3 represents a union of three types
+// Union3 represents a union of three types.
 type Union3[A, B, C any] struct {
 	A *A
 	B *B
 	C *C
 }
 
-// UnmarshalJSON implements json.Unmarshaler for Union3
+// UnmarshalJSON implements json.Unmarshaler for Union3.
 func (u *Union3[A, B, C]) UnmarshalJSON(data []byte) error {
 	u.A = nil
 	u.B = nil
@@ -150,7 +150,7 @@ func (u *Union3[A, B, C]) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("failed to unmarshal into any union type: data does not match any of the union variants")
 }
 
-// MarshalJSON implements json.Marshaler for Union3
+// MarshalJSON implements json.Marshaler for Union3.
 func (u Union3[A, B, C]) MarshalJSON() ([]byte, error) {
 	switch {
 	case u.A != nil:
@@ -164,7 +164,7 @@ func (u Union3[A, B, C]) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// Validate validates the active union member
+// Validate validates the active union member.
 func (u Union3[A, B, C]) Validate(validate *validator.Validate) error {
 	count := 0
 	var value interface{}
@@ -192,7 +192,7 @@ func (u Union3[A, B, C]) Validate(validate *validator.Validate) error {
 	return validate.Struct(value)
 }
 
-// Value returns the active value and its type index (0-based)
+// Value returns the active value and its type index (0-based).
 func (u Union3[A, B, C]) Value() (interface{}, int) {
 	switch {
 	case u.A != nil:
@@ -206,7 +206,7 @@ func (u Union3[A, B, C]) Value() (interface{}, int) {
 	}
 }
 
-// Union4 represents a union of four types
+// Union4 represents a union of four types.
 type Union4[A, B, C, D any] struct {
 	A *A
 	B *B
@@ -214,7 +214,7 @@ type Union4[A, B, C, D any] struct {
 	D *D
 }
 
-// UnmarshalJSON implements json.Unmarshaler for Union4
+// UnmarshalJSON implements json.Unmarshaler for Union4.
 func (u *Union4[A, B, C, D]) UnmarshalJSON(data []byte) error {
 	u.A = nil
 	u.B = nil
@@ -262,7 +262,7 @@ func (u *Union4[A, B, C, D]) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("failed to unmarshal into any union type: data does not match any of the union variants")
 }
 
-// MarshalJSON implements json.Marshaler for Union4
+// MarshalJSON implements json.Marshaler for Union4.
 func (u Union4[A, B, C, D]) MarshalJSON() ([]byte, error) {
 	switch {
 	case u.A != nil:
@@ -278,7 +278,7 @@ func (u Union4[A, B, C, D]) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// Validate validates the active union member
+// Validate validates the active union member.
 func (u Union4[A, B, C, D]) Validate(validate *validator.Validate) error {
 	count := 0
 	var value interface{}
@@ -310,7 +310,7 @@ func (u Union4[A, B, C, D]) Validate(validate *validator.Validate) error {
 	return validate.Struct(value)
 }
 
-// Value returns the active value and its type index (0-based)
+// Value returns the active value and its type index (0-based).
 func (u Union4[A, B, C, D]) Value() (interface{}, int) {
 	switch {
 	case u.A != nil:
@@ -325,4 +325,3 @@ func (u Union4[A, B, C, D]) Value() (interface{}, int) {
 		return nil, -1
 	}
 }
-
