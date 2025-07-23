@@ -10,11 +10,11 @@ import (
 	"github.com/gork-labs/gork/pkg/api"
 )
 
-// key used to store *gin.Context in request context
+// Key used to store *gin.Context in request context.
+
 type ginCtxKey struct{}
 
 // Router wraps gin Engine or RouterGroup with TypedRouter capabilities.
-
 type Router struct {
 	*api.TypedRouter[*ginpkg.Engine]
 
@@ -25,6 +25,7 @@ type Router struct {
 	middleware []api.Option
 }
 
+// NewRouter creates a new router around the given Gin engine.
 func NewRouter(e *ginpkg.Engine, opts ...api.Option) *Router {
 	if e == nil {
 		e = ginpkg.New()
@@ -32,7 +33,7 @@ func NewRouter(e *ginpkg.Engine, opts ...api.Option) *Router {
 
 	registry := api.NewRouteRegistry()
 
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		e.Handle(method, toNativePath(path), func(c *ginpkg.Context) {
 			reqWith := c.Request.WithContext(context.WithValue(c.Request.Context(), ginCtxKey{}, c))
 			handler.ServeHTTP(c.Writer, reqWith)
@@ -58,6 +59,7 @@ func NewRouter(e *ginpkg.Engine, opts ...api.Option) *Router {
 	return r
 }
 
+// Group creates a sub-router with prefix sharing the same registry.
 func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
 	var g *ginpkg.RouterGroup
@@ -67,7 +69,7 @@ func (r *Router) Group(prefix string) *Router {
 		g = r.engine.Group(prefix)
 	}
 
-	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
 		g.Handle(method, toNativePath(newPrefix+path), ginpkg.WrapH(handler))
 	}
 
@@ -91,6 +93,7 @@ func (r *Router) Group(prefix string) *Router {
 	}
 }
 
+// GetRegistry returns the route registry.
 func (r *Router) GetRegistry() *api.RouteRegistry { return r.registry }
 
 func toNativePath(p string) string {
@@ -114,6 +117,23 @@ func (ginParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	if gc, ok := r.Context().Value(ginCtxKey{}).(*ginpkg.Context); ok {
 		v := gc.Param(k)
 		return v, v != ""
+	}
+	return "", false
+}
+
+func (ginParamAdapter) Query(r *http.Request, k string) (string, bool) {
+	v := r.URL.Query().Get(k)
+	return v, v != ""
+}
+
+func (ginParamAdapter) Header(r *http.Request, k string) (string, bool) {
+	v := r.Header.Get(k)
+	return v, v != ""
+}
+
+func (ginParamAdapter) Cookie(r *http.Request, k string) (string, bool) {
+	if c, _ := r.Cookie(k); c != nil {
+		return c.Value, true
 	}
 	return "", false
 }

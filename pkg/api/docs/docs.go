@@ -1,3 +1,4 @@
+// Package docs provides documentation extraction utilities for Go types and fields.
 package docs
 
 // TypeDocs holds extracted documentation for types and their fields.
@@ -10,7 +11,7 @@ type TypeDocs struct {
 //
 // NOTE: This is a stub implementation that returns empty docs so that the rest
 // of the system can compile. A full AST-based extractor can be added later.
-func ExtractDocs(pkgs []string) (*TypeDocs, error) {
+func ExtractDocs(_ []string) (*TypeDocs, error) {
 	return &TypeDocs{
 		Types:  map[string]string{},
 		Fields: map[string]map[string]string{},

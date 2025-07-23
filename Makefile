@@ -1,7 +1,7 @@
 # Root Makefile for gork monorepo
-.PHONY: all test build clean lint lint-% list-modules coverage coverage-html deps verify fmt vuln test-% coverage-% openapi-build openapi-gen openapi-validate openapi-swagger-validate
+.PHONY: all test build clean lint list-modules coverage coverage-html deps verify fmt vuln openapi-build openapi-gen openapi-validate openapi-swagger-validate
 
-# Dynamically read modules from go.work
+# Dynamically read modules from go.work (used only by list-modules and some remaining inline targets)
 MODULES := $(shell go work edit -json | jq -r '.Use[].DiskPath' | sed 's|^\./||')
 
 # Also define specific module groups for targeted operations
@@ -10,11 +10,33 @@ TOOL_MODULES := $(filter-out pkg/% examples,$(MODULES))
 
 all: test build
 
+# Test specific module or all modules
+# Usage: make test [module_path]
+# Examples:
+#   make test                    # test all modules
+#   make test pkg/adapters/chi   # test specific module
 test:
-	@for module in $(MODULES); do \
-		echo "Testing $$module..."; \
-		(cd $$module && go test ./... -v) || exit 1; \
-	done
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		./scripts/test-module.sh "$(filter-out $@,$(MAKECMDGOALS))"; \
+	else \
+		./scripts/test-all.sh; \
+	fi
+
+# Coverage check for specific module or all modules
+# Usage: make coverage [module_path]
+# Examples:
+#   make coverage                    # check coverage for all modules
+#   make coverage pkg/adapters/chi   # check coverage for specific module
+coverage:
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		./scripts/coverage-module.sh "$(filter-out $@,$(MAKECMDGOALS))"; \
+	else \
+		./scripts/coverage-all.sh; \
+	fi
+
+# Prevent make from treating module names as targets
+%:
+	@:
 
 # List all modules detected from go.work
 list-modules:
@@ -32,19 +54,7 @@ list-modules:
 	fi
 
 build:
-	@for module in $(TOOL_MODULES); do \
-		echo "Building $$module..."; \
-		if [ -d "$$module/cmd" ]; then \
-			for cmd in $$module/cmd/*; do \
-				if [ -d "$$cmd" ]; then \
-					cmdname=$$(basename $$cmd); \
-					echo "  Building $$cmdname..."; \
-					outpath=$$(echo "$$module" | sed 's|[^/]*|..|g')/bin/$$cmdname; \
-					(cd $$module && go build -o $$outpath ./cmd/$$cmdname) || exit 1; \
-				fi; \
-			done; \
-		fi; \
-	done
+	@./scripts/build-tools.sh
 
 clean:
 	rm -rf bin/
@@ -52,76 +62,9 @@ clean:
 		(cd $$module && go clean -cache -testcache); \
 	done
 
-# Dynamic module-specific test targets
-# Usage: make test-unions, make test-api, make test-openapi-gen, etc.
-test-%:
-	@target="$*"; \
-	found=0; \
-	for module in $(MODULES); do \
-		if echo "$$module" | grep -qE "(^|/)$$target$$"; then \
-			echo "Testing $$module..."; \
-			cd $$module && go test ./... -v -cover; \
-			found=1; \
-			break; \
-		fi; \
-	done; \
-	if [ $$found -eq 0 ]; then \
-		echo "Module '$$target' not found in workspace"; \
-		echo "Available modules: $(MODULES)"; \
-		exit 1; \
-	fi
-
-# Dynamic module-specific coverage targets
-# Usage: make coverage-unions, make coverage-api, make coverage-openapi-gen, etc.
-coverage-%:
-	@target="$*"; \
-	found=0; \
-	for module in $(MODULES); do \
-		if echo "$$module" | grep -qE "(^|/)$$target$$"; then \
-			./scripts/check-coverage.sh $$module 100 || exit 1; \
-			found=1; \
-			break; \
-		fi; \
-	done; \
-	if [ $$found -eq 0 ]; then \
-		echo "Module '$$target' not found in workspace"; \
-		echo "Available modules: $(MODULES)"; \
-		exit 1; \
-	fi
-
 # Lint all modules
 lint:
-	@echo "Installing custom linter...";
-	@go install ./cmd/lintgork >/dev/null 2>&1 || { echo "failed to install lintgork"; exit 1; };
-	@for module in $(MODULES); do \
-		echo "Linting $$module..."; \
-		(cd $$module && golangci-lint run) || exit 1; \
-	done
-
-# Dynamic module-specific lint targets
-# Usage: make lint-unions, make lint-api, make lint-openapi-gen, etc.
-lint-%:
-	@target="$*"; \
-	found=0; \
-	for module in $(MODULES); do \
-		if echo "$$module" | grep -qE "(^|/)$$target$$"; then \
-			echo "Linting $$module..."; \
-			cd $$module && golangci-lint run; \
-			found=1; \
-			break; \
-		fi; \
-	done; \
-	if [ $$found -eq 0 ]; then \
-		echo "Module '$$target' not found in workspace"; \
-		echo "Available modules: $(MODULES)"; \
-		exit 1; \
-	fi
-
-# Run tests with coverage and enforce thresholds
-coverage:
-	@for module in $(MODULES); do \
-		./scripts/check-coverage.sh $$module 100 || exit 1; \
-	done
+	@./scripts/lint-all.sh
 
 # Generate HTML coverage reports for all modules
 coverage-html:

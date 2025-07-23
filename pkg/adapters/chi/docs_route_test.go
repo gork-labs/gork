@@ -20,7 +20,7 @@ func TestDocsRoute_ServesSpecAndUI(t *testing.T) {
 	mux := r.Unwrap()
 
 	// --- Spec endpoint ----------------------------------------------------
-	reqSpec := httptest.NewRequest(http.MethodGet, "/docs/openapi.json", nil)
+	reqSpec := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
 	recSpec := httptest.NewRecorder()
 	mux.ServeHTTP(recSpec, reqSpec)
 

@@ -59,6 +59,37 @@ func defaultDocsConfig() DocsConfig {
 // documentation immediately while we iterate on a more sophisticated solution.
 func (r *TypedRouter[T]) DocsRoute(path string, cfg ...DocsConfig) {
 	// Prepare configuration.
+	conf := prepareDocsConfig(cfg...)
+
+	// Normalise docs base path to always end with "/*".
+	basePath := normalizeDocsPath(path)
+
+	// Build final OpenAPI endpoint path.
+	// If OpenAPIPath starts with "/", treat as absolute; otherwise, relative to basePath.
+	var openapiPath string
+	if strings.HasPrefix(conf.OpenAPIPath, "/") {
+		openapiPath = conf.OpenAPIPath
+	} else {
+		openapiPath = basePath + "/" + conf.OpenAPIPath
+	}
+
+	// Ensure HTML template receives correct absolute path.
+	confWithFullPath := conf
+	confWithFullPath.OpenAPIPath = openapiPath
+
+	// Prepare static spec if SpecFile is provided.
+	staticSpec := loadStaticSpec(conf.SpecFile)
+
+	// Register OpenAPI spec endpoint
+	r.registerOpenAPIEndpoint(openapiPath, staticSpec)
+
+	// Register UI route
+	if r.registerFn != nil {
+		r.registerFn(http.MethodGet, basePath+"/*", r.createDocsHandler(basePath, confWithFullPath), nil)
+	}
+}
+
+func prepareDocsConfig(cfg ...DocsConfig) DocsConfig {
 	conf := defaultDocsConfig()
 	if len(cfg) > 0 {
 		conf = cfg[0]
@@ -73,8 +104,10 @@ func (r *TypedRouter[T]) DocsRoute(path string, cfg ...DocsConfig) {
 			conf.UITemplate = StoplightUITemplate
 		}
 	}
+	return conf
+}
 
-	// Normalise docs base path to always end with "/*".
+func normalizeDocsPath(path string) string {
 	if !strings.HasSuffix(path, "/*") {
 		if strings.HasSuffix(path, "/") {
 			path += "*"
@@ -82,53 +115,40 @@ func (r *TypedRouter[T]) DocsRoute(path string, cfg ...DocsConfig) {
 			path += "/*"
 		}
 	}
-	basePath := strings.TrimSuffix(path, "/*")
+	return strings.TrimSuffix(path, "/*")
+}
 
-	// ---------------------------------------------------------------------
-	// 1) Register the OpenAPI spec endpoint via the strongly-typed helpers so
-	//    that the route appears in the registry like any other API route. We
-	//    mount it under the docs base path to keep all documentation assets
-	//    grouped together (e.g. /docs/openapi.json).
-	// ---------------------------------------------------------------------
-
-	// Build final OpenAPI endpoint path (e.g. /docs/openapi.json).
-	openapiPath := basePath + conf.OpenAPIPath
-
-	// Ensure HTML template receives correct absolute path.
-	confWithFullPath := conf
-	confWithFullPath.OpenAPIPath = openapiPath
-
-	// Prepare static spec if SpecFile is provided.
-	var staticSpec *OpenAPISpec
-	if conf.SpecFile != "" {
-		if b, err := os.ReadFile(conf.SpecFile); err == nil {
-			var tmp OpenAPISpec
-			// Try JSON first.
-			if err := json.Unmarshal(b, &tmp); err == nil {
-				staticSpec = &tmp
-			} else if yamlErr := yaml.Unmarshal(b, &tmp); yamlErr == nil {
-				staticSpec = &tmp
-			}
-		}
+func loadStaticSpec(specFile string) *OpenAPISpec {
+	if specFile == "" {
+		return nil
 	}
 
+	b, err := os.ReadFile(specFile) // #nosec G304
+	if err != nil {
+		return nil
+	}
+
+	var tmp OpenAPISpec
+	// Try JSON first.
+	if err := json.Unmarshal(b, &tmp); err == nil {
+		return &tmp
+	}
+	if yamlErr := yaml.Unmarshal(b, &tmp); yamlErr == nil {
+		return &tmp
+	}
+	return nil
+}
+
+func (r *TypedRouter[T]) registerOpenAPIEndpoint(openapiPath string, staticSpec *OpenAPISpec) {
 	type emptyReq struct{}
 
-	r.Get(openapiPath, func(ctx context.Context, _ emptyReq) (*OpenAPISpec, error) {
+	r.Get(openapiPath, func(_ context.Context, _ emptyReq) (*OpenAPISpec, error) {
 		if staticSpec != nil {
 			return staticSpec, nil
 		}
 		spec := GenerateOpenAPI(r.registry)
 		return spec, nil
 	})
-
-	// ---------------------------------------------------------------------
-	// 2) Register the UI route directly with the underlying router because the
-	//    generic handler does not follow the usual request/response contract.
-	// ---------------------------------------------------------------------
-	if r.registerFn != nil {
-		r.registerFn(http.MethodGet, basePath+"/*", r.createDocsHandler(basePath, confWithFullPath), nil)
-	}
 }
 
 // createDocsHandler returns an http.HandlerFunc that serves a pre-rendered HTML

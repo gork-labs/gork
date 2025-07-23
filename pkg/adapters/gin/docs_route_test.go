@@ -19,7 +19,7 @@ func TestDocsRoute_ServesSpecAndUI(t *testing.T) {
 	engine := r.Unwrap()
 
 	// --- Spec endpoint ----------------------------------------------------
-	reqSpec := httptest.NewRequest(http.MethodGet, "/docs/openapi.json", nil)
+	reqSpec := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
 	recSpec := httptest.NewRecorder()
 	engine.ServeHTTP(recSpec, reqSpec)
 

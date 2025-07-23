@@ -19,6 +19,7 @@ type Documentation struct {
 	Since       string
 }
 
+// FieldDoc represents documentation information for a struct field.
 type FieldDoc struct {
 	Description string
 	Example     string
@@ -45,96 +46,149 @@ func (d *DocExtractor) ParseDirectory(dir string) error {
 		if err != nil {
 			return err
 		}
-		if !de.IsDir() {
-			return nil
-		}
-		// Skip vendor
-		if de.Name() == "vendor" {
-			return filepath.SkipDir
-		}
-		pkgs, err := parser.ParseDir(fset, path, nil, parser.ParseComments)
-		if err != nil {
+		return d.processDirectoryEntry(path, de, fset)
+	})
+}
+
+func (d *DocExtractor) processDirectoryEntry(path string, de os.DirEntry, fset *token.FileSet) error {
+	if !de.IsDir() {
+		return nil
+	}
+	// Skip vendor
+	if de.Name() == "vendor" {
+		return filepath.SkipDir
+	}
+
+	pkgs, err := parser.ParseDir(fset, path, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	return d.processPackages(pkgs)
+}
+
+func (d *DocExtractor) processPackages(pkgs map[string]*ast.Package) error { //nolint:staticcheck // ast.Package is deprecated but still required by parser.ParseDir
+	for _, pkg := range pkgs {
+		if err := d.processPackageFiles(pkg.Files); err != nil {
 			return err
 		}
-		for _, pkg := range pkgs {
-			for fileName, file := range pkg.Files {
-				_ = fileName // unused but may become handy
-				ast.Inspect(file, func(n ast.Node) bool {
-					switch decl := n.(type) {
-					case *ast.GenDecl:
-						if decl.Doc == nil {
-							return true // continue to child nodes
-						}
-						if decl.Tok == token.TYPE {
-							for _, spec := range decl.Specs {
-								if ts, ok := spec.(*ast.TypeSpec); ok {
-									name := ts.Name.Name
-									// Retrieve or initialize existing doc entry for the type so that we can
-									// merge struct-level and field-level information.
-									doc := d.docs[name]
-									// Top-level type description (paragraph above `type X struct`)
-									if decl.Doc != nil {
-										doc.Description = extractDescription(decl.Doc.Text())
-									}
+	}
+	return nil
+}
 
-									// If the underlying type is a struct, iterate over its fields and grab
-									// their doc comments. We store them in doc.Fields keyed by the field
-									// identifier so that later integration can attach them to schema
-									// properties.
-									if st, ok := ts.Type.(*ast.StructType); ok {
-										if doc.Fields == nil {
-											doc.Fields = map[string]FieldDoc{}
-										}
-										for _, fld := range st.Fields.List {
-											var desc string
-											if fld.Doc != nil {
-												desc = extractDescription(fld.Doc.Text())
-											} else if fld.Comment != nil {
-												desc = extractDescription(fld.Comment.Text())
-											}
-											if desc == "" {
-												continue
-											}
-											for _, ident := range fld.Names {
-												// Store by Go identifier
-												doc.Fields[ident.Name] = FieldDoc{Description: desc}
+func (d *DocExtractor) processPackageFiles(files map[string]*ast.File) error {
+	for fileName, file := range files {
+		_ = fileName // unused but may become handy
+		ast.Inspect(file, d.inspectNode)
+	}
+	return nil
+}
 
-												// Also store by JSON tag name if present and differs
-												if fld.Tag != nil {
-													tagVal := strings.Trim(fld.Tag.Value, "`")
-													st := reflect.StructTag(tagVal)
-													jsonTag := st.Get("json")
-													if jsonTag != "" {
-														if comma := strings.Index(jsonTag, ","); comma != -1 {
-															jsonTag = jsonTag[:comma]
-														}
-														if jsonTag != "" {
-															doc.Fields[jsonTag] = FieldDoc{Description: desc}
-														}
-													}
-												}
-											}
-										}
-									}
+func (d *DocExtractor) inspectNode(n ast.Node) bool {
+	switch decl := n.(type) {
+	case *ast.GenDecl:
+		d.processGenDecl(decl)
+	case *ast.FuncDecl:
+		d.processFuncDecl(decl)
+	}
+	return true // continue traversing children
+}
 
-									d.docs[name] = doc
-								}
-							}
-						}
-					case *ast.FuncDecl:
-						if decl.Doc != nil {
-							name := decl.Name.Name
-							d.docs[name] = Documentation{
-								Description: extractDescription(decl.Doc.Text()),
-							}
-						}
-					}
-					return true // continue traversing children
-				})
-			}
+func (d *DocExtractor) processGenDecl(decl *ast.GenDecl) {
+	if decl.Doc == nil || decl.Tok != token.TYPE {
+		return
+	}
+
+	for _, spec := range decl.Specs {
+		if ts, ok := spec.(*ast.TypeSpec); ok {
+			d.processTypeSpec(ts, decl.Doc)
 		}
-		return nil
-	})
+	}
+}
+
+func (d *DocExtractor) processTypeSpec(ts *ast.TypeSpec, docComment *ast.CommentGroup) {
+	name := ts.Name.Name
+	// Retrieve or initialize existing doc entry for the type so that we can
+	// merge struct-level and field-level information.
+	doc := d.docs[name]
+	// Top-level type description (paragraph above `type X struct`)
+	if docComment != nil {
+		doc.Description = extractDescription(docComment.Text())
+	}
+
+	// If the underlying type is a struct, iterate over its fields and grab
+	// their doc comments. We store them in doc.Fields keyed by the field
+	// identifier so that later integration can attach them to schema
+	// properties.
+	if st, ok := ts.Type.(*ast.StructType); ok {
+		d.processStructFields(st, &doc)
+	}
+
+	d.docs[name] = doc
+}
+
+func (d *DocExtractor) processStructFields(st *ast.StructType, doc *Documentation) {
+	if doc.Fields == nil {
+		doc.Fields = map[string]FieldDoc{}
+	}
+
+	for _, fld := range st.Fields.List {
+		desc := d.extractFieldDescription(fld)
+		if desc == "" {
+			continue
+		}
+
+		d.storeFieldDocumentation(fld, desc, doc)
+	}
+}
+
+func (d *DocExtractor) extractFieldDescription(fld *ast.Field) string {
+	var desc string
+	if fld.Doc != nil {
+		desc = extractDescription(fld.Doc.Text())
+	} else if fld.Comment != nil {
+		desc = extractDescription(fld.Comment.Text())
+	}
+	return desc
+}
+
+func (d *DocExtractor) storeFieldDocumentation(fld *ast.Field, desc string, doc *Documentation) {
+	for _, ident := range fld.Names {
+		// Store by Go identifier
+		doc.Fields[ident.Name] = FieldDoc{Description: desc}
+
+		// Also store by JSON tag name if present and differs
+		d.storeFieldDocByJSONTag(fld, desc, doc)
+	}
+}
+
+func (d *DocExtractor) storeFieldDocByJSONTag(fld *ast.Field, desc string, doc *Documentation) {
+	if fld.Tag == nil {
+		return
+	}
+
+	tagVal := strings.Trim(fld.Tag.Value, "`")
+	st := reflect.StructTag(tagVal)
+	jsonTag := st.Get("json")
+	if jsonTag == "" {
+		return
+	}
+
+	if comma := strings.Index(jsonTag, ","); comma != -1 {
+		jsonTag = jsonTag[:comma]
+	}
+	if jsonTag != "" {
+		doc.Fields[jsonTag] = FieldDoc{Description: desc}
+	}
+}
+
+func (d *DocExtractor) processFuncDecl(decl *ast.FuncDecl) {
+	if decl.Doc != nil {
+		name := decl.Name.Name
+		d.docs[name] = Documentation{
+			Description: extractDescription(decl.Doc.Text()),
+		}
+	}
 }
 
 // ExtractTypeDoc returns the extracted documentation for the given type name.

@@ -24,7 +24,7 @@ func TestDocsRoute_ServesOpenAPISpecAndUI(t *testing.T) {
 	defer srv.Close()
 
 	// 1) OpenAPI JSON
-	resp, err := http.Get(srv.URL + "/docs/openapi.json")
+	resp, err := http.Get(srv.URL + "/openapi.json")
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
