@@ -8,9 +8,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// YAMLMarshaler allows dependency injection for testing
+type YAMLMarshaler func(interface{}) ([]byte, error)
+
+var defaultYAMLMarshaler YAMLMarshaler = yaml.Marshal
+
 // DocsHandler creates a Fiber handler for serving OpenAPI documentation.
 // This is a helper function for custom documentation serving if needed.
 func DocsHandler(spec *api.OpenAPISpec, config api.DocsConfig) fiber.Handler {
+	return DocsHandlerWithMarshaler(spec, config, defaultYAMLMarshaler)
+}
+
+// DocsHandlerWithMarshaler allows injecting custom YAML marshaler for testing
+func DocsHandlerWithMarshaler(spec *api.OpenAPISpec, config api.DocsConfig, marshaler YAMLMarshaler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
 
@@ -22,7 +32,7 @@ func DocsHandler(spec *api.OpenAPISpec, config api.DocsConfig) fiber.Handler {
 
 		case path == config.OpenAPIPath+".yaml":
 			// Serve the OpenAPI YAML specification
-			yamlData, err := yaml.Marshal(spec)
+			yamlData, err := marshaler(spec)
 			if err != nil {
 				return c.Status(http.StatusInternalServerError).SendString("Error generating YAML")
 			}

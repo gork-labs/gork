@@ -24,7 +24,10 @@
       "Bash(/dev/null)",
       "Bash(echo:*)",
       "Bash(chmod:*)",
-      "WebFetch(domain:golangci-lint.run)"
+      "WebFetch(domain:golangci-lint.run)",
+      "Bash(./scripts/coverage-all.sh:*)",
+      "Bash(./scripts/check-coverage.sh:*)",
+      "Bash(touch:*)"
     ],
     "deny": []
   }

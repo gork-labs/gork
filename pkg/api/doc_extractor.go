@@ -59,28 +59,34 @@ func (d *DocExtractor) processDirectoryEntry(path string, de os.DirEntry, fset *
 		return filepath.SkipDir
 	}
 
-	pkgs, err := parser.ParseDir(fset, path, nil, parser.ParseComments)
+	// Read all Go files in the directory
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return err
 	}
 
-	return d.processPackages(pkgs)
-}
-
-func (d *DocExtractor) processPackages(pkgs map[string]*ast.Package) error { //nolint:staticcheck // ast.Package is deprecated but still required by parser.ParseDir
-	for _, pkg := range pkgs {
-		if err := d.processPackageFiles(pkg.Files); err != nil {
-			return err
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		
+		filePath := filepath.Join(path, entry.Name())
+		if err := d.parseFile(filePath, fset); err != nil {
+			// Skip files that fail to parse
+			continue
 		}
 	}
+	
 	return nil
 }
 
-func (d *DocExtractor) processPackageFiles(files map[string]*ast.File) error {
-	for fileName, file := range files {
-		_ = fileName // unused but may become handy
-		ast.Inspect(file, d.inspectNode)
+func (d *DocExtractor) parseFile(filePath string, fset *token.FileSet) error {
+	file, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+	if err != nil {
+		return err
 	}
+	
+	ast.Inspect(file, d.inspectNode)
 	return nil
 }
 
@@ -209,16 +215,18 @@ func (d *DocExtractor) ExtractFunctionDoc(funcName string) Documentation {
 
 // extractDescription returns the first paragraph (until double newline) trimmed.
 func extractDescription(comment string) string {
-	paragraphs := strings.Split(strings.TrimSpace(comment), "\n\n")
-	if len(paragraphs) > 0 {
-		// Remove leading comment markers if present
-		lines := strings.Split(paragraphs[0], "\n")
-		for i, l := range lines {
-			lines[i] = strings.TrimSpace(strings.TrimPrefix(l, "//"))
-			lines[i] = strings.TrimSpace(strings.TrimPrefix(lines[i], "/*"))
-			lines[i] = strings.TrimSpace(strings.TrimSuffix(lines[i], "*/"))
-		}
-		return strings.TrimSpace(strings.Join(lines, " "))
+	trimmed := strings.TrimSpace(comment)
+	if trimmed == "" {
+		return ""
 	}
-	return ""
+	
+	paragraphs := strings.Split(trimmed, "\n\n")
+	// Remove leading comment markers if present
+	lines := strings.Split(paragraphs[0], "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimSpace(strings.TrimPrefix(l, "//"))
+		lines[i] = strings.TrimSpace(strings.TrimPrefix(lines[i], "/*"))
+		lines[i] = strings.TrimSpace(strings.TrimSuffix(lines[i], "*/"))
+	}
+	return strings.TrimSpace(strings.Join(lines, " "))
 }

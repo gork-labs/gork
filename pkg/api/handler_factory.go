@@ -4,16 +4,36 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"reflect"
 
 	"github.com/go-playground/validator/v10"
 )
 
+// JSONEncoder interface allows dependency injection for testing
+type JSONEncoder interface {
+	Encode(v interface{}) error
+}
+
+// JSONEncoderFactory creates JSON encoders
+type JSONEncoderFactory interface {
+	NewEncoder(w io.Writer) JSONEncoder
+}
+
+// defaultJSONEncoderFactory implements JSONEncoderFactory using standard library
+type defaultJSONEncoderFactory struct{}
+
+func (f defaultJSONEncoderFactory) NewEncoder(w io.Writer) JSONEncoder {
+	return json.NewEncoder(w)
+}
+
+var defaultEncoderFactory JSONEncoderFactory = defaultJSONEncoderFactory{}
+
 // createHandlerFromAny validates the provided handler, wraps it in an
 // http.HandlerFunc that performs request deserialization/parameter extraction,
 // and constructs a corresponding RouteInfo structure.
-func createHandlerFromAny(adapter ParameterAdapter, handler interface{}, opts ...Option) (http.HandlerFunc, *RouteInfo) {
+func createHandlerFromAny(adapter GenericParameterAdapter[*http.Request], handler interface{}, opts ...Option) (http.HandlerFunc, *RouteInfo) {
 	v := reflect.ValueOf(handler)
 	t := v.Type()
 
@@ -68,7 +88,7 @@ func buildRouteInfo(handler interface{}, reqType, respType reflect.Type, opts []
 	}
 }
 
-func executeHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqType reflect.Type, adapter ParameterAdapter) {
+func executeHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqType reflect.Type, adapter GenericParameterAdapter[*http.Request]) {
 	// Instantiate request struct
 	reqPtr := reflect.New(reqType)
 
@@ -87,28 +107,24 @@ func executeHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect
 	processHandlerResponse(w, r, handlerValue, reqPtr)
 }
 
-func processRequestParameters(reqPtr reflect.Value, r *http.Request, adapter ParameterAdapter) error {
-	// Parse path parameters
-	if adapter != nil {
-		parsePathParameters(reqPtr, r, adapter)
-	}
-
-	// Decode JSON body for methods that typically carry one
+func processRequestParameters(reqPtr reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) error {
+	// Decode JSON body first for methods that typically carry one
 	if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
 		if err := json.NewDecoder(r.Body).Decode(reqPtr.Interface()); err != nil {
 			return errors.New("unable to parse request body")
 		}
 	}
 
-	// Parse query, header, cookie parameters
+	// Parse path, query, header, cookie parameters (these override JSON body values)
 	if adapter != nil {
+		parsePathParameters(reqPtr, r, adapter)
 		parseOtherParameters(reqPtr, r, adapter)
 	}
 
 	return nil
 }
 
-func parsePathParameters(reqPtr reflect.Value, r *http.Request, adapter ParameterAdapter) {
+func parsePathParameters(reqPtr reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) {
 	vStruct := reqPtr.Elem()
 	tStruct := vStruct.Type()
 	for i := 0; i < tStruct.NumField(); i++ {
@@ -123,12 +139,13 @@ func parsePathParameters(reqPtr reflect.Value, r *http.Request, adapter Paramete
 		}
 		name := getParameterName(tagInfo, field)
 		if val, ok := adapter.Path(r, name); ok {
-			setFieldValue(vStruct.Field(i), field, val, []string{val})
+			fieldValue := vStruct.Field(i)
+			setFieldValue(fieldValue, field, val, []string{val})
 		}
 	}
 }
 
-func parseOtherParameters(reqPtr reflect.Value, r *http.Request, adapter ParameterAdapter) {
+func parseOtherParameters(reqPtr reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) {
 	vStruct := reqPtr.Elem()
 	tStruct := vStruct.Type()
 	for i := 0; i < tStruct.NumField(); i++ {
@@ -204,6 +221,10 @@ func validateRequest(w http.ResponseWriter, req interface{}) error {
 }
 
 func processHandlerResponse(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value) {
+	processHandlerResponseWithFactory(w, r, handlerValue, reqPtr, defaultEncoderFactory)
+}
+
+func processHandlerResponseWithFactory(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value, factory JSONEncoderFactory) {
 	// Call the handler via reflection
 	results := handlerValue.Call([]reflect.Value{
 		reflect.ValueOf(r.Context()),
@@ -224,7 +245,8 @@ func processHandlerResponse(w http.ResponseWriter, r *http.Request, handlerValue
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(respVal.Interface()); err != nil {
+	encoder := factory.NewEncoder(w)
+	if err := encoder.Encode(respVal.Interface()); err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to encode response")
 	}
 }

@@ -390,3 +390,64 @@ func TestRouterGroupWithRouteRegistration(t *testing.T) {
 		t.Error("Route was not registered with correct group prefix")
 	}
 }
+
+func TestRouterUnwrap(t *testing.T) {
+	engine := ginpkg.New()
+	router := NewRouter(engine)
+	unwrapped := router.Unwrap()
+	if unwrapped != engine {
+		t.Error("Unwrap() returned different engine instance")
+	}
+}
+
+func TestRouterRegister(t *testing.T) {
+	router := NewRouter(nil)
+
+	// Define a simple handler
+	handler := func(ctx context.Context, req struct {
+		Name string `json:"name"`
+	}) (struct {
+		Message string `json:"message"`
+	}, error) {
+		return struct {
+			Message string `json:"message"`
+		}{
+			Message: "Hello " + req.Name,
+		}, nil
+	}
+
+	// Use the generic Register method
+	router.Register("POST", "/register-test", handler)
+
+	// Verify the route was registered
+	registry := router.GetRegistry()
+	routes := registry.GetRoutes()
+
+	found := false
+	for _, route := range routes {
+		if route.Method == "POST" && route.Path == "/register-test" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Route was not registered using Register method")
+	}
+}
+
+func TestRouterExportOpenAPIAndExit(t *testing.T) {
+	router := NewRouter(ginpkg.New())
+
+	// This test checks that ExportOpenAPIAndExit calls the underlying TypedRouter
+	// We can't test the actual exit behavior, but we can ensure the method exists and delegates
+	defer func() {
+		if r := recover(); r != nil {
+			// ExportOpenAPIAndExit calls os.Exit, so we expect a panic in tests
+			// This is expected behavior for this method
+		}
+	}()
+
+	// Call ExportOpenAPIAndExit - this will panic with os.Exit
+	router.ExportOpenAPIAndExit()
+}

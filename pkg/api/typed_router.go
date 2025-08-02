@@ -15,7 +15,7 @@ import (
 type TypedRouter[T any] struct {
 	underlying T
 	registry   *RouteRegistry
-	adapter    ParameterAdapter
+	adapter    GenericParameterAdapter[*http.Request]
 	prefix     string
 	middleware []Option
 	registerFn func(method, path string, handler http.HandlerFunc, info *RouteInfo)
@@ -36,7 +36,7 @@ func (r *TypedRouter[T]) Unwrap() T {
 // provided configuration. It is exported so that adapter packages residing in
 // sub-packages of api (e.g. adapters/stdlib) can create initialised instances
 // without relying on internal field access.
-func NewTypedRouter[T any](underlying T, registry *RouteRegistry, prefix string, middleware []Option, adapter ParameterAdapter, registerFn func(method, path string, handler http.HandlerFunc, info *RouteInfo)) TypedRouter[T] {
+func NewTypedRouter[T any](underlying T, registry *RouteRegistry, prefix string, middleware []Option, adapter GenericParameterAdapter[*http.Request], registerFn func(method, path string, handler http.HandlerFunc, info *RouteInfo)) TypedRouter[T] {
 	return TypedRouter[T]{
 		underlying: underlying,
 		registry:   registry,
@@ -55,55 +55,20 @@ func (r *TypedRouter[T]) CopyMiddleware() []Option {
 	return cp
 }
 
-// --- Strongly-typed registration helpers ------------------------------------
+// --- Route registration ----------------------------------------------------
 
+// Register registers a route with the given HTTP method, path and handler.
+// The method parameter should be a standard HTTP method like "GET", "POST",
+// "PUT", "DELETE", "PATCH", etc.
+//
+// The handler parameter should be a function with the signature:
+// func(context.Context, RequestType) (ResponseType, error)
+//
 // Note: Until Go supports method-level type parameters on non-generic
 // receivers in a stable release, we expose untyped registration helpers. These
 // still provide compile-time safety because callers must pass a function that
 // matches the expected signature. We perform a runtime check to be safe.
-
-// Get registers a GET route with the given path and handler.
-func (r *TypedRouter[T]) Get(path string, handler interface{}, opts ...Option) {
-	r.register("GET", path, handler, opts...)
-}
-
-// Post registers a POST route with the given path and handler.
-func (r *TypedRouter[T]) Post(path string, handler interface{}, opts ...Option) {
-	r.register("POST", path, handler, opts...)
-}
-
-// Put registers a PUT route with the given path and handler.
-func (r *TypedRouter[T]) Put(path string, handler interface{}, opts ...Option) {
-	r.register("PUT", path, handler, opts...)
-}
-
-// Delete registers a DELETE route with the given path and handler.
-func (r *TypedRouter[T]) Delete(path string, handler interface{}, opts ...Option) {
-	r.register("DELETE", path, handler, opts...)
-}
-
-// Patch registers a PATCH route with the given path and handler.
-func (r *TypedRouter[T]) Patch(path string, handler interface{}, opts ...Option) {
-	r.register("PATCH", path, handler, opts...)
-}
-
-// Group returns a new TypedRouter that shares the same registry but applies an
-// additional prefix to all subsequent routes. This mirrors the semantics of
-// sub-routers / groups in most HTTP frameworks.
-//
-// Concrete router wrappers typically override this method to integrate with the
-// framework-specific grouping concept. The default implementation simply
-// returns a shallow copy with the prefix applied.
-func (r *TypedRouter[T]) Group(prefix string) *TypedRouter[T] {
-	// shallow copy
-	nr := *r
-	nr.prefix += prefix
-	return &nr
-}
-
-// register implements the common bookkeeping logic shared by the public helper
-// methods above.
-func (r *TypedRouter[T]) register(method, path string, handler interface{}, opts ...Option) {
+func (r *TypedRouter[T]) Register(method, path string, handler interface{}, opts ...Option) {
 	// We expect the handler to be a func(context.Context, Req) (Resp, error).
 	// Since we cannot express this generically at compile time, we rely on the
 	// helper below to reflect on the function and validate its shape. If the
@@ -124,4 +89,29 @@ func (r *TypedRouter[T]) register(method, path string, handler interface{}, opts
 	if r.registerFn != nil {
 		r.registerFn(method, path, httpHandler, info)
 	}
+}
+
+// Get registers a GET route with the given path and handler.
+func (r *TypedRouter[T]) Get(path string, handler interface{}, opts ...Option) {
+	r.Register("GET", path, handler, opts...)
+}
+
+// Post registers a POST route with the given path and handler.
+func (r *TypedRouter[T]) Post(path string, handler interface{}, opts ...Option) {
+	r.Register("POST", path, handler, opts...)
+}
+
+// Put registers a PUT route with the given path and handler.
+func (r *TypedRouter[T]) Put(path string, handler interface{}, opts ...Option) {
+	r.Register("PUT", path, handler, opts...)
+}
+
+// Delete registers a DELETE route with the given path and handler.
+func (r *TypedRouter[T]) Delete(path string, handler interface{}, opts ...Option) {
+	r.Register("DELETE", path, handler, opts...)
+}
+
+// Patch registers a PATCH route with the given path and handler.
+func (r *TypedRouter[T]) Patch(path string, handler interface{}, opts ...Option) {
+	r.Register("PATCH", path, handler, opts...)
 }

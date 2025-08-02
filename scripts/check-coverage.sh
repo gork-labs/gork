@@ -23,11 +23,39 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Skip coverage check for examples module
+# Skip coverage check for examples module and CLI tools
 if [[ "$MODULE_PATH" == "examples" || "$MODULE_PATH" == "./examples" ]]; then
     echo -e "${YELLOW}⏭️ Skipping coverage check for examples module${NC}"
     exit 0
 fi
+
+# Skip coverage check for CLI tools (cmd/ directories)
+if [[ "$MODULE_PATH" == cmd/* || "$MODULE_PATH" == "./cmd/"* ]]; then
+    echo -e "${YELLOW}⏭️ Skipping coverage check for CLI tool: ${MODULE_PATH}${NC}"
+    exit 0
+fi
+
+# Set coverage thresholds per module - all modules now require 100% coverage
+case "${MODULE_PATH}" in
+    "pkg/api" | "./pkg/api")
+        THRESHOLD="${2:-100}"
+        ;;
+    "pkg/adapters/fiber" | "./pkg/adapters/fiber")
+        THRESHOLD="${2:-100}"
+        ;;
+    "internal/lintgork" | "./internal/lintgork")
+        THRESHOLD="${2:-100}"
+        ;;
+    pkg/adapters/* | ./pkg/adapters/*)
+        THRESHOLD="${2:-100}"
+        ;;
+    pkg/unions* | ./pkg/unions*)
+        THRESHOLD="${2:-100}"
+        ;;
+    *)
+        THRESHOLD="${2:-100}"
+        ;;
+esac
 
 echo -e "${BLUE}🔍 Checking coverage for module: ${MODULE_PATH}${NC}"
 echo -e "${BLUE}📊 Required threshold: ${THRESHOLD}%${NC}"

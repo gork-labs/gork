@@ -13,7 +13,7 @@ import (
 // Key used to store echo.Context in request context.
 type echoCtxKey struct{}
 
-type echoParamAdapter struct{ api.RequestParamAdapter }
+type echoParamAdapter struct{ api.HTTPParameterAdapter }
 
 func (echoParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	if ec, ok := r.Context().Value(echoCtxKey{}).(echosdk.Context); ok {
@@ -134,32 +134,42 @@ func (r *Router) Unwrap() *echosdk.Echo {
 
 // Get registers a GET route.
 func (r *Router) Get(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Get(path, handler, opts...)
+	r.typedRouter.Register("GET", path, handler, opts...)
 }
 
 // Post registers a POST route.
 func (r *Router) Post(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Post(path, handler, opts...)
+	r.typedRouter.Register("POST", path, handler, opts...)
 }
 
 // Put registers a PUT route.
 func (r *Router) Put(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Put(path, handler, opts...)
+	r.typedRouter.Register("PUT", path, handler, opts...)
 }
 
 // Delete registers a DELETE route.
 func (r *Router) Delete(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Delete(path, handler, opts...)
+	r.typedRouter.Register("DELETE", path, handler, opts...)
 }
 
 // Patch registers a PATCH route.
 func (r *Router) Patch(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Patch(path, handler, opts...)
+	r.typedRouter.Register("PATCH", path, handler, opts...)
+}
+
+// Register registers a route with the given HTTP method, path and handler.
+func (r *Router) Register(method, path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Register(method, path, handler, opts...)
 }
 
 // DocsRoute registers documentation routes.
 func (r *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
 	r.typedRouter.DocsRoute(path, cfg...)
+}
+
+// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
+func (r *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
+	r.typedRouter.ExportOpenAPIAndExit(opts...)
 }
 
 // toNativePath converts {param} placeholders to :param expected by Echo.

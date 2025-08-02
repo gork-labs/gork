@@ -142,7 +142,7 @@ func validOpenAPITag(tag string) bool {
 
 // ---------------- path param check ----------------
 
-var pathVarRegexpLint = regexp.MustCompile(`\{([^{}]+)\}`)
+var pathVarRegexpLint = regexp.MustCompile(`\{([^{}]*)\}`)
 
 func collectPathParamDiagnostics(pass *analysis.Pass) {
 	inspect := func(n ast.Node) bool {
@@ -178,6 +178,9 @@ func isRouterMethodCall(call *ast.CallExpr) bool {
 }
 
 func extractPathPlaceholders(call *ast.CallExpr) (string, map[string]struct{}) {
+	if len(call.Args) == 0 {
+		return "", nil
+	}
 	pathLit, ok := call.Args[0].(*ast.BasicLit)
 	if !ok || pathLit.Kind != token.STRING {
 		return "", nil
@@ -199,7 +202,7 @@ func validatePlaceholders(placeholders map[string]struct{}, pass *analysis.Pass,
 	// Example validation logic: Ensure placeholders are used correctly
 	// This is a placeholder for actual validation logic
 	for placeholder := range placeholders {
-		if placeholder == "" {
+		if placeholder == "" && pass != nil {
 			pass.Reportf(call.Pos(), "empty placeholder found in route")
 		}
 	}
@@ -208,6 +211,10 @@ func validatePlaceholders(placeholders map[string]struct{}, pass *analysis.Pass,
 func parseDiscriminator(tag string) (string, bool) {
 	if strings.HasPrefix(tag, "discriminator=") {
 		val := strings.TrimPrefix(tag, "discriminator=")
+		// Handle cases where there might be additional comma-separated parts
+		if idx := strings.Index(val, ","); idx != -1 {
+			val = val[:idx]
+		}
 		return val, val != ""
 	}
 	// tag may have multiple segments

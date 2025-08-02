@@ -19,7 +19,7 @@ go.work.sum
 
 # IDE specific files
 .idea/
-.vscode/
+.vscode/*
 *.swp
 *.swo
 *~
@@ -43,3 +43,8 @@ coverage.out
 *.tmp
 *.bak
 *.log
+
+# Gorka storage - ignore thinking session files but keep directory structure
+.gorka/storage/thinking/*.json
+!.gorka/storage/thinking/.gitkeep
+!.gorka/storage/thinking/.gitignore

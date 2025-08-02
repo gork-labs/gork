@@ -399,8 +399,8 @@
   "components": {
     "schemas": {
       "AdminUserResponse": {
-        "title": "AdminUserResponse",
         "type": "object",
+        "title": "AdminUserResponse",
         "properties": {
           "createdAt": {
             "type": "string"
@@ -418,8 +418,8 @@
         "description": "AdminUserResponse represents an admin user with additional fields."
       },
       "BankPaymentMethod": {
-        "title": "BankPaymentMethod",
         "type": "object",
+        "title": "BankPaymentMethod",
         "properties": {
           "accountNumber": {
             "type": "string"
@@ -439,8 +439,8 @@
         "description": "BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise."
       },
       "CreateUserRequest": {
-        "title": "CreateUserRequest",
         "type": "object",
+        "title": "CreateUserRequest",
         "properties": {
           "username": {
             "type": "string",
@@ -453,8 +453,8 @@
         "description": "CreateUserRequest represents the request body for creating a user."
       },
       "CreditCardPaymentMethod": {
-        "title": "CreditCardPaymentMethod",
         "type": "object",
+        "title": "CreditCardPaymentMethod",
         "properties": {
           "cardNumber": {
             "type": "string"
@@ -486,16 +486,16 @@
       "ListUsersResponse": {
         "oneOf": [
           {
-            "title": "[]AdminUserResponse",
             "type": "array",
+            "title": "[]AdminUserResponse",
             "description": "Array of AdminUserResponse",
             "items": {
               "$ref": "#/components/schemas/AdminUserResponse"
             }
           },
           {
-            "title": "[]UserResponse",
             "type": "array",
+            "title": "[]UserResponse",
             "description": "Array of UserResponse",
             "items": {
               "$ref": "#/components/schemas/UserResponse"
@@ -505,8 +505,8 @@
         "description": "ListUsersResponse represents the response for listing users."
       },
       "LoginRequest": {
-        "title": "LoginRequest",
         "type": "object",
+        "title": "LoginRequest",
         "properties": {
           "password": {
             "type": "string",
@@ -524,8 +524,8 @@
         "description": "LoginRequest represents the request body for the login endpoint."
       },
       "LoginResponse": {
-        "title": "LoginResponse",
         "type": "object",
+        "title": "LoginResponse",
         "properties": {
           "token": {
             "type": "string",
@@ -535,8 +535,8 @@
         "description": "LoginResponse represents the response body for the login endpoint."
       },
       "NoContentResponse": {
-        "title": "NoContentResponse",
-        "type": "object"
+        "type": "object",
+        "title": "NoContentResponse"
       },
       "PaymentMethodRequest": {
         "oneOf": [
@@ -560,8 +560,8 @@
         ]
       },
       "UpdateUserPreferencesRequest": {
-        "title": "UpdateUserPreferencesRequest",
         "type": "object",
+        "title": "UpdateUserPreferencesRequest",
         "properties": {
           "paymentMethod": {
             "$ref": "#/components/schemas/Union2_BankPaymentMethod_CreditCardPaymentMethod",
@@ -584,8 +584,8 @@
         "description": "UpdateUserPreferencesRequest represents the request for updating user preferences."
       },
       "UpdateUserRequest": {
-        "title": "UpdateUserRequest",
         "type": "object",
+        "title": "UpdateUserRequest",
         "properties": {
           "userID": {
             "type": "string",
@@ -603,8 +603,8 @@
         "description": "UpdateUserRequest represents the request body for updating a user."
       },
       "UserResponse": {
-        "title": "UserResponse",
         "type": "object",
+        "title": "UserResponse",
         "properties": {
           "userID": {
             "type": "string",

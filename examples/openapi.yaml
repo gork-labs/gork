@@ -14,14 +14,16 @@ paths:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/LoginRequest'
+                            alias:
+                                $ref: '#/components/schemas/LoginRequest'
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/LoginResponse'
+                                alias:
+                                    $ref: '#/components/schemas/LoginResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -42,7 +44,8 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/ListUsersResponse'
+                                alias:
+                                    $ref: '#/components/schemas/ListUsersResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -62,19 +65,22 @@ paths:
                   required: false
                   schema:
                     type: string
+                    alias: {}
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/CreateUserRequest'
+                            alias:
+                                $ref: '#/components/schemas/CreateUserRequest'
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/UserResponse'
+                                alias:
+                                    $ref: '#/components/schemas/UserResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -95,13 +101,15 @@ paths:
                   required: true
                   schema:
                     type: string
+                    alias: {}
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/UserResponse'
+                                alias:
+                                    $ref: '#/components/schemas/UserResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -121,24 +129,28 @@ paths:
                   required: false
                   schema:
                     type: integer
+                    alias: {}
                 - name: userId
                   in: path
                   required: true
                   schema:
                     type: string
+                    alias: {}
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/UpdateUserRequest'
+                            alias:
+                                $ref: '#/components/schemas/UpdateUserRequest'
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/UserResponse'
+                                alias:
+                                    $ref: '#/components/schemas/UserResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -156,18 +168,21 @@ paths:
                   required: false
                   schema:
                     type: boolean
+                    alias: {}
                 - name: userId
                   in: path
                   required: true
                   schema:
                     type: string
+                    alias: {}
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/NoContentResponse'
+                                alias:
+                                    $ref: '#/components/schemas/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -188,19 +203,22 @@ paths:
                   required: true
                   schema:
                     type: string
+                    alias: {}
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/PaymentMethodRequest'
+                            alias:
+                                $ref: '#/components/schemas/PaymentMethodRequest'
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/NoContentResponse'
+                                alias:
+                                    $ref: '#/components/schemas/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -221,19 +239,22 @@ paths:
                   required: true
                   schema:
                     type: string
+                    alias: {}
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/UpdateUserPreferencesRequest'
+                            alias:
+                                $ref: '#/components/schemas/UpdateUserPreferencesRequest'
             responses:
                 "200":
                     description: Success
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/NoContentResponse'
+                                alias:
+                                    $ref: '#/components/schemas/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
@@ -243,163 +264,214 @@ paths:
 components:
     schemas:
         AdminUserResponse:
-            title: AdminUserResponse
             type: object
-            properties:
-                createdAt:
-                    type: string
-                updatedAt:
-                    type: string
-                userID:
-                    type: string
-                username:
-                    type: string
-            description: AdminUserResponse represents an admin user with additional fields.
+            alias:
+                title: AdminUserResponse
+                properties:
+                    createdAt:
+                        type: string
+                        alias: {}
+                    updatedAt:
+                        type: string
+                        alias: {}
+                    userID:
+                        type: string
+                        alias: {}
+                    username:
+                        type: string
+                        alias: {}
+                description: AdminUserResponse represents an admin user with additional fields.
         BankPaymentMethod:
-            title: BankPaymentMethod
             type: object
-            properties:
-                accountNumber:
-                    type: string
-                routingNumber:
-                    type: string
-                type:
-                    type: string
-            required:
-                - type
-                - accountNumber
-                - routingNumber
-            description: BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise.
+            alias:
+                title: BankPaymentMethod
+                properties:
+                    accountNumber:
+                        type: string
+                        alias:
+                            description: AccountNumber is the bank account number
+                    routingNumber:
+                        type: string
+                        alias:
+                            description: RoutingNumber is the bank routing number
+                    type:
+                        type: string
+                        alias:
+                            description: Type is the payment method type discriminator
+                required:
+                    - type
+                    - accountNumber
+                    - routingNumber
+                description: BankPaymentMethod represents a bank account payment method.
         CreateUserRequest:
-            title: CreateUserRequest
             type: object
-            properties:
-                username:
-                    type: string
-                    description: Username is the username of the user to create
-            required:
-                - username
-            description: CreateUserRequest represents the request body for creating a user.
+            alias:
+                title: CreateUserRequest
+                properties:
+                    username:
+                        type: string
+                        alias:
+                            description: Username is the username of the user to create
+                required:
+                    - username
+                description: CreateUserRequest represents the request body for creating a user.
         CreditCardPaymentMethod:
-            title: CreditCardPaymentMethod
             type: object
-            properties:
-                cardNumber:
-                    type: string
-                type:
-                    type: string
-            required:
-                - type
-                - cardNumber
-            description: CreditCardPaymentMethod returns the CreditCardPaymentMethod value if present, nil otherwise.
+            alias:
+                title: CreditCardPaymentMethod
+                properties:
+                    cardNumber:
+                        type: string
+                        alias:
+                            description: CardNumber is the credit card number
+                    type:
+                        type: string
+                        alias:
+                            description: Type is the payment method type discriminator
+                required:
+                    - type
+                    - cardNumber
+                description: CreditCardPaymentMethod represents a credit card payment method.
         ErrorResponse:
             type: object
-            properties:
-                details:
-                    type: object
-                error:
-                    type: string
-            required:
-                - error
+            alias:
+                properties:
+                    details:
+                        type: object
+                        alias: {}
+                    error:
+                        type: string
+                        alias: {}
+                required:
+                    - error
         ListUsersResponse:
-            oneOf:
-                - title: '[]AdminUserResponse'
-                  type: array
-                  description: Array of AdminUserResponse
-                  items:
-                    $ref: '#/components/schemas/AdminUserResponse'
-                - title: '[]UserResponse'
-                  type: array
-                  description: Array of UserResponse
-                  items:
-                    $ref: '#/components/schemas/UserResponse'
-            description: ListUsersResponse represents the response for listing users.
+            alias:
+                oneOf:
+                    - type: array
+                      alias:
+                        title: '[]AdminUserResponse'
+                        description: Array of AdminUserResponse
+                        items:
+                            alias:
+                                $ref: '#/components/schemas/AdminUserResponse'
+                    - type: array
+                      alias:
+                        title: '[]UserResponse'
+                        description: Array of UserResponse
+                        items:
+                            alias:
+                                $ref: '#/components/schemas/UserResponse'
+                description: ListUsersResponse represents the response for listing users.
         LoginRequest:
-            title: LoginRequest
             type: object
-            properties:
-                password:
-                    type: string
-                    description: Password is the user's password
-                username:
-                    type: string
-                    description: Username is the user's username
-            required:
-                - username
-                - password
-            description: LoginRequest represents the request body for the login endpoint.
+            alias:
+                title: LoginRequest
+                properties:
+                    password:
+                        type: string
+                        alias:
+                            description: Password is the user's password
+                    username:
+                        type: string
+                        alias:
+                            description: Username is the user's username
+                required:
+                    - username
+                    - password
+                description: LoginRequest represents the request body for the login endpoint.
         LoginResponse:
-            title: LoginResponse
             type: object
-            properties:
-                token:
-                    type: string
-                    description: Token is the JWT token for the authenticated user
-            description: LoginResponse represents the response body for the login endpoint.
+            alias:
+                title: LoginResponse
+                properties:
+                    token:
+                        type: string
+                        alias:
+                            description: Token is the JWT token for the authenticated user
+                description: LoginResponse represents the response body for the login endpoint.
         NoContentResponse:
-            title: NoContentResponse
             type: object
+            alias:
+                title: NoContentResponse
         PaymentMethodRequest:
-            oneOf:
-                - $ref: '#/components/schemas/BankPaymentMethod'
-                - $ref: '#/components/schemas/CreditCardPaymentMethod'
-            description: PaymentMethodRequest is the request body which is a union of payment methods.
+            alias:
+                oneOf:
+                    - alias:
+                        $ref: '#/components/schemas/BankPaymentMethod'
+                    - alias:
+                        $ref: '#/components/schemas/CreditCardPaymentMethod'
+                description: PaymentMethodRequest is the request body which is a union of payment methods.
         Union2_BankPaymentMethod_CreditCardPaymentMethod:
-            oneOf:
-                - $ref: '#/components/schemas/BankPaymentMethod'
-                - $ref: '#/components/schemas/CreditCardPaymentMethod'
+            alias:
+                oneOf:
+                    - alias:
+                        $ref: '#/components/schemas/BankPaymentMethod'
+                    - alias:
+                        $ref: '#/components/schemas/CreditCardPaymentMethod'
         UpdateUserPreferencesRequest:
-            title: UpdateUserPreferencesRequest
             type: object
-            properties:
-                paymentMethod:
-                    $ref: '#/components/schemas/Union2_BankPaymentMethod_CreditCardPaymentMethod'
-                    description: Preferences contains the user's updated preferences Payment methods are set in the "paymentMethods" field PaymentMethod contains the user's payment method
-                primaryNotificationChannel:
-                    type: string
-                    description: PrimaryNotificationChannel is the user's preferred notification channel
-                    enum:
-                        - email
-                        - sms
-                        - push
-            required:
-                - paymentMethod
-                - primaryNotificationChannel
-            description: UpdateUserPreferencesRequest represents the request for updating user preferences.
+            alias:
+                title: UpdateUserPreferencesRequest
+                properties:
+                    paymentMethod:
+                        alias:
+                            $ref: '#/components/schemas/Union2_BankPaymentMethod_CreditCardPaymentMethod'
+                            description: Preferences contains the user's updated preferences Payment methods are set in the "paymentMethods" field PaymentMethod contains the user's payment method
+                    primaryNotificationChannel:
+                        type: string
+                        alias:
+                            description: PrimaryNotificationChannel is the user's preferred notification channel
+                            enum:
+                                - email
+                                - sms
+                                - push
+                required:
+                    - paymentMethod
+                    - primaryNotificationChannel
+                description: UpdateUserPreferencesRequest represents the request for updating user preferences.
         UpdateUserRequest:
-            title: UpdateUserRequest
             type: object
-            properties:
-                userID:
-                    type: string
-                    description: UserID is the ID of the user to update
-                username:
-                    type: string
-                    description: Username is the new username for the user
-            required:
-                - userID
-                - username
-            description: UpdateUserRequest represents the request body for updating a user.
+            alias:
+                title: UpdateUserRequest
+                properties:
+                    userID:
+                        type: string
+                        alias:
+                            description: UserID is the ID of the user to update
+                    username:
+                        type: string
+                        alias:
+                            description: Username is the new username for the user
+                required:
+                    - userID
+                    - username
+                description: UpdateUserRequest represents the request body for updating a user.
         UserResponse:
-            title: UserResponse
             type: object
-            properties:
-                userID:
-                    type: string
-                    description: UserID is the ID of the user
-                username:
-                    type: string
-                    description: Username is the username of the user
-            description: UserResponse represents the response for user operations.
+            alias:
+                title: UserResponse
+                properties:
+                    userID:
+                        type: string
+                        alias:
+                            description: UserID is the ID of the user
+                    username:
+                        type: string
+                        alias:
+                            description: Username is the username of the user
+                description: UserResponse represents the response for user operations.
         ValidationErrorResponse:
             type: object
-            properties:
-                details:
-                    type: object
-                error:
-                    type: string
-            required:
-                - error
+            alias:
+                properties:
+                    details:
+                        type: object
+                        alias: {}
+                    error:
+                        type: string
+                        alias: {}
+                required:
+                    - error
     securitySchemes:
         ApiKeyAuth:
             type: apiKey
@@ -417,16 +489,19 @@ components:
             content:
                 application/json:
                     schema:
-                        $ref: '#/components/schemas/ValidationErrorResponse'
+                        alias:
+                            $ref: '#/components/schemas/ValidationErrorResponse'
         InternalServerError:
             description: Internal Server Error
             content:
                 application/json:
                     schema:
-                        $ref: '#/components/schemas/ErrorResponse'
+                        alias:
+                            $ref: '#/components/schemas/ErrorResponse'
         UnprocessableEntity:
             description: Unprocessable Entity - Request body could not be parsed
             content:
                 application/json:
                     schema:
-                        $ref: '#/components/schemas/ErrorResponse'
+                        alias:
+                            $ref: '#/components/schemas/ErrorResponse'
