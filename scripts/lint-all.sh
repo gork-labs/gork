@@ -1,13 +1,7 @@
 #!/bin/bash
-# Lint all modules with failure collection
+# Test all modules with failure collection
 
 set -e
-
-echo "Installing custom linter..."
-if ! go install ./cmd/lintgork >/dev/null 2>&1; then
-    echo "failed to install lintgork"
-    exit 1
-fi
 
 # Read modules from go.work
 MODULES=$(go work edit -json | jq -r '.Use[].DiskPath' | sed 's|^\./||')
