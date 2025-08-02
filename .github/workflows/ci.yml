@@ -97,8 +97,7 @@ jobs:
       matrix:
         format: [json, yaml]
         source:
-          - { dir: examples, routes: examples/routes.go }
-          - { dir: tools/openapi-gen/testdata, routes: tools/openapi-gen/testdata/routes.go }
+          - { dir: ./examples }
     steps:
       - uses: actions/checkout@v4
 
@@ -109,21 +108,13 @@ jobs:
           path: bin/
 
       - name: Make openapi-gen executable
-        run: chmod +x bin/openapi-gen
+        run: chmod +x bin/gork
 
       - name: Generate OpenAPI spec (${{ matrix.format }})
         run: |
-          if [ -d "${{ matrix.source.dir }}" ] && [ -f "${{ matrix.source.routes }}" ]; then
-            echo "Generating OpenAPI ${{ matrix.format }} spec for ${{ matrix.source.dir }}..."
-            if [ "${{ matrix.format }}" = "yaml" ]; then
-              ./bin/openapi-gen -i ${{ matrix.source.dir }} -r ${{ matrix.source.routes }} -o ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }} -f yaml
-            else
-              ./bin/openapi-gen -i ${{ matrix.source.dir }} -r ${{ matrix.source.routes }} -o ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }}
-            fi
-          else
-            echo "Skipping: ${{ matrix.source.dir }} or ${{ matrix.source.routes }} not found"
-            exit 0
-          fi
+          echo "Generating OpenAPI ${{ matrix.format }} spec for ${{ matrix.source.dir }}..."
+
+          ./bin/gork openapi generate --build ${{ matrix.source.dir }}/cmd/openapi_export --source ${{ matrix.source.dir }} --output ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }} --format ${{ matrix.format }}
 
       - name: Validate OpenAPI spec with Swagger validator
         id: swagger-validate

@@ -2,9 +2,8 @@ package api_test
 
 import (
 	"context"
-	"testing"
-
 	"net/http"
+	"testing"
 
 	stdlibrouter "github.com/gork-labs/gork/pkg/adapters/stdlib"
 	"github.com/gork-labs/gork/pkg/api"

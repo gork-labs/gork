@@ -36,7 +36,7 @@ linters:
     - unparam
     - wastedassign
     - whitespace
-  
+
   settings:
     gocognit:
       min-complexity: 15
@@ -45,8 +45,7 @@ linters:
     govet:
       enable:
         - shadow
-        - lintgork
-  
+
   exclusions:
     paths:
       - vendor

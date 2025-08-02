@@ -1,3 +1,4 @@
+// Package api provides HTTP handler wrappers and OpenAPI generation capabilities.
 package api
 
 import (
@@ -90,11 +91,9 @@ func parseOpenAPITag(tag string) struct {
 			case "in":
 				info.In = val
 			}
-		} else {
+		} else if idx == 0 && info.Name == "" {
 			// no '=' present
-			if idx == 0 && info.Name == "" {
-				info.Name = p
-			}
+			info.Name = p
 		}
 	}
 	return info
@@ -126,30 +125,7 @@ func parseQueryParams(r *http.Request, req interface{}) {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-
-		// Check openapi tag first
-		openapiTag := field.Tag.Get("openapi")
-		var paramName string
-
-		if openapiTag != "" {
-			// Parse openapi tag to check if it's a query parameter
-			tagInfo := parseOpenAPITag(openapiTag)
-			if tagInfo.In == "query" {
-				paramName = tagInfo.Name
-				if paramName == "" {
-					// If no name override, use json tag
-					paramName = field.Tag.Get("json")
-				}
-			}
-		} else {
-			// Fall back to json tag for backward compatibility
-			jsonTag := field.Tag.Get("json")
-			if jsonTag == "" || jsonTag == "-" {
-				continue
-			}
-			paramName = jsonTag
-		}
-
+		paramName := resolveQueryParamName(field)
 		if paramName == "" {
 			continue
 		}
@@ -163,37 +139,29 @@ func parseQueryParams(r *http.Request, req interface{}) {
 	}
 }
 
-func parseHeaders(r *http.Request, req interface{}) {
-	v := reflect.ValueOf(req).Elem()
-	t := v.Type()
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		// Check openapi tag for header parameters
-		openapiTag := field.Tag.Get("openapi")
-		if openapiTag == "" {
-			continue
-		}
-
+func resolveQueryParamName(field reflect.StructField) string {
+	// Check openapi tag first
+	openapiTag := field.Tag.Get("openapi")
+	if openapiTag != "" {
+		// Parse openapi tag to check if it's a query parameter
 		tagInfo := parseOpenAPITag(openapiTag)
-		if tagInfo.In != "header" {
-			continue
+		if tagInfo.In == "query" {
+			paramName := tagInfo.Name
+			if paramName == "" {
+				// If no name override, use json tag
+				paramName = field.Tag.Get("json")
+			}
+			return paramName
 		}
-
-		headerName := tagInfo.Name
-		if headerName == "" {
-			// If no name specified, use field name
-			headerName = field.Name
-		}
-
-		headerValue := r.Header.Get(headerName)
-		if headerValue == "" {
-			continue
-		}
-
-		setFieldValue(v.Field(i), field, headerValue, []string{headerValue})
+		return ""
 	}
+
+	// Fall back to json tag for backward compatibility
+	jsonTag := field.Tag.Get("json")
+	if jsonTag == "" || jsonTag == "-" {
+		return ""
+	}
+	return jsonTag
 }
 
 func setFieldValue(fieldValue reflect.Value, fieldType reflect.StructField, paramValue string, allValues []string) {
@@ -246,18 +214,42 @@ func setSliceFieldValue(fieldValue reflect.Value, fieldType reflect.StructField,
 	}
 }
 
+// FunctionNameExtractor allows dependency injection for testing.
+type FunctionNameExtractor func(interface{}) string
+
+var defaultFunctionNameExtractor FunctionNameExtractor = extractFunctionNameFromRuntime
+
 func getFunctionName(i interface{}) string {
+	return getFunctionNameWithExtractor(i, defaultFunctionNameExtractor)
+}
+
+func getFunctionNameWithExtractor(i interface{}, extractor FunctionNameExtractor) string {
+	return extractor(i)
+}
+
+func extractFunctionNameFromRuntime(i interface{}) string {
+	return extractFunctionNameFromRuntimeWithFunc(i, runtime.FuncForPC)
+}
+
+// FuncForPCProvider allows dependency injection for testing.
+type FuncForPCProvider func(uintptr) *runtime.Func
+
+func extractFunctionNameFromRuntimeWithFunc(i interface{}, funcProvider FuncForPCProvider) string {
 	// Use FuncForPC to get the fully-qualified function name, then trim the package path
-	fn := runtime.FuncForPC(reflect.ValueOf(i).Pointer())
+	fn := funcProvider(reflect.ValueOf(i).Pointer())
 	if fn == nil {
 		return ""
 	}
 	fullName := fn.Name() // e.g., github.com/example/project/handlers.CreateUser
+	return trimFunctionName(fullName)
+}
+
+func trimFunctionName(fullName string) string {
 	if lastSlash := strings.LastIndex(fullName, "/"); lastSlash != -1 {
 		fullName = fullName[lastSlash+1:]
 	}
 	if lastDot := strings.LastIndex(fullName, "."); lastDot != -1 {
 		return fullName[lastDot+1:]
 	}
-	return fullName
+	return fullName // This is the fallback case we want to test
 }

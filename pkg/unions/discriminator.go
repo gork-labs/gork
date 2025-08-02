@@ -1,3 +1,4 @@
+// Package unions provides utilities for working with union types.
 package unions
 
 // Discriminator interface allows types to specify their discriminator value.
