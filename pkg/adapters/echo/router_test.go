@@ -10,215 +10,404 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func TestNewRouter(t *testing.T) {
-	e := echo.New()
-	router := NewRouter(e)
-
-	if router == nil {
-		t.Fatal("NewRouter returned nil")
-	}
-
-	if router.Unwrap() != e {
-		t.Error("Router echo instance doesn't match provided instance")
-	}
-
-	if router.GetRegistry() == nil {
-		t.Error("Registry is nil")
-	}
-}
-
-func TestNewRouterWithOptions(t *testing.T) {
-	e := echo.New()
-
-	// Test with middleware option
-	middleware := api.WithTags("test")
-	router := NewRouter(e, middleware)
-
-	if router == nil {
-		t.Fatal("NewRouter returned nil")
-	}
-
-	if router.GetRegistry() == nil {
-		t.Error("Registry is nil")
-	}
-}
-
-func TestRouterUnwrap(t *testing.T) {
-	e := echo.New()
-	router := NewRouter(e)
-
-	unwrapped := router.Unwrap()
-	if unwrapped != e {
-		t.Error("Unwrap() did not return the original Echo instance")
-	}
-}
-
-func TestRouterGetRegistry(t *testing.T) {
-	e := echo.New()
-	router := NewRouter(e)
-
-	registry := router.GetRegistry()
-	if registry == nil {
-		t.Error("GetRegistry() returned nil")
-	}
-
-	if registry != router.registry {
-		t.Error("GetRegistry() returned different registry")
-	}
-}
-
-func TestRouterGroup(t *testing.T) {
-	e := echo.New()
-	router := NewRouter(e)
-
-	// Test creating a group
-	groupRouter := router.Group("/api/v1")
-	if groupRouter == nil {
-		t.Fatal("Group() returned nil")
-	}
-
-	if groupRouter.group == nil {
-		t.Error("Group router has nil group")
-	}
-
-	// Test that group router has registry
-	if groupRouter.GetRegistry() == nil {
-		t.Error("Group router has nil registry")
-	}
-
-	// Test unwrapping group router
-	unwrapped := groupRouter.Unwrap()
-	if unwrapped != e {
-		t.Error("Group router Unwrap() did not return original Echo instance")
-	}
-}
-
-func TestEchoParamAdapter_Path(t *testing.T) {
-	e := echo.New()
-	adapter := echoParamAdapter{}
-
-	// Test with Echo context in request
-	e.GET("/users/:id", func(c echo.Context) error {
-		// Create request with Echo context
-		req := c.Request()
-		req = req.WithContext(context.WithValue(req.Context(), echoCtxKey{}, c))
-
-		// Set path parameter
-		c.SetParamNames("id")
-		c.SetParamValues("123")
-
-		value, ok := adapter.Path(req, "id")
-		if !ok {
-			t.Error("Path() returned false for existing parameter")
-		}
-		if value != "123" {
-			t.Errorf("Path() returned %q, want %q", value, "123")
+func TestRouter(t *testing.T) {
+	t.Run("initialization", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			echoInstance *echo.Echo
+			options     []api.Option
+		}{
+			{
+				name:         "with_provided_echo_instance",
+				echoInstance: echo.New(),
+				options:      nil,
+			},
+			{
+				name:         "with_nil_echo_instance",
+				echoInstance: nil,
+				options:      nil,
+			},
+			{
+				name:         "with_middleware_options",
+				echoInstance: echo.New(),
+				options:      []api.Option{api.WithTags("test")},
+			},
 		}
 
-		// Test non-existing parameter
-		value, ok = adapter.Path(req, "nonexistent")
-		if ok {
-			t.Error("Path() returned true for non-existing parameter")
-		}
-		if value != "" {
-			t.Errorf("Path() returned %q for non-existing parameter, want empty string", value)
-		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				router := NewRouter(tt.echoInstance, tt.options...)
 
-		return nil
+				if router == nil {
+					t.Fatal("NewRouter returned nil")
+				}
+
+				if router.GetRegistry() == nil {
+					t.Error("Registry is nil")
+				}
+
+				// Test unwrap functionality
+				unwrapped := router.Unwrap()
+				if unwrapped == nil {
+					t.Error("Unwrap() returned nil")
+				}
+
+				// Verify registry consistency
+				if registry := router.GetRegistry(); registry != router.registry {
+					t.Error("GetRegistry() returned different registry")
+				}
+			})
+		}
 	})
 
-	// Make a test request
-	req := httptest.NewRequest("GET", "/users/123", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
+	t.Run("groups", func(t *testing.T) {
+		t.Run("basic_group_creation", func(t *testing.T) {
+			e := echo.New()
+			router := NewRouter(e)
+
+			groupRouter := router.Group("/api/v1")
+			if groupRouter == nil {
+				t.Fatal("Group() returned nil")
+			}
+
+			if groupRouter.group == nil {
+				t.Error("Group router has nil group")
+			}
+
+			if groupRouter.GetRegistry() == nil {
+				t.Error("Group router has nil registry")
+			}
+
+			if unwrapped := groupRouter.Unwrap(); unwrapped != e {
+				t.Error("Group router Unwrap() did not return original Echo instance")
+			}
+		})
+
+		t.Run("nested_groups", func(t *testing.T) {
+			e := echo.New()
+			router := NewRouter(e)
+
+			// Create nested groups
+			apiGroup := router.Group("/api")
+			v1Group := apiGroup.Group("/v1")
+			usersGroup := v1Group.Group("/users")
+
+			// Define a simple handler for testing
+			handler := func(ctx context.Context, req struct {
+				Name string `json:"name"`
+			}) (struct {
+				Message string `json:"message"`
+			}, error) {
+				return struct {
+					Message string `json:"message"`
+				}{
+					Message: "Hello " + req.Name,
+				}, nil
+			}
+
+			// Register route in the nested group
+			usersGroup.Post("/create", handler)
+
+			// Verify the route was registered with the correct nested path
+			registry := router.GetRegistry()
+			routes := registry.GetRoutes()
+
+			found := false
+			for _, route := range routes {
+				if route.Method == "POST" && route.Path == "/api/v1/users/create" {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Error("Route was not registered with correct nested group prefix")
+			}
+		})
+
+		t.Run("group_route_registration", func(t *testing.T) {
+			router := NewRouter(echo.New())
+			apiGroup := router.Group("/api")
+
+			// Define a simple handler
+			handler := func(ctx context.Context, req struct {
+				Name string `json:"name"`
+			}) (struct {
+				Message string `json:"message"`
+			}, error) {
+				return struct {
+					Message string `json:"message"`
+				}{
+					Message: "Hello " + req.Name,
+				}, nil
+			}
+
+			// Register route in the group
+			apiGroup.Post("/users", handler)
+
+			// Verify the route was registered with the correct path
+			registry := router.GetRegistry()
+			routes := registry.GetRoutes()
+
+			found := false
+			for _, route := range routes {
+				if route.Method == "POST" && route.Path == "/api/users" {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Error("Route was not registered with correct group prefix")
+			}
+		})
+	})
 }
 
-func TestEchoParamAdapter_PathWithoutContext(t *testing.T) {
+func TestParameterAdapter(t *testing.T) {
 	adapter := echoParamAdapter{}
-	req := httptest.NewRequest("GET", "/users/123", nil)
 
-	// Test without Echo context
-	value, ok := adapter.Path(req, "id")
-	if ok {
-		t.Error("Path() returned true without Echo context")
-	}
-	if value != "" {
-		t.Errorf("Path() returned %q without Echo context, want empty string", value)
-	}
+	t.Run("path_parameters", func(t *testing.T) {
+		t.Run("with_echo_context", func(t *testing.T) {
+			e := echo.New()
+
+			e.GET("/users/:id", func(c echo.Context) error {
+				// Create request with Echo context
+				req := c.Request()
+				req = req.WithContext(context.WithValue(req.Context(), echoCtxKey{}, c))
+
+				// Set path parameter
+				c.SetParamNames("id")
+				c.SetParamValues("123")
+
+				// Test existing parameter
+				value, ok := adapter.Path(req, "id")
+				if !ok {
+					t.Error("Path() returned false for existing parameter")
+				}
+				if value != "123" {
+					t.Errorf("Path() returned %q, want %q", value, "123")
+				}
+
+				// Test non-existing parameter
+				value, ok = adapter.Path(req, "nonexistent")
+				if ok {
+					t.Error("Path() returned true for non-existing parameter")
+				}
+				if value != "" {
+					t.Errorf("Path() returned %q for non-existing parameter, want empty string", value)
+				}
+
+				return nil
+			})
+
+			// Make a test request
+			req := httptest.NewRequest("GET", "/users/123", nil)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+		})
+
+		t.Run("without_echo_context", func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/users/123", nil)
+
+			value, ok := adapter.Path(req, "id")
+			if ok {
+				t.Error("Path() returned true without Echo context")
+			}
+			if value != "" {
+				t.Errorf("Path() returned %q without Echo context, want empty string", value)
+			}
+		})
+	})
+
+	t.Run("query_parameters", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test?name=john&age=30", nil)
+
+		tests := []struct {
+			name     string
+			key      string
+			wantVal  string
+			wantOk   bool
+		}{
+			{
+				name:    "existing_parameter",
+				key:     "name",
+				wantVal: "john",
+				wantOk:  true,
+			},
+			{
+				name:    "non_existing_parameter",
+				key:     "nonexistent",
+				wantVal: "",
+				wantOk:  false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				value, ok := adapter.Query(req, tt.key)
+				if ok != tt.wantOk {
+					t.Errorf("Query() ok = %v, want %v", ok, tt.wantOk)
+				}
+				if value != tt.wantVal {
+					t.Errorf("Query() value = %q, want %q", value, tt.wantVal)
+				}
+			})
+		}
+	})
+
+	t.Run("headers", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Authorization", "Bearer token123")
+		req.Header.Set("Content-Type", "application/json")
+
+		tests := []struct {
+			name     string
+			key      string
+			wantVal  string
+			wantOk   bool
+		}{
+			{
+				name:    "existing_header",
+				key:     "Authorization",
+				wantVal: "Bearer token123",
+				wantOk:  true,
+			},
+			{
+				name:    "non_existing_header",
+				key:     "NonExistent",
+				wantVal: "",
+				wantOk:  false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				value, ok := adapter.Header(req, tt.key)
+				if ok != tt.wantOk {
+					t.Errorf("Header() ok = %v, want %v", ok, tt.wantOk)
+				}
+				if value != tt.wantVal {
+					t.Errorf("Header() value = %q, want %q", value, tt.wantVal)
+				}
+			})
+		}
+	})
+
+	t.Run("cookies", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.AddCookie(&http.Cookie{Name: "session", Value: "abc123"})
+		req.AddCookie(&http.Cookie{Name: "theme", Value: "dark"})
+
+		tests := []struct {
+			name     string
+			key      string
+			wantVal  string
+			wantOk   bool
+		}{
+			{
+				name:    "existing_cookie",
+				key:     "session",
+				wantVal: "abc123",
+				wantOk:  true,
+			},
+			{
+				name:    "non_existing_cookie",
+				key:     "nonexistent",
+				wantVal: "",
+				wantOk:  false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				value, ok := adapter.Cookie(req, tt.key)
+				if ok != tt.wantOk {
+					t.Errorf("Cookie() ok = %v, want %v", ok, tt.wantOk)
+				}
+				if value != tt.wantVal {
+					t.Errorf("Cookie() value = %q, want %q", value, tt.wantVal)
+				}
+			})
+		}
+	})
 }
 
-func TestEchoParamAdapter_Query(t *testing.T) {
-	adapter := echoParamAdapter{}
-	req := httptest.NewRequest("GET", "/test?name=john&age=30", nil)
+func TestRouterHTTPMethods(t *testing.T) {
+	router := NewRouter(echo.New())
 
-	// Test existing query parameter
-	value, ok := adapter.Query(req, "name")
-	if !ok {
-		t.Error("Query() returned false for existing parameter")
-	}
-	if value != "john" {
-		t.Errorf("Query() returned %q, want %q", value, "john")
-	}
-
-	// Test non-existing query parameter
-	value, ok = adapter.Query(req, "nonexistent")
-	if ok {
-		t.Error("Query() returned true for non-existing parameter")
-	}
-	if value != "" {
-		t.Errorf("Query() returned %q for non-existing parameter, want empty string", value)
-	}
-}
-
-func TestEchoParamAdapter_Header(t *testing.T) {
-	adapter := echoParamAdapter{}
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("Authorization", "Bearer token123")
-	req.Header.Set("Content-Type", "application/json")
-
-	// Test existing header
-	value, ok := adapter.Header(req, "Authorization")
-	if !ok {
-		t.Error("Header() returned false for existing header")
-	}
-	if value != "Bearer token123" {
-		t.Errorf("Header() returned %q, want %q", value, "Bearer token123")
+	// Define a simple handler
+	handler := func(ctx context.Context, req struct {
+		Name string `json:"name"`
+	}) (struct {
+		Message string `json:"message"`
+	}, error) {
+		return struct {
+			Message string `json:"message"`
+		}{
+			Message: "Hello " + req.Name,
+		}, nil
 	}
 
-	// Test non-existing header
-	value, ok = adapter.Header(req, "NonExistent")
-	if ok {
-		t.Error("Header() returned true for non-existing header")
-	}
-	if value != "" {
-		t.Errorf("Header() returned %q for non-existing header, want empty string", value)
-	}
-}
-
-func TestEchoParamAdapter_Cookie(t *testing.T) {
-	adapter := echoParamAdapter{}
-	req := httptest.NewRequest("GET", "/test", nil)
-
-	// Add cookies
-	req.AddCookie(&http.Cookie{Name: "session", Value: "abc123"})
-	req.AddCookie(&http.Cookie{Name: "theme", Value: "dark"})
-
-	// Test existing cookie
-	value, ok := adapter.Cookie(req, "session")
-	if !ok {
-		t.Error("Cookie() returned false for existing cookie")
-	}
-	if value != "abc123" {
-		t.Errorf("Cookie() returned %q, want %q", value, "abc123")
+	// Test data for all HTTP methods
+	tests := []struct {
+		method string
+		path   string
+	}{
+		{"GET", "/get"},
+		{"POST", "/post"},
+		{"PUT", "/put"},
+		{"DELETE", "/delete"},
+		{"PATCH", "/patch"},
 	}
 
-	// Test non-existing cookie
-	value, ok = adapter.Cookie(req, "nonexistent")
-	if ok {
-		t.Error("Cookie() returned true for non-existing cookie")
+	// Register routes for each HTTP method
+	for _, tt := range tests {
+		switch tt.method {
+		case "GET":
+			router.Get(tt.path, handler)
+		case "POST":
+			router.Post(tt.path, handler)
+		case "PUT":
+			router.Put(tt.path, handler)
+		case "DELETE":
+			router.Delete(tt.path, handler)
+		case "PATCH":
+			router.Patch(tt.path, handler)
+		}
 	}
-	if value != "" {
-		t.Errorf("Cookie() returned %q for non-existing cookie, want empty string", value)
+
+	// Test generic Register method
+	router.Register("POST", "/register-test", handler)
+
+	// Verify routes were registered
+	registry := router.GetRegistry()
+	routes := registry.GetRoutes()
+
+	// Check all expected routes
+	for _, tt := range tests {
+		found := false
+		for _, route := range routes {
+			if route.Method == tt.method && route.Path == tt.path {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Route %s %s was not registered", tt.method, tt.path)
+		}
+	}
+
+	// Check Register method route
+	found := false
+	for _, route := range routes {
+		if route.Method == "POST" && route.Path == "/register-test" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Route was not registered using Register method")
 	}
 }
 
@@ -256,170 +445,6 @@ func TestRouterIntegration(t *testing.T) {
 
 	if !found {
 		t.Error("Route was not registered in registry")
-	}
-}
-
-func TestRouterHTTPMethods(t *testing.T) {
-	router := NewRouter(echo.New())
-
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Test all HTTP methods
-	router.Get("/get", handler)
-	router.Post("/post", handler)
-	router.Put("/put", handler)
-	router.Delete("/delete", handler)
-	router.Patch("/patch", handler)
-
-	// Verify routes were registered
-	registry := router.GetRegistry()
-	routes := registry.GetRoutes()
-
-	expectedMethods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
-	expectedPaths := []string{"/get", "/post", "/put", "/delete", "/patch"}
-
-	if len(routes) < len(expectedMethods) {
-		t.Errorf("Expected at least %d routes, got %d", len(expectedMethods), len(routes))
-	}
-
-	for i, expectedMethod := range expectedMethods {
-		found := false
-		for _, route := range routes {
-			if route.Method == expectedMethod && route.Path == expectedPaths[i] {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Route %s %s was not registered", expectedMethod, expectedPaths[i])
-		}
-	}
-}
-
-func TestRouterGroupWithRouteRegistration(t *testing.T) {
-	router := NewRouter(echo.New())
-
-	// Create a group
-	apiGroup := router.Group("/api")
-
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Register route in the group
-	apiGroup.Post("/users", handler)
-
-	// Verify the route was registered with the correct path
-	registry := router.GetRegistry()
-	routes := registry.GetRoutes()
-
-	found := false
-	for _, route := range routes {
-		if route.Method == "POST" && route.Path == "/api/users" {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Error("Route was not registered with correct group prefix")
-	}
-}
-
-func TestRouterNestedGroups(t *testing.T) {
-	router := NewRouter(echo.New())
-
-	// Create nested groups
-	apiGroup := router.Group("/api")
-	v1Group := apiGroup.Group("/v1")
-	usersGroup := v1Group.Group("/users")
-
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Register route in the nested group
-	usersGroup.Post("/create", handler)
-
-	// Verify the route was registered with the correct nested path
-	registry := router.GetRegistry()
-	routes := registry.GetRoutes()
-
-	found := false
-	for _, route := range routes {
-		if route.Method == "POST" && route.Path == "/api/v1/users/create" {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Error("Route was not registered with correct nested group prefix")
-	}
-}
-
-func TestRouterRegister(t *testing.T) {
-	router := NewRouter(echo.New())
-
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Test Register method
-	router.Register("POST", "/register-test", handler)
-
-	// Verify the route was registered
-	registry := router.GetRegistry()
-	routes := registry.GetRoutes()
-
-	found := false
-	for _, route := range routes {
-		if route.Method == "POST" && route.Path == "/register-test" {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Error("Route was not registered using Register method")
 	}
 }
 

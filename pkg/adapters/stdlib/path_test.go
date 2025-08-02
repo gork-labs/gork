@@ -8,6 +8,7 @@ func TestToNativePath(t *testing.T) {
 		input    string
 		expected string
 	}{
+		// Basic path scenarios
 		{
 			name:     "simple path without params",
 			input:    "/health",
@@ -24,14 +25,16 @@ func TestToNativePath(t *testing.T) {
 			expected: "/users/{id}/posts/{postId}",
 		},
 		{
+			name:     "empty path",
+			input:    "",
+			expected: "",
+		},
+		
+		// Wildcard conversion scenarios
+		{
 			name:     "path with trailing wildcard",
 			input:    "/docs/*",
 			expected: "/docs/{rest...}",
-		},
-		{
-			name:     "path with wildcard in middle",
-			input:    "/api/*/docs",
-			expected: "/api/*/docs",
 		},
 		{
 			name:     "root wildcard",
@@ -44,19 +47,36 @@ func TestToNativePath(t *testing.T) {
 			expected: "/api/v1/users/{id}/{rest...}",
 		},
 		{
-			name:     "path with query-like syntax (should not be converted)",
-			input:    "/search?query=*",
-			expected: "/search?query=*",
-		},
-		{
-			name:     "empty path",
-			input:    "",
-			expected: "",
-		},
-		{
 			name:     "path with multiple trailing slashes and wildcard",
 			input:    "/files//*",
 			expected: "/files//{rest...}",
+		},
+		
+		// Edge cases - only trailing wildcard should be converted
+		{
+			name:     "path with wildcard in middle (unchanged)",
+			input:    "/api/*/docs",
+			expected: "/api/*/docs",
+		},
+		{
+			name:     "only trailing wildcard should be converted",
+			input:    "/api/*/users/*",
+			expected: "/api/*/users/{rest...}",
+		},
+		{
+			name:     "multiple wildcards, only last one converted",
+			input:    "/*/middle/*/end/*",
+			expected: "/*/middle/*/end/{rest...}",
+		},
+		{
+			name:     "wildcard not at end should not be converted",
+			input:    "/files/*something",
+			expected: "/files/*something",
+		},
+		{
+			name:     "path with query-like syntax (should not be converted)",
+			input:    "/search?query=*",
+			expected: "/search?query=*",
 		},
 	}
 
@@ -65,40 +85,6 @@ func TestToNativePath(t *testing.T) {
 			result := toNativePath(tt.input)
 			if result != tt.expected {
 				t.Errorf("toNativePath(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestToNativePathEdgeCases(t *testing.T) {
-	// Test that only trailing /* is converted
-	testCases := []struct {
-		input    string
-		expected string
-		desc     string
-	}{
-		{
-			input:    "/api/*/users/*",
-			expected: "/api/*/users/{rest...}",
-			desc:     "only trailing wildcard should be converted",
-		},
-		{
-			input:    "/*/middle/*/end/*",
-			expected: "/*/middle/*/end/{rest...}",
-			desc:     "multiple wildcards, only last one converted",
-		},
-		{
-			input:    "/files/*something",
-			expected: "/files/*something",
-			desc:     "wildcard not at end should not be converted",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			result := toNativePath(tc.input)
-			if result != tc.expected {
-				t.Errorf("toNativePath(%q) = %q, want %q", tc.input, result, tc.expected)
 			}
 		})
 	}
