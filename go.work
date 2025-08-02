@@ -4,6 +4,7 @@ use (
 	./cmd/gork
 	./cmd/lintgork
 	./examples
+	./internal/cli
 	./internal/lintgork
 	./pkg/adapters/chi
 	./pkg/adapters/echo

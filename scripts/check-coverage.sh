@@ -23,15 +23,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Skip coverage check for examples module and CLI tools
+# Skip coverage check only for examples module
 if [[ "$MODULE_PATH" == "examples" || "$MODULE_PATH" == "./examples" ]]; then
     echo -e "${YELLOW}⏭️ Skipping coverage check for examples module${NC}"
-    exit 0
-fi
-
-# Skip coverage check for CLI tools (cmd/ directories)
-if [[ "$MODULE_PATH" == cmd/* || "$MODULE_PATH" == "./cmd/"* ]]; then
-    echo -e "${YELLOW}⏭️ Skipping coverage check for CLI tool: ${MODULE_PATH}${NC}"
     exit 0
 fi
 

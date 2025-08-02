@@ -2,21 +2,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/gork-labs/gork/cmd/gork/openapi"
-	"github.com/spf13/cobra"
+	"github.com/gork-labs/gork/internal/cli"
 )
 
 func main() {
-	rootCmd := &cobra.Command{
-		Use:   "gork",
-		Short: "Gork development tools",
-	}
-
-	rootCmd.AddCommand(openapi.NewCommand())
-
-	if err := rootCmd.Execute(); err != nil {
+	if err := cli.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
