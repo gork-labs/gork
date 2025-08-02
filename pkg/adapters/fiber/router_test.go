@@ -25,11 +25,11 @@ type TestResponse struct {
 // TestNewRouter tests router creation scenarios
 func TestNewRouter(t *testing.T) {
 	tests := []struct {
-		name        string
-		app         *fiber.App
-		opts        []api.Option
-		expectNil   bool
-		checkApp    bool
+		name            string
+		app             *fiber.App
+		opts            []api.Option
+		expectNil       bool
+		checkApp        bool
 		checkMiddleware int
 	}{
 		{
@@ -43,9 +43,9 @@ func TestNewRouter(t *testing.T) {
 			checkApp: true,
 		},
 		{
-			name: "with middleware options",
-			app:  fiber.New(),
-			opts: []api.Option{api.WithTags("test1"), api.WithTags("test2")},
+			name:            "with middleware options",
+			app:             fiber.New(),
+			opts:            []api.Option{api.WithTags("test1"), api.WithTags("test2")},
 			checkMiddleware: 2,
 		},
 	}

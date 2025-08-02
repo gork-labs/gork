@@ -8,7 +8,7 @@ import (
 
 func TestBuildBasicTypeSchema_FinalCoveragePush(t *testing.T) {
 	// These tests are specifically designed to hit the final uncovered lines
-	
+
 	// Test all the cases we know are covered first
 	coveredCases := []struct {
 		name     string
@@ -28,7 +28,7 @@ func TestBuildBasicTypeSchema_FinalCoveragePush(t *testing.T) {
 		{"Struct (fallthrough)", reflect.TypeOf(struct{}{}), "object"},
 		{"Pointer (fallthrough)", reflect.TypeOf((*int)(nil)), "object"},
 	}
-	
+
 	for _, tc := range coveredCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema := buildBasicTypeSchema(tc.testType)
@@ -37,7 +37,7 @@ func TestBuildBasicTypeSchema_FinalCoveragePush(t *testing.T) {
 			}
 		})
 	}
-	
+
 	// Try to create an Invalid type for line 455-457 coverage
 	// The challenge is that reflect.Invalid is very hard to create
 	t.Run("Invalid_type_attempt", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestBuildBasicTypeSchema_FinalCoveragePush(t *testing.T) {
 			t.Skip("Cannot safely create Invalid reflect.Type for testing")
 		}
 	})
-	
+
 	// Test UnsafePointer explicitly
 	t.Run("UnsafePointer", func(t *testing.T) {
 		var unsafe unsafe.Pointer

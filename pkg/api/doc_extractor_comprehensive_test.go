@@ -12,14 +12,14 @@ import (
 func TestParseFile_ValidCode(t *testing.T) {
 	extractor := NewDocExtractor()
 	fset := token.NewFileSet()
-	
+
 	// Create a temporary file with valid Go code
 	tempFile, err := os.CreateTemp("", "valid*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(tempFile.Name())
-	
+
 	// Write valid Go code with documentation
 	content := `package test
 
@@ -36,19 +36,19 @@ func TestFunc() {}
 		t.Fatal(err)
 	}
 	tempFile.Close()
-	
+
 	// Parse the file
 	err = extractor.parseFile(tempFile.Name(), fset)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	
+
 	// Verify that documentation was extracted
 	typeDoc := extractor.ExtractTypeDoc("TestType")
 	if typeDoc.Description != "TestType is a test type" {
 		t.Errorf("Expected 'TestType is a test type', got '%s'", typeDoc.Description)
 	}
-	
+
 	funcDoc := extractor.ExtractFunctionDoc("TestFunc")
 	if funcDoc.Description != "TestFunc is a test function" {
 		t.Errorf("Expected 'TestFunc is a test function', got '%s'", funcDoc.Description)
@@ -58,11 +58,11 @@ func TestFunc() {}
 // Test processGenDecl with various scenarios
 func TestProcessGenDecl_EdgeCases(t *testing.T) {
 	extractor := NewDocExtractor()
-	
+
 	// Test with GenDecl that has no doc comment
 	genDecl := &ast.GenDecl{
-		Tok:  token.TYPE,
-		Doc:  nil, // No doc comment
+		Tok: token.TYPE,
+		Doc: nil, // No doc comment
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
 				Name: &ast.Ident{Name: "TestType"},
@@ -70,15 +70,15 @@ func TestProcessGenDecl_EdgeCases(t *testing.T) {
 			},
 		},
 	}
-	
+
 	extractor.processGenDecl(genDecl)
-	
+
 	// Should not have added any documentation
 	doc := extractor.ExtractTypeDoc("TestType")
 	if doc.Description != "" {
 		t.Error("Expected empty description for type without doc comment")
 	}
-	
+
 	// Test with GenDecl that is not a TYPE
 	varDecl := &ast.GenDecl{
 		Tok: token.VAR,
@@ -88,10 +88,10 @@ func TestProcessGenDecl_EdgeCases(t *testing.T) {
 			},
 		},
 	}
-	
+
 	extractor.processGenDecl(varDecl)
 	// Should not process non-TYPE declarations
-	
+
 	// Test with GenDecl that has doc but no TypeSpec
 	emptyTypeDecl := &ast.GenDecl{
 		Tok: token.TYPE,
@@ -102,7 +102,7 @@ func TestProcessGenDecl_EdgeCases(t *testing.T) {
 		},
 		Specs: []ast.Spec{}, // No specs
 	}
-	
+
 	extractor.processGenDecl(emptyTypeDecl)
 	// Should handle empty specs gracefully
 }
@@ -111,19 +111,19 @@ func TestProcessGenDecl_EdgeCases(t *testing.T) {
 func TestProcessStructFields_EdgeCases(t *testing.T) {
 	extractor := NewDocExtractor()
 	doc := &Documentation{}
-	
+
 	// Test with struct that has fields with no comments
 	st := &ast.StructType{
 		Fields: &ast.FieldList{
 			List: []*ast.Field{
 				{
-					Names: []*ast.Ident{{Name: "Field1"}},
-					Doc:   nil,
+					Names:   []*ast.Ident{{Name: "Field1"}},
+					Doc:     nil,
 					Comment: nil,
 				},
 				{
 					Names: []*ast.Ident{{Name: "Field2"}},
-					Doc:   &ast.CommentGroup{
+					Doc: &ast.CommentGroup{
 						List: []*ast.Comment{
 							{Text: "// Valid comment"},
 						},
@@ -132,19 +132,19 @@ func TestProcessStructFields_EdgeCases(t *testing.T) {
 			},
 		},
 	}
-	
+
 	extractor.processStructFields(st, doc)
-	
+
 	// Should initialize Fields map
 	if doc.Fields == nil {
 		t.Error("Expected Fields map to be initialized")
 	}
-	
+
 	// Should add documentation for Field2 which has a comment
 	if len(doc.Fields) != 1 {
 		t.Errorf("Expected 1 field documentation, got %d", len(doc.Fields))
 	}
-	
+
 	if fieldDoc, exists := doc.Fields["Field2"]; !exists {
 		t.Error("Expected Field2 to have documentation")
 	} else if fieldDoc.Description != "Valid comment" {
@@ -156,25 +156,25 @@ func TestProcessStructFields_EdgeCases(t *testing.T) {
 func TestProcessDirectoryEntry_ErrorPaths(t *testing.T) {
 	extractor := NewDocExtractor()
 	fset := token.NewFileSet()
-	
+
 	// Test with directory that doesn't exist
 	tempDir := t.TempDir()
 	nonExistentDir := filepath.Join(tempDir, "nonexistent")
-	
+
 	err := extractor.processDirectoryEntry(nonExistentDir, &mockDirEntry{name: "nonexistent", isDir: true}, fset)
 	// Should handle read errors gracefully
 	if err == nil {
 		t.Error("Expected error for non-existent directory")
 	}
-	
+
 	// Test with directory containing invalid Go files
 	invalidGoDir := t.TempDir()
 	invalidGoFile := filepath.Join(invalidGoDir, "invalid.go")
-	err = os.WriteFile(invalidGoFile, []byte("this is not valid go code {{{"), 0644)
+	err = os.WriteFile(invalidGoFile, []byte("this is not valid go code {{{"), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// The function should not return an error, it just skips files that fail to parse
 	err = extractor.processDirectoryEntry(invalidGoDir, &mockDirEntry{name: filepath.Base(invalidGoDir), isDir: true}, fset)
 	if err != nil {
@@ -230,7 +230,7 @@ func TestExtractDescription_ComprehensiveCases(t *testing.T) {
 			expected: "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractDescription(tt.comment)
@@ -244,13 +244,13 @@ func TestExtractDescription_ComprehensiveCases(t *testing.T) {
 // Test parseDirectory with various directory structures
 func TestParseDirectory_ErrorScenarios(t *testing.T) {
 	extractor := NewDocExtractor()
-	
+
 	// Test with non-existent directory
 	err := extractor.ParseDirectory("/path/that/does/not/exist")
 	if err == nil {
 		t.Error("Expected error for non-existent directory")
 	}
-	
+
 	// Test with file instead of directory
 	tempFile, err := os.CreateTemp("", "notadir")
 	if err != nil {
@@ -258,7 +258,7 @@ func TestParseDirectory_ErrorScenarios(t *testing.T) {
 	}
 	defer os.Remove(tempFile.Name())
 	tempFile.Close()
-	
+
 	err = extractor.ParseDirectory(tempFile.Name())
 	// ParseDirectory handles files gracefully by calling WalkDir, which processes the file
 	// but processDirectoryEntry returns nil for non-directories, so no error is expected
@@ -270,7 +270,7 @@ func TestParseDirectory_ErrorScenarios(t *testing.T) {
 // Test concurrent access safety
 func TestDocExtractor_ConcurrentAccess(t *testing.T) {
 	extractor := NewDocExtractor()
-	
+
 	// Add some initial documentation
 	extractor.docs["TestType"] = Documentation{
 		Description: "Test type",
@@ -278,14 +278,14 @@ func TestDocExtractor_ConcurrentAccess(t *testing.T) {
 			"field1": {Description: "Field 1"},
 		},
 	}
-	
+
 	// Test concurrent reads
 	done := make(chan bool, 10)
-	
+
 	for i := 0; i < 10; i++ {
 		go func() {
 			defer func() { done <- true }()
-			
+
 			// Perform multiple read operations
 			for j := 0; j < 100; j++ {
 				_ = extractor.ExtractTypeDoc("TestType")
@@ -293,7 +293,7 @@ func TestDocExtractor_ConcurrentAccess(t *testing.T) {
 			}
 		}()
 	}
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < 10; i++ {
 		<-done
@@ -304,29 +304,29 @@ func TestDocExtractor_ConcurrentAccess(t *testing.T) {
 func TestStoreFieldDocByJSONTag_ComplexTags(t *testing.T) {
 	extractor := NewDocExtractor()
 	doc := &Documentation{Fields: make(map[string]FieldDoc)}
-	
+
 	// Test with complex JSON tag
 	field := &ast.Field{
 		Names: []*ast.Ident{{Name: "ComplexField"}},
 		Tag:   &ast.BasicLit{Value: "`json:\"complex_field,omitempty\" validate:\"required\"`"},
 	}
-	
+
 	extractor.storeFieldDocByJSONTag(field, "Complex field description", doc)
-	
+
 	if fieldDoc, exists := doc.Fields["complex_field"]; !exists {
 		t.Error("Expected field 'complex_field' to be stored")
 	} else if fieldDoc.Description != "Complex field description" {
 		t.Errorf("Expected description 'Complex field description', got '%s'", fieldDoc.Description)
 	}
-	
+
 	// Test with JSON tag that has multiple options
 	field2 := &ast.Field{
 		Names: []*ast.Ident{{Name: "MultiOptionField"}},
 		Tag:   &ast.BasicLit{Value: "`json:\"multi_option,omitempty,string\"`"},
 	}
-	
+
 	extractor.storeFieldDocByJSONTag(field2, "Multi option field", doc)
-	
+
 	if fieldDoc, exists := doc.Fields["multi_option"]; !exists {
 		t.Error("Expected field 'multi_option' to be stored")
 	} else if fieldDoc.Description != "Multi option field" {
@@ -337,20 +337,20 @@ func TestStoreFieldDocByJSONTag_ComplexTags(t *testing.T) {
 // Test function declaration processing
 func TestProcessFuncDecl_EdgeCases(t *testing.T) {
 	extractor := NewDocExtractor()
-	
+
 	// Test with function that has no doc comment
 	funcDecl := &ast.FuncDecl{
 		Name: &ast.Ident{Name: "TestFunc"},
 		Doc:  nil,
 	}
-	
+
 	extractor.processFuncDecl(funcDecl)
-	
+
 	doc := extractor.ExtractFunctionDoc("TestFunc")
 	if doc.Description != "" {
 		t.Error("Expected empty description for function without doc comment")
 	}
-	
+
 	// Test with function that has doc comment
 	funcDeclWithDoc := &ast.FuncDecl{
 		Name: &ast.Ident{Name: "DocumentedFunc"},
@@ -361,9 +361,9 @@ func TestProcessFuncDecl_EdgeCases(t *testing.T) {
 			},
 		},
 	}
-	
+
 	extractor.processFuncDecl(funcDeclWithDoc)
-	
+
 	doc = extractor.ExtractFunctionDoc("DocumentedFunc")
 	if doc.Description == "" {
 		t.Error("Expected description for function with doc comment")
@@ -373,14 +373,14 @@ func TestProcessFuncDecl_EdgeCases(t *testing.T) {
 // Test inspectNode with various node types
 func TestInspectNode_NodeTypes(t *testing.T) {
 	extractor := NewDocExtractor()
-	
+
 	// Test with non-GenDecl, non-FuncDecl node
 	ident := &ast.Ident{Name: "test"}
 	result := extractor.inspectNode(ident)
 	if !result {
 		t.Error("inspectNode should return true to continue traversal")
 	}
-	
+
 	// Test with nil node
 	result = extractor.inspectNode(nil)
 	if !result {
@@ -392,7 +392,7 @@ func TestInspectNode_NodeTypes(t *testing.T) {
 func TestStoreFieldDocumentation_MultipleNames(t *testing.T) {
 	extractor := NewDocExtractor()
 	doc := &Documentation{Fields: make(map[string]FieldDoc)}
-	
+
 	// Create field with multiple names (like in var declarations)
 	field := &ast.Field{
 		Names: []*ast.Ident{
@@ -402,9 +402,9 @@ func TestStoreFieldDocumentation_MultipleNames(t *testing.T) {
 		},
 		Tag: &ast.BasicLit{Value: "`json:\"json_name\"`"},
 	}
-	
+
 	extractor.storeFieldDocumentation(field, "Multi-name field", doc)
-	
+
 	// Should store documentation for all field names
 	for _, name := range []string{"Field1", "Field2", "Field3"} {
 		if fieldDoc, exists := doc.Fields[name]; !exists {
@@ -413,7 +413,7 @@ func TestStoreFieldDocumentation_MultipleNames(t *testing.T) {
 			t.Errorf("Expected description 'Multi-name field' for %s, got '%s'", name, fieldDoc.Description)
 		}
 	}
-	
+
 	// Should also store by JSON tag name
 	if fieldDoc, exists := doc.Fields["json_name"]; !exists {
 		t.Error("Expected field 'json_name' to be stored")

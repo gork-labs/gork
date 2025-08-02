@@ -13,6 +13,6 @@ func Execute() error {
 	}
 
 	rootCmd.AddCommand(newOpenAPICommand())
-	
+
 	return rootCmd.Execute()
 }

@@ -236,12 +236,12 @@ func TestParameterExtractionScenario(t *testing.T) {
 
 	// Define request with all parameter types
 	type ComplexRequest struct {
-		UserID     string `path:"userId" validate:"required"`
-		PostID     string `path:"postId" validate:"required"`
-		Format     string `query:"format"`
-		Page       string `query:"page"`
-		AuthToken  string `header:"Authorization"`
-		SessionID  string `cookie:"session_id"`
+		UserID    string `path:"userId" validate:"required"`
+		PostID    string `path:"postId" validate:"required"`
+		Format    string `query:"format"`
+		Page      string `query:"page"`
+		AuthToken string `header:"Authorization"`
+		SessionID string `cookie:"session_id"`
 	}
 
 	handler := func(ctx context.Context, req ComplexRequest) (map[string]string, error) {
@@ -425,18 +425,18 @@ func TestRequestResponseFlow(t *testing.T) {
 func TestPathConversionIntegration(t *testing.T) {
 	conversions := map[string]string{
 		// Real-world API patterns
-		"/api/v1/users/{id}":                          "/api/v1/users/:id",
-		"/api/v1/users/{userId}/posts/{postId}":       "/api/v1/users/:userId/posts/:postId",
-		"/api/v1/organizations/{orgId}/members/{id}":  "/api/v1/organizations/:orgId/members/:id",
-		"/files/{category}/{filename}":                "/files/:category/:filename",
-		"/static/*":                                   "/static/*",
-		"/docs/{version}/*":                           "/docs/:version/*",
-		
+		"/api/v1/users/{id}":                         "/api/v1/users/:id",
+		"/api/v1/users/{userId}/posts/{postId}":      "/api/v1/users/:userId/posts/:postId",
+		"/api/v1/organizations/{orgId}/members/{id}": "/api/v1/organizations/:orgId/members/:id",
+		"/files/{category}/{filename}":               "/files/:category/:filename",
+		"/static/*":                                  "/static/*",
+		"/docs/{version}/*":                          "/docs/:version/*",
+
 		// Edge cases
-		"/":                                           "/",
-		"":                                            "",
-		"/simple":                                     "/simple",
-		"/users/{id}/":                                "/users/:id/",
+		"/":            "/",
+		"":             "",
+		"/simple":      "/simple",
+		"/users/{id}/": "/users/:id/",
 	}
 
 	for input, expected := range conversions {

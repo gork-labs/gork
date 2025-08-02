@@ -11,17 +11,17 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// JSONEncoder interface allows dependency injection for testing
+// JSONEncoder interface allows dependency injection for testing.
 type JSONEncoder interface {
 	Encode(v interface{}) error
 }
 
-// JSONEncoderFactory creates JSON encoders
+// JSONEncoderFactory creates JSON encoders.
 type JSONEncoderFactory interface {
 	NewEncoder(w io.Writer) JSONEncoder
 }
 
-// defaultJSONEncoderFactory implements JSONEncoderFactory using standard library
+// defaultJSONEncoderFactory implements JSONEncoderFactory using standard library.
 type defaultJSONEncoderFactory struct{}
 
 func (f defaultJSONEncoderFactory) NewEncoder(w io.Writer) JSONEncoder {

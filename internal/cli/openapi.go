@@ -135,20 +135,22 @@ func generateBaseSpec(config *GenerateConfig) (*api.OpenAPISpec, error) {
 	return buildAndExtract(config.BuildPath)
 }
 
-// BuildRunner allows dependency injection for testing
+// BuildRunner allows dependency injection for testing.
 type BuildRunner interface {
 	CreateTemp(pattern string) (*os.File, error)
 	BuildCommand(outputPath, buildPath string) error
 	RunCommand(exePath string) ([]byte, error)
 }
 
-// DefaultBuildRunner implements BuildRunner using real OS commands
+// DefaultBuildRunner implements BuildRunner using real OS commands.
 type DefaultBuildRunner struct{}
 
+// CreateTemp creates a temporary file with the given pattern.
 func (r *DefaultBuildRunner) CreateTemp(pattern string) (*os.File, error) {
 	return os.CreateTemp("", pattern)
 }
 
+// BuildCommand builds the Go project with OpenAPI tags.
 func (r *DefaultBuildRunner) BuildCommand(outputPath, buildPath string) error {
 	cmd := exec.Command("go", "build", "-tags", "openapi", "-o", outputPath, buildPath) // #nosec G204
 	cmd.Stdout = os.Stdout
@@ -156,6 +158,7 @@ func (r *DefaultBuildRunner) BuildCommand(outputPath, buildPath string) error {
 	return cmd.Run()
 }
 
+// RunCommand executes the built binary and returns its output.
 func (r *DefaultBuildRunner) RunCommand(exePath string) ([]byte, error) {
 	var out bytes.Buffer
 	cmd := exec.Command(exePath) // #nosec G204
@@ -180,8 +183,8 @@ func buildAndExtractWithRunner(buildPath string, runner BuildRunner) (*api.OpenA
 	_ = tmpExe.Close()
 	defer func() { _ = os.Remove(tmpExe.Name()) }()
 
-	if err := runner.BuildCommand(tmpExe.Name(), buildPath); err != nil {
-		return nil, fmt.Errorf("build failed: %w", err)
+	if buildErr := runner.BuildCommand(tmpExe.Name(), buildPath); buildErr != nil {
+		return nil, fmt.Errorf("build failed: %w", buildErr)
 	}
 
 	output, err := runner.RunCommand(tmpExe.Name())
@@ -208,38 +211,42 @@ func enrichWithDocs(spec *api.OpenAPISpec, sourcePath string) error {
 	return nil
 }
 
-// HTTPClient interface for dependency injection
+// HTTPClient interface for dependency injection.
 type HTTPClient interface {
 	Post(url, contentType string, body io.Reader) (*http.Response, error)
 }
 
-// DefaultHTTPClient implements HTTPClient
+// DefaultHTTPClient implements HTTPClient.
 type DefaultHTTPClient struct{}
 
+// Post makes an HTTP POST request.
 func (c *DefaultHTTPClient) Post(url, contentType string, body io.Reader) (*http.Response, error) {
-	return http.Post(url, contentType, body)
+	return http.Post(url, contentType, body) // #nosec G107
 }
 
-// ValidatorClient interface for dependency injection
+// ValidatorClient interface for dependency injection.
 type ValidatorClient interface {
 	CallValidator(data []byte) ([]byte, int, error)
-	MarshalJSON(v interface{}) ([]byte, error)
+	MarshalSpec(v any) ([]byte, error)
 }
 
-// DefaultValidatorClient implements ValidatorClient
+// DefaultValidatorClient implements ValidatorClient.
 type DefaultValidatorClient struct {
 	httpClient HTTPClient
 }
 
+// NewDefaultValidatorClient creates a new default validator client.
 func NewDefaultValidatorClient() *DefaultValidatorClient {
 	return &DefaultValidatorClient{httpClient: &DefaultHTTPClient{}}
 }
 
+// CallValidator calls the external validator service.
 func (c *DefaultValidatorClient) CallValidator(data []byte) ([]byte, int, error) {
 	return c.callValidatorWithClient(data)
 }
 
-func (c *DefaultValidatorClient) MarshalJSON(v interface{}) ([]byte, error) {
+// MarshalSpec marshals a spec value to JSON.
+func (c *DefaultValidatorClient) MarshalSpec(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
@@ -261,7 +268,7 @@ func validateSpec(spec *api.OpenAPISpec) error {
 }
 
 func validateSpecWithClient(spec *api.OpenAPISpec, client ValidatorClient) error {
-	data, err := client.MarshalJSON(spec)
+	data, err := client.MarshalSpec(spec)
 	if err != nil {
 		return fmt.Errorf("marshal spec: %w", err)
 	}
@@ -273,7 +280,6 @@ func validateSpecWithClient(spec *api.OpenAPISpec, client ValidatorClient) error
 
 	return parseValidatorResponse(body, statusCode)
 }
-
 
 func parseValidatorResponse(body []byte, statusCode int) error {
 	if statusCode != http.StatusOK {
@@ -309,21 +315,23 @@ func parseValidatorResponse(body []byte, statusCode int) error {
 	return nil
 }
 
-// FileSystem interface for dependency injection
+// FileSystem interface for dependency injection.
 type FileSystem interface {
 	Stat(name string) (os.FileInfo, error)
 	Create(name string) (*os.File, error)
 }
 
-// DefaultFileSystem implements FileSystem
+// DefaultFileSystem implements FileSystem.
 type DefaultFileSystem struct{}
 
+// Stat returns file information.
 func (fs *DefaultFileSystem) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(name)
 }
 
+// Create creates a new file.
 func (fs *DefaultFileSystem) Create(name string) (*os.File, error) {
-	return os.Create(name)
+	return os.Create(name) // #nosec G304
 }
 
 var defaultFileSystem FileSystem = &DefaultFileSystem{}
@@ -355,15 +363,16 @@ func writeOutputWithFS(spec *api.OpenAPISpec, config *GenerateConfig, fs FileSys
 	return writeSpec(f, config.Format, spec)
 }
 
-// SpecWriter interface for dependency injection
+// SpecWriter interface for dependency injection.
 type SpecWriter interface {
-	MarshalYAML(v interface{}) ([]byte, error)
+	MarshalYAML(v any) ([]byte, error)
 }
 
-// DefaultSpecWriter implements SpecWriter
+// DefaultSpecWriter implements SpecWriter.
 type DefaultSpecWriter struct{}
 
-func (w *DefaultSpecWriter) MarshalYAML(v interface{}) ([]byte, error) {
+// MarshalYAML marshals a value to YAML.
+func (w *DefaultSpecWriter) MarshalYAML(v any) ([]byte, error) {
 	return yaml.Marshal(v)
 }
 

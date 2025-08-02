@@ -15,7 +15,7 @@ func TestExportOpenAPIAndExit(t *testing.T) {
 	router := TypedRouter[interface{}]{
 		registry: registry,
 	}
-	
+
 	// Since we removed the exportMode check, ExportOpenAPIAndExit will always
 	// attempt to export and exit. For testing, we need to mock the exit function.
 	// This test verifies that the function would generate a spec before exiting.
@@ -28,13 +28,13 @@ func TestExportOpenAPIAndExit(t *testing.T) {
 	}
 }
 
-// Test for Schema UnmarshalJSON function  
+// Test for Schema UnmarshalJSON function
 func TestSchema_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
-		name     string
-		jsonStr  string
-		verify   func(*Schema) bool
-		wantErr  bool
+		name    string
+		jsonStr string
+		verify  func(*Schema) bool
+		wantErr bool
 	}{
 		{
 			name:    "simple string type",
@@ -104,7 +104,7 @@ func TestSchema_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-// Test for handleUnionType function 
+// Test for handleUnionType function
 func TestHandleUnionType(t *testing.T) {
 	// Create a named type for testing
 	type TestStruct struct {
@@ -112,17 +112,17 @@ func TestHandleUnionType(t *testing.T) {
 		Field2 int
 	}
 	unionType := reflect.TypeOf(TestStruct{})
-	
+
 	registry := make(map[string]*Schema)
-	
+
 	// This function always returns a schema (either union schema or reference)
 	result := handleUnionType(unionType, registry)
-	
+
 	// Should return a schema
 	if result == nil {
 		t.Error("handleUnionType should return a schema")
 	}
-	
+
 	// For named types, should create a reference
 	if result.Ref == "" {
 		t.Error("handleUnionType should create a reference for named types")
@@ -134,35 +134,35 @@ func TestProcessEmbeddedStruct(t *testing.T) {
 	schema := &Schema{
 		Properties: make(map[string]*Schema),
 	}
-	
+
 	// Create a test struct field for embedding
 	embeddedType := reflect.TypeOf(struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}{})
-	
+
 	field := reflect.StructField{
 		Name:      "Embedded",
 		Type:      embeddedType,
 		Anonymous: true,
 	}
-	
+
 	registry := make(map[string]*Schema)
-	
+
 	// Call processEmbeddedStruct
 	processEmbeddedStruct(field, schema, registry)
-	
+
 	// Should have processed the embedded struct fields
 	if len(schema.Properties) != 2 {
 		t.Errorf("Expected 2 properties, got %d", len(schema.Properties))
 	}
-	
+
 	if schema.Properties["name"] == nil || schema.Properties["name"].Type != "string" {
 		t.Error("name property should be string type")
 	}
-	
+
 	if schema.Properties["age"] == nil || schema.Properties["age"].Type != "integer" {
-		t.Error("age property should be integer type")  
+		t.Error("age property should be integer type")
 	}
 }
 
@@ -171,14 +171,14 @@ func TestGenerateUnionSchema(t *testing.T) {
 	// Create a test union type (this would normally be Union2, Union3, etc.)
 	unionType := reflect.TypeOf(struct{}{}) // Simplified for testing
 	registry := make(map[string]*Schema)
-	
+
 	result := generateUnionSchema(unionType, registry)
-	
+
 	// For a non-union type, should return empty schema
 	if result == nil {
 		t.Error("generateUnionSchema should return a schema, not nil")
 	}
-	
+
 	// Should not have discriminator for non-union types
 	if result.Discriminator != nil {
 		t.Error("generateUnionSchema should not set discriminator for non-union types")
@@ -191,50 +191,50 @@ func TestExtractUnionVariantsAndDiscriminator(t *testing.T) {
 	unionType := reflect.TypeOf(struct {
 		Type string `json:"type"`
 	}{})
-	
+
 	registry := make(map[string]*Schema)
-	
+
 	variants, discriminator := extractUnionVariantsAndDiscriminator(unionType, registry)
-	
+
 	// For non-union types, should return empty results
 	if len(variants) != 0 {
 		t.Errorf("Expected 0 variants, got %d", len(variants))
 	}
-	
+
 	if discriminator.propertyName != "" {
 		t.Errorf("Expected empty discriminator property name, got %s", discriminator.propertyName)
 	}
 }
 
-// Test for processVariantDiscriminator function  
+// Test for processVariantDiscriminator function
 func TestProcessVariantDiscriminator(t *testing.T) {
 	variantType := reflect.TypeOf(struct {
 		Kind string `json:"kind" openapi:"discriminator=test"`
 	}{})
-	
+
 	discInfo := &discriminatorInfo{
 		mapping: make(map[string]string),
 	}
-	
+
 	// Call the function (it modifies discInfo in place)
 	processVariantDiscriminator(variantType, discInfo)
-	
+
 	// Should have found and processed the discriminator
 	if discInfo.propertyName == "" {
 		t.Error("Expected discriminator property name to be set")
 	}
-	
+
 	// Test with no discriminator
 	variantType2 := reflect.TypeOf(struct {
 		Name string `json:"name"`
 	}{})
-	
+
 	discInfo2 := &discriminatorInfo{
 		mapping: make(map[string]string),
 	}
-	
+
 	processVariantDiscriminator(variantType2, discInfo2)
-	
+
 	// Should not have set any discriminator properties
 	if discInfo2.propertyName != "" {
 		t.Errorf("Expected empty discriminator property name, got '%s'", discInfo2.propertyName)
@@ -350,11 +350,11 @@ func TestBuildBasicTypeSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := buildBasicTypeSchema(tt.reflectType)
-			
+
 			if schema.Type != tt.expectedType {
 				t.Errorf("Expected type %s, got %s", tt.expectedType, schema.Type)
 			}
-			
+
 			if schema.Description != tt.expectedDesc {
 				t.Errorf("Expected description '%s', got '%s'", tt.expectedDesc, schema.Description)
 			}
@@ -449,7 +449,7 @@ func TestApplyOneOfValidationToSchema(t *testing.T) {
 			expectedEnum: nil,
 		},
 		{
-			name:         "oneof with single value", 
+			name:         "oneof with single value",
 			validateTag:  "oneof=single",
 			expectedEnum: []string{"single"},
 		},
@@ -504,7 +504,7 @@ func TestLoadStaticSpec(t *testing.T) {
 	// Test valid JSON file
 	jsonContent := `{"openapi": "3.1.0", "info": {"title": "Test API", "version": "1.0.0"}}`
 	jsonFile := tempDir + "/spec.json"
-	if err := os.WriteFile(jsonFile, []byte(jsonContent), 0644); err != nil {
+	if err := os.WriteFile(jsonFile, []byte(jsonContent), 0o644); err != nil {
 		t.Fatalf("Failed to create test JSON file: %v", err)
 	}
 
@@ -518,7 +518,7 @@ func TestLoadStaticSpec(t *testing.T) {
 	// Test valid YAML file
 	yamlContent := "openapi: '3.1.0'\ninfo:\n  title: Test API\n  version: '1.0.0'"
 	yamlFile := tempDir + "/spec.yaml"
-	if err := os.WriteFile(yamlFile, []byte(yamlContent), 0644); err != nil {
+	if err := os.WriteFile(yamlFile, []byte(yamlContent), 0o644); err != nil {
 		t.Fatalf("Failed to create test YAML file: %v", err)
 	}
 
@@ -531,7 +531,7 @@ func TestLoadStaticSpec(t *testing.T) {
 
 	// Test invalid file content
 	invalidFile := tempDir + "/invalid.json"
-	if err := os.WriteFile(invalidFile, []byte("invalid content"), 0644); err != nil {
+	if err := os.WriteFile(invalidFile, []byte("invalid content"), 0o644); err != nil {
 		t.Fatalf("Failed to create invalid test file: %v", err)
 	}
 
@@ -902,7 +902,6 @@ func TestIsStringKind_EdgeCases(t *testing.T) {
 	}
 }
 
-
 // Test for prepareDocsConfig function (30% coverage)
 func TestPrepareDocsConfig(t *testing.T) {
 	config := DocsConfig{
@@ -910,17 +909,17 @@ func TestPrepareDocsConfig(t *testing.T) {
 		OpenAPIPath: "/openapi.json",
 		SpecFile:    "/path/to/spec.json",
 	}
-	
+
 	result := prepareDocsConfig(config)
-	
+
 	// Should keep the provided values
 	if result.Title != "Test API" {
 		t.Errorf("Expected Title 'Test API', got %s", result.Title)
 	}
 	if result.OpenAPIPath != "/openapi.json" {
-		t.Errorf("Expected OpenAPIPath '/openapi.json', got %s", result.OpenAPIPath)  
+		t.Errorf("Expected OpenAPIPath '/openapi.json', got %s", result.OpenAPIPath)
 	}
-	
+
 	// Test with empty config (should get defaults)
 	emptyConfig := DocsConfig{}
 	result2 := prepareDocsConfig(emptyConfig)
@@ -930,7 +929,7 @@ func TestPrepareDocsConfig(t *testing.T) {
 	if result2.OpenAPIPath != "/openapi.json" {
 		t.Errorf("Expected default OpenAPIPath, got %s", result2.OpenAPIPath)
 	}
-	
+
 	// Test with no arguments (should get defaults)
 	result3 := prepareDocsConfig()
 	if result3.Title != "API Documentation" {
@@ -938,17 +937,17 @@ func TestPrepareDocsConfig(t *testing.T) {
 	}
 }
 
-// Test for buildBasicTypeSchemaWithRegistry function (66.7% coverage) 
+// Test for buildBasicTypeSchemaWithRegistry function (66.7% coverage)
 func TestBuildBasicTypeSchemaWithRegistry(t *testing.T) {
 	registry := make(map[string]*Schema)
-	
+
 	// Test with pointer type
 	ptrType := reflect.TypeOf((*string)(nil))
 	schema := buildBasicTypeSchemaWithRegistry(ptrType, registry)
 	if schema.Type != "string" {
 		t.Errorf("Expected string type for *string, got %s", schema.Type)
 	}
-	
+
 	// Test with non-pointer type
 	stringType := reflect.TypeOf("")
 	schema2 := buildBasicTypeSchemaWithRegistry(stringType, registry)
@@ -965,28 +964,28 @@ func TestSchema_MarshalJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
-	
+
 	if result["type"] != "string" {
 		t.Errorf("Expected type=string, got %v", result["type"])
 	}
-	
+
 	// Test schema with multiple types (should use array format)
 	schema2 := &Schema{Types: []string{"string", "null"}}
 	data2, err := schema2.MarshalJSON()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	
+
 	var result2 map[string]interface{}
 	if err := json.Unmarshal(data2, &result2); err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
-	
+
 	// Should use the array format for multiple types
 	typeValue, ok := result2["type"].([]interface{})
 	if !ok {
@@ -996,7 +995,7 @@ func TestSchema_MarshalJSON(t *testing.T) {
 			t.Errorf("Expected 2 types, got %d", len(typeValue))
 		}
 	}
-	
+
 	// Test schema with properties (should not have type field in JSON)
 	schema3 := &Schema{
 		Type: "object",
@@ -1008,12 +1007,12 @@ func TestSchema_MarshalJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	
+
 	var result3 map[string]interface{}
 	if err := json.Unmarshal(data3, &result3); err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
-	
+
 	// Should include properties
 	if result3["properties"] == nil {
 		t.Error("Expected properties to be present")
@@ -1024,9 +1023,9 @@ func TestSchema_MarshalJSON(t *testing.T) {
 func TestExtractFieldDescription(t *testing.T) {
 	// This function needs AST fields, not reflect fields.
 	// We'll create a minimal AST field to test the function
-	
+
 	docExtractor := NewDocExtractor()
-	
+
 	// Create an AST field with documentation
 	field := &ast.Field{
 		Names: []*ast.Ident{
@@ -1038,12 +1037,12 @@ func TestExtractFieldDescription(t *testing.T) {
 			},
 		},
 	}
-	
+
 	result := docExtractor.extractFieldDescription(field)
 	if result == "" {
 		t.Error("Expected non-empty description for documented field")
 	}
-	
+
 	// Test field with comment instead of doc
 	field2 := &ast.Field{
 		Names: []*ast.Ident{
@@ -1055,19 +1054,19 @@ func TestExtractFieldDescription(t *testing.T) {
 			},
 		},
 	}
-	
+
 	result2 := docExtractor.extractFieldDescription(field2)
 	if result2 == "" {
 		t.Error("Expected non-empty description for field with comment")
 	}
-	
+
 	// Test field with no documentation
 	field3 := &ast.Field{
 		Names: []*ast.Ident{
 			{Name: "TestField3"},
 		},
 	}
-	
+
 	result3 := docExtractor.extractFieldDescription(field3)
 	if result3 != "" {
 		t.Errorf("Expected empty description for undocumented field, got %s", result3)

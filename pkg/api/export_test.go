@@ -53,7 +53,7 @@ func TestExportOpenAPISpec(t *testing.T) {
 	type ExportResp struct {
 		Message string `json:"message"`
 	}
-	
+
 	handler := func(ctx context.Context, req ExportReq) (ExportResp, error) {
 		return ExportResp{Message: "Hello " + req.Name}, nil
 	}
@@ -104,12 +104,12 @@ func TestExportOpenAPISpec(t *testing.T) {
 func TestExportOpenAPISpecWithOptions(t *testing.T) {
 	// Create test registry
 	registry := NewRouteRegistry()
-	
+
 	// Create test config
 	var output bytes.Buffer
 	config := ExportConfig{
-		Output: &output,
-		ExitFunc: func(code int) {},
+		Output:    &output,
+		ExitFunc:  func(code int) {},
 		LogFatalf: func(format string, args ...interface{}) {},
 	}
 
@@ -202,7 +202,7 @@ func TestDefaultExportConfig(t *testing.T) {
 func TestExportOpenAPISpecError(t *testing.T) {
 	// Create a writer that always fails
 	failingWriter := &failingWriter{}
-	
+
 	registry := NewRouteRegistry()
 	var logCalled bool
 	var logFormat string
@@ -220,7 +220,7 @@ func TestExportOpenAPISpecError(t *testing.T) {
 
 	// Test error case
 	err := exportOpenAPISpec(registry, config)
-	
+
 	if err == nil {
 		t.Error("Expected error from failing writer")
 	}
@@ -229,6 +229,52 @@ func TestExportOpenAPISpecError(t *testing.T) {
 	}
 	if !strings.Contains(logFormat, "failed to encode OpenAPI spec") {
 		t.Error("LogFatalf should contain expected error message")
+	}
+}
+
+// Test error path in ExportOpenAPIAndExit
+func TestTypedRouterExportOpenAPIAndExitError(t *testing.T) {
+	// Create test router
+	registry := NewRouteRegistry()
+	router := &TypedRouter[any]{
+		registry: registry,
+	}
+
+	// Save original config
+	originalConfig := exportConfig
+	defer func() {
+		exportConfig = originalConfig
+	}()
+
+	// Set up test config with failing writer
+	failingWriter := &failingWriter{}
+	var exitCalled bool
+	var logCalled bool
+
+	testConfig := ExportConfig{
+		Output: failingWriter,
+		ExitFunc: func(code int) {
+			exitCalled = true
+			t.Error("ExitFunc should not be called when exportOpenAPISpec fails")
+		},
+		LogFatalf: func(format string, args ...interface{}) {
+			logCalled = true
+		},
+	}
+
+	SetExportConfig(testConfig)
+
+	// Test ExportOpenAPIAndExit with error
+	router.ExportOpenAPIAndExit()
+
+	// Verify exit was NOT called (early return on error)
+	if exitCalled {
+		t.Error("ExitFunc should not have been called due to early return on error")
+	}
+
+	// Verify logging occurred in exportOpenAPISpec
+	if !logCalled {
+		t.Error("LogFatalf should have been called in exportOpenAPISpec")
 	}
 }
 

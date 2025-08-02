@@ -24,24 +24,24 @@ type TestStructWithEmbedded struct {
 }
 
 type TestComplexStructComprehensive struct {
-	StringSlice   []string                    `json:"string_slice"`
-	IntSlice      []int                       `json:"int_slice"`
-	StructSlice   []TestUnionType             `json:"struct_slice"`
-	MapField      map[string]string           `json:"map_field"`
-	InterfaceField interface{}                `json:"interface_field"`
-	FuncField     func()                      `json:"-"` // Should be ignored
-	ChanField     chan int                    `json:"-"` // Should be ignored
+	StringSlice    []string          `json:"string_slice"`
+	IntSlice       []int             `json:"int_slice"`
+	StructSlice    []TestUnionType   `json:"struct_slice"`
+	MapField       map[string]string `json:"map_field"`
+	InterfaceField interface{}       `json:"interface_field"`
+	FuncField      func()            `json:"-"` // Should be ignored
+	ChanField      chan int          `json:"-"` // Should be ignored
 }
 
 type TestValidationStruct struct {
-	RequiredField  string  `json:"required_field" validate:"required"`
-	MinField       int     `json:"min_field" validate:"min=5"`
-	MaxField       int     `json:"max_field" validate:"max=100"`
-	LenField       string  `json:"len_field" validate:"len=10"`
-	OneOfField     string  `json:"oneof_field" validate:"oneof=red green blue"`
-	EmailField     string  `json:"email_field" validate:"email"`
-	UUIDField      string  `json:"uuid_field" validate:"uuid"`
-	RegexpField    string  `json:"regexp_field" validate:"regexp=^[a-z]+$"`
+	RequiredField string `json:"required_field" validate:"required"`
+	MinField      int    `json:"min_field" validate:"min=5"`
+	MaxField      int    `json:"max_field" validate:"max=100"`
+	LenField      string `json:"len_field" validate:"len=10"`
+	OneOfField    string `json:"oneof_field" validate:"oneof=red green blue"`
+	EmailField    string `json:"email_field" validate:"email"`
+	UUIDField     string `json:"uuid_field" validate:"uuid"`
+	RegexpField   string `json:"regexp_field" validate:"regexp=^[a-z]+$"`
 }
 
 type TestOpenAPIParamStruct struct {
@@ -59,28 +59,28 @@ func TestDefaultRouteFilter_EdgeCases(t *testing.T) {
 	if !result {
 		t.Error("Filter should return true for nil route (default behavior)")
 	}
-	
+
 	// Test with empty path
 	route := &RouteInfo{Path: ""}
 	result = defaultRouteFilter(route)
 	if !result {
 		t.Error("Filter should return true for empty path (default behavior)")
 	}
-	
+
 	// Test with docs path
 	route = &RouteInfo{Path: "/docs"}
 	result = defaultRouteFilter(route)
 	if !result {
 		t.Error("Filter should return true for /docs path (default behavior)")
 	}
-	
+
 	// Test with openapi.json path
 	route = &RouteInfo{Path: "/openapi.json"}
 	result = defaultRouteFilter(route)
 	if !result {
 		t.Error("Filter should return true for /openapi.json path (default behavior)")
 	}
-	
+
 	// Test with valid API path
 	route = &RouteInfo{Path: "/api/users"}
 	result = defaultRouteFilter(route)
@@ -93,21 +93,21 @@ func TestDefaultRouteFilter_EdgeCases(t *testing.T) {
 func TestSchemaGeneration_EdgeCases(t *testing.T) {
 	// Test schema generation through the public API
 	registry := make(map[string]*Schema)
-	
+
 	// Test with pointer to struct
 	ptrType := reflect.TypeOf(&TestUnionType{})
 	schema := reflectTypeToSchema(ptrType, registry)
 	if schema == nil {
 		t.Error("Expected schema for pointer type")
 	}
-	
+
 	// Test with interface type
 	interfaceType := reflect.TypeOf((*interface{})(nil)).Elem()
 	schema = reflectTypeToSchema(interfaceType, registry)
 	if schema == nil {
 		t.Error("Expected schema for interface type")
 	}
-	
+
 	// Test with map type
 	mapType := reflect.TypeOf(map[string]interface{}{})
 	schema = reflectTypeToSchema(mapType, registry)
@@ -119,21 +119,21 @@ func TestSchemaGeneration_EdgeCases(t *testing.T) {
 // Test public struct schema generation
 func TestStructSchemaGeneration_EdgeCases(t *testing.T) {
 	registry := make(map[string]*Schema)
-	
+
 	// Test with struct that has embedded fields
 	structType := reflect.TypeOf(TestStructWithEmbedded{})
 	schema := reflectTypeToSchema(structType, registry)
-	
+
 	if schema == nil {
 		t.Error("Expected schema for struct with embedded fields")
 	}
-	
+
 	if schema == nil {
 		t.Error("Schema should not be nil")
 	} else if schema.Type != "object" && schema.Type != "" {
 		t.Errorf("Expected type 'object' or empty, got '%s'", schema.Type)
 	}
-	
+
 	// Check if schema has properties (if schema generation worked)
 	if schema != nil && schema.Properties != nil && len(schema.Properties) == 0 {
 		// Only error if we expected properties but got none
@@ -144,29 +144,29 @@ func TestStructSchemaGeneration_EdgeCases(t *testing.T) {
 // Test complex struct field processing through public API
 func TestComplexStructFieldProcessing(t *testing.T) {
 	registry := make(map[string]*Schema)
-	
+
 	structType := reflect.TypeOf(TestComplexStructComprehensive{})
 	schema := reflectTypeToSchema(structType, registry)
-	
+
 	if schema == nil {
 		t.Error("Expected schema for complex struct")
 	}
-	
+
 	if schema == nil {
 		t.Error("Schema should not be nil")
 	} else if schema.Type != "object" && schema.Type != "" {
 		t.Errorf("Expected type 'object' or empty, got '%s'", schema.Type)
 	}
-	
+
 	// Check that ignored fields (func, chan) are not in properties
 	if _, exists := schema.Properties["FuncField"]; exists {
 		t.Error("Function field should be ignored")
 	}
-	
+
 	if _, exists := schema.Properties["ChanField"]; exists {
 		t.Error("Channel field should be ignored")
 	}
-	
+
 	// Check that other fields are present (if schema has properties)
 	if schema != nil && schema.Properties != nil {
 		if _, exists := schema.Properties["string_slice"]; !exists {
@@ -178,7 +178,7 @@ func TestComplexStructFieldProcessing(t *testing.T) {
 // Test basic type schema generation through public API
 func TestBasicTypeSchemaGeneration_EdgeCases(t *testing.T) {
 	registry := make(map[string]*Schema)
-	
+
 	tests := []struct {
 		name         string
 		reflectType  reflect.Type
@@ -198,7 +198,7 @@ func TestBasicTypeSchemaGeneration_EdgeCases(t *testing.T) {
 		{"string", reflect.TypeOf(""), "string"},
 		{"bool", reflect.TypeOf(true), "boolean"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := reflectTypeToSchema(tt.reflectType, registry)
@@ -217,7 +217,7 @@ func TestUnionTypeDetection_EdgeCases(t *testing.T) {
 	if isUnion {
 		t.Error("TestUnionType should not be detected as union type")
 	}
-	
+
 	// Test with struct union detection
 	unionLikeType := reflect.TypeOf(struct {
 		Type  string      `json:"type"`
@@ -233,21 +233,21 @@ func TestUnionTypeDetection_EdgeCases(t *testing.T) {
 func TestParameterExtraction_EdgeCases(t *testing.T) {
 	// Test parameter extraction through full OpenAPI generation
 	registry := NewRouteRegistry()
-	
+
 	// Add a route with various parameter types
 	registry.Register(&RouteInfo{
-		Method:      "GET",
-		Path:        "/users/{id}",
-		HandlerName: "GetUser",
-		RequestType: reflect.TypeOf(TestOpenAPIParamStruct{}),
+		Method:       "GET",
+		Path:         "/users/{id}",
+		HandlerName:  "GetUser",
+		RequestType:  reflect.TypeOf(TestOpenAPIParamStruct{}),
 		ResponseType: reflect.TypeOf(struct{}{}),
 	})
-	
+
 	spec := GenerateOpenAPI(registry)
 	if spec == nil {
 		t.Error("Expected OpenAPI spec to be generated")
 	}
-	
+
 	// The spec should include the route with parameters
 	if len(spec.Paths) == 0 {
 		t.Error("Expected paths in OpenAPI spec")

@@ -70,7 +70,7 @@ func TestLoadConfigFileWithValidYAML(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "config.yml")
-	
+
 	configContent := `
 openapi:
   build: "custom-build"
@@ -79,7 +79,7 @@ openapi:
   title: "Custom API"
   version: "2.0.0"
 `
-	
+
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -119,11 +119,11 @@ func TestLoadConfigFileWithInvalidYAML(t *testing.T) {
 	// Create a temporary config file with invalid YAML
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "invalid.yml")
-	
+
 	invalidContent := `
 invalid: yaml: content: [
 `
-	
+
 	if err := os.WriteFile(configFile, []byte(invalidContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func TestWriteOutputToFile(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	tests := []struct {
 		name   string
 		config *GenerateConfig
@@ -446,7 +446,7 @@ func TestNewGenerateCommand(t *testing.T) {
 	if cmd.Use != "generate" {
 		t.Errorf("Use: got %s, want generate", cmd.Use)
 	}
-	
+
 	// Test that flags are registered
 	flags := cmd.Flags()
 	if flags.Lookup("build") == nil {
@@ -543,16 +543,15 @@ func TestValidateSpec(t *testing.T) {
 	// This will try to call the actual Swagger validator
 	// which might fail due to network issues, but we're testing the code path
 	err := validateSpec(spec)
-	
+
 	// We don't assert on the error since network calls can fail
 	// We just want to ensure the function doesn't panic
 	t.Logf("validateSpec returned: %v", err)
 }
 
-
 func TestWriteOutputDirectoryHandling(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	spec := &api.OpenAPISpec{
 		OpenAPI:    "3.1.0",
 		Info:       api.Info{Title: "Test", Version: "1.0.0"},
@@ -594,13 +593,13 @@ func TestWriteOutputDirectoryHandling(t *testing.T) {
 func TestGenerateSpecWithBuildPath(t *testing.T) {
 	// Test with a build path that exists but will fail to build
 	tmpDir := t.TempDir()
-	
+
 	// Create a simple Go file that will fail to build
 	mainFile := filepath.Join(tmpDir, "main.go")
 	content := `package main
 import "nonexistent/package"
 func main() {}`
-	
+
 	if err := os.WriteFile(mainFile, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -624,7 +623,7 @@ func TestParseValidatorResponseWithMalformedJSON(t *testing.T) {
 	// Test with malformed JSON response
 	body := []byte(`{"messages": [{"level": "error"}`)
 	err := parseValidatorResponse(body, 200)
-	
+
 	// Should handle malformed JSON gracefully
 	if err == nil {
 		t.Error("Expected error for malformed JSON validator response")
@@ -634,7 +633,7 @@ func TestParseValidatorResponseWithMalformedJSON(t *testing.T) {
 func TestNewGenerateCommandExecution(t *testing.T) {
 	// Test the RunE function by executing the command
 	cmd := newGenerateCommand()
-	
+
 	// Set flags for a basic test
 	cmd.SetArgs([]string{
 		"--output", "-",
@@ -642,7 +641,7 @@ func TestNewGenerateCommandExecution(t *testing.T) {
 		"--version", "1.0.0",
 		"--format", "json",
 	})
-	
+
 	err := cmd.Execute()
 	if err != nil {
 		t.Errorf("Command execution failed: %v", err)
@@ -652,13 +651,13 @@ func TestNewGenerateCommandExecution(t *testing.T) {
 func TestBuildAndExtractErrorPaths(t *testing.T) {
 	// Test successful build path requires a valid Go module
 	tmpDir := t.TempDir()
-	
+
 	// Create a simple valid Go module
 	goMod := filepath.Join(tmpDir, "go.mod")
 	if err := os.WriteFile(goMod, []byte("module test\ngo 1.24\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	mainFile := filepath.Join(tmpDir, "main.go")
 	content := `package main
 import (
@@ -680,11 +679,11 @@ func main() {
 		fmt.Println("Hello")
 	}
 }`
-	
+
 	if err := os.WriteFile(mainFile, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// This should work now with proper module setup
 	_, err := buildAndExtract(tmpDir)
 	// We expect this to still fail due to module resolution issues in test environment
@@ -702,11 +701,11 @@ func TestEnrichWithDocsErrorPath(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	// Test with a directory that exists but has no Go files to parse
 	tmpDir := t.TempDir()
 	err := enrichWithDocs(spec, tmpDir)
-	
+
 	// This should not error since ParseDirectory handles empty directories
 	if err != nil {
 		t.Errorf("enrichWithDocs should handle empty directory: %v", err)
@@ -722,13 +721,12 @@ func TestValidateSpecErrorPaths(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	// This will test the network call and response parsing paths
 	err := validateSpec(spec)
 	// We don't assert on error since network calls are unpredictable
 	t.Logf("validateSpec result: %v", err)
 }
-
 
 func TestWriteOutputErrorPaths(t *testing.T) {
 	spec := &api.OpenAPISpec{
@@ -737,21 +735,21 @@ func TestWriteOutputErrorPaths(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	tmpDir := t.TempDir()
-	
+
 	// Test error creating file (permission denied)
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Chmod(readOnlyDir, 0755) // cleanup
-	
+
 	config := &GenerateConfig{
 		OutputPath: filepath.Join(readOnlyDir, "output.json"),
 		Format:     "json",
 	}
-	
+
 	err := writeOutput(spec, config)
 	if err == nil {
 		t.Error("Expected error when writing to read-only directory")
@@ -767,14 +765,14 @@ func TestWriteSpecWithYAMLError(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	tmpFile := filepath.Join(t.TempDir(), "test.yaml")
 	f, err := os.Create(tmpFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	
+
 	err = writeSpec(f, "yaml", spec)
 	if err != nil {
 		t.Errorf("YAML write should not fail for valid spec: %v", err)
@@ -799,7 +797,7 @@ func TestGenerateSpecErrorPaths(t *testing.T) {
 }
 
 func TestBuildAndExtractErrorCoverage(t *testing.T) {
-	// Test createTemp error - this is hard to trigger reliably, 
+	// Test createTemp error - this is hard to trigger reliably,
 	// but we can test the code path exists
 	_, err := buildAndExtract("./nonexistent")
 	if err == nil {
@@ -816,13 +814,12 @@ func TestValidateSpecMarshalError(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	// This tests the marshal success path and network call
 	err := validateSpec(spec)
 	// Don't assert on error since network can fail
 	t.Logf("validateSpec marshal path result: %v", err)
 }
-
 
 func TestWriteSpecYAMLWriteError(t *testing.T) {
 	// Test YAML write error by closing the file
@@ -832,14 +829,14 @@ func TestWriteSpecYAMLWriteError(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	tmpFile := filepath.Join(t.TempDir(), "test.yml")
 	f, err := os.Create(tmpFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.Close() // Close the file to trigger write error
-	
+
 	err = writeSpec(f, "yml", spec)
 	if err == nil {
 		t.Error("Expected write error for closed file")
@@ -856,14 +853,14 @@ func TestRemainingCoverage(t *testing.T) {
 			Paths:      map[string]*api.PathItem{},
 			Components: &api.Components{Schemas: map[string]*api.Schema{}},
 		}
-		
+
 		// Test with nonexistent path - this should trigger error in ParseDirectory
 		err := enrichWithDocs(spec, "/absolutely/nonexistent/path/that/cannot/exist")
 		if err == nil {
 			t.Error("Expected error for nonexistent path")
 		}
 	})
-	
+
 	// Test lines 75-77: validateSpec error path
 	t.Run("validateSpec error path", func(t *testing.T) {
 		spec := &api.OpenAPISpec{
@@ -872,13 +869,13 @@ func TestRemainingCoverage(t *testing.T) {
 			Paths:      map[string]*api.PathItem{},
 			Components: &api.Components{Schemas: map[string]*api.Schema{}},
 		}
-		
+
 		// Test that validateSpec can be called - network errors are expected
 		err := validateSpec(spec)
 		// Don't assert on result since network calls are unpredictable
 		t.Logf("validateSpec error path result: %v", err)
 	})
-	
+
 	// Test lines 250, 271-273: writeOutput error paths
 	t.Run("writeOutput stat error", func(t *testing.T) {
 		spec := &api.OpenAPISpec{
@@ -887,13 +884,13 @@ func TestRemainingCoverage(t *testing.T) {
 			Paths:      map[string]*api.PathItem{},
 			Components: &api.Components{Schemas: map[string]*api.Schema{}},
 		}
-		
+
 		// Try to write to a path that doesn't exist
 		config := &GenerateConfig{
 			OutputPath: "/nonexistent/directory/output.json",
 			Format:     "json",
 		}
-		
+
 		err := writeOutput(spec, config)
 		if err == nil {
 			t.Error("Expected error for nonexistent directory")
@@ -903,11 +900,11 @@ func TestRemainingCoverage(t *testing.T) {
 
 // MockBuildRunner for comprehensive testing of buildAndExtract
 type MockBuildRunner struct {
-	CreateTempError  error
-	BuildError       error
-	RunError         error
-	RunOutput        []byte
-	TempFile         *os.File
+	CreateTempError error
+	BuildError      error
+	RunError        error
+	RunOutput       []byte
+	TempFile        *os.File
 }
 
 func (m *MockBuildRunner) CreateTemp(pattern string) (*os.File, error) {
@@ -983,7 +980,7 @@ func TestBuildAndExtractWithRunner(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			spec, err := buildAndExtractWithRunner(tt.buildPath, tt.runner)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error containing %q, got none", tt.errContains)
@@ -1004,7 +1001,7 @@ func TestBuildAndExtractWithRunner(t *testing.T) {
 
 func TestDefaultBuildRunner(t *testing.T) {
 	runner := &DefaultBuildRunner{}
-	
+
 	t.Run("CreateTemp", func(t *testing.T) {
 		file, err := runner.CreateTemp("test-*")
 		if err != nil {
@@ -1015,14 +1012,14 @@ func TestDefaultBuildRunner(t *testing.T) {
 			os.Remove(file.Name())
 		}
 	})
-	
+
 	t.Run("BuildCommand error", func(t *testing.T) {
 		err := runner.BuildCommand("/tmp/nonexistent", "./nonexistent")
 		if err == nil {
 			t.Error("Expected build error for nonexistent path")
 		}
 	})
-	
+
 	t.Run("RunCommand error", func(t *testing.T) {
 		_, err := runner.RunCommand("/nonexistent/binary")
 		if err == nil {
@@ -1045,14 +1042,14 @@ func (m *MockHTTPClient) Post(url, contentType string, body io.Reader) (*http.Re
 }
 
 type MockValidatorClient struct {
-	MarshalError    error
-	CallError       error
-	CallBody        []byte
-	CallStatusCode  int
-	httpClient      HTTPClient
+	MarshalError   error
+	CallError      error
+	CallBody       []byte
+	CallStatusCode int
+	httpClient     HTTPClient
 }
 
-func (m *MockValidatorClient) MarshalJSON(v interface{}) ([]byte, error) {
+func (m *MockValidatorClient) MarshalSpec(v any) ([]byte, error) {
 	if m.MarshalError != nil {
 		return nil, m.MarshalError
 	}
@@ -1081,8 +1078,8 @@ func (m *MockValidatorClient) callValidatorWithMockHTTP(data []byte) ([]byte, in
 }
 
 type MockFileSystem struct {
-	StatError  error
-	StatInfo   os.FileInfo
+	StatError   error
+	StatInfo    os.FileInfo
 	CreateError error
 	CreateFile  *os.File
 }
@@ -1123,7 +1120,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			Version:    "1.0.0",
 			Format:     "json",
 		}
-		
+
 		err := GenerateSpec(config)
 		if err == nil {
 			t.Error("Expected error for nonexistent source path")
@@ -1132,7 +1129,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			t.Errorf("Expected 'failed to parse source' error, got: %v", err)
 		}
 	})
-	
+
 	t.Run("validateSpec error wrapping", func(t *testing.T) {
 		// Override the default client to return validation error
 		originalClient := defaultValidatorClient
@@ -1141,7 +1138,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 		}
 		defaultValidatorClient = mockClient
 		defer func() { defaultValidatorClient = originalClient }()
-		
+
 		tmpFile := filepath.Join(t.TempDir(), "output.json")
 		config := &GenerateConfig{
 			BuildPath:  "",
@@ -1151,7 +1148,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			Version:    "1.0.0",
 			Format:     "json",
 		}
-		
+
 		err := GenerateSpec(config)
 		if err == nil {
 			t.Error("Expected validation error")
@@ -1169,12 +1166,12 @@ func TestValidateSpecWithClientErrors(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	t.Run("marshal error", func(t *testing.T) {
 		mockClient := &MockValidatorClient{
 			MarshalError: fmt.Errorf("marshal error"),
 		}
-		
+
 		err := validateSpecWithClient(spec, mockClient)
 		if err == nil {
 			t.Error("Expected marshal error")
@@ -1183,12 +1180,12 @@ func TestValidateSpecWithClientErrors(t *testing.T) {
 			t.Errorf("Expected 'marshal spec' error, got: %v", err)
 		}
 	})
-	
+
 	t.Run("call validator error", func(t *testing.T) {
 		mockClient := &MockValidatorClient{
 			CallError: fmt.Errorf("network error"),
 		}
-		
+
 		err := validateSpecWithClient(spec, mockClient)
 		if err == nil {
 			t.Error("Expected call validator error")
@@ -1197,16 +1194,16 @@ func TestValidateSpecWithClientErrors(t *testing.T) {
 			t.Errorf("Expected 'network error', got: %v", err)
 		}
 	})
-	
+
 	t.Run("HTTP POST error", func(t *testing.T) {
 		mockHTTP := &MockHTTPClient{
 			PostError: fmt.Errorf("connection refused"),
 		}
 		// Create a real DefaultValidatorClient with mocked HTTP client
 		client := &DefaultValidatorClient{httpClient: mockHTTP}
-		
+
 		err := validateSpecWithClient(spec, client)
-		if err == nil {  
+		if err == nil {
 			t.Error("Expected HTTP POST error")
 		}
 		if !strings.Contains(err.Error(), "send to Swagger validator") {
@@ -1222,19 +1219,19 @@ func TestWriteSpecWithWriterErrors(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	tmpFile := filepath.Join(t.TempDir(), "test.yaml")
 	f, err := os.Create(tmpFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	
+
 	t.Run("yaml marshal error", func(t *testing.T) {
 		mockWriter := &MockSpecWriter{
 			YAMLMarshalError: fmt.Errorf("yaml marshal error"),
 		}
-		
+
 		err := writeSpecWithWriter(f, "yaml", spec, mockWriter)
 		if err == nil {
 			t.Error("Expected YAML marshal error")
@@ -1252,17 +1249,17 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 		Paths:      map[string]*api.PathItem{},
 		Components: &api.Components{Schemas: map[string]*api.Schema{}},
 	}
-	
+
 	t.Run("stat generic error", func(t *testing.T) {
 		mockFS := &MockFileSystem{
 			StatError: fmt.Errorf("permission denied"),
 		}
-		
+
 		config := &GenerateConfig{
 			OutputPath: "/some/path/output.json",
 			Format:     "json",
 		}
-		
+
 		err := writeOutputWithFS(spec, config, mockFS)
 		if err == nil {
 			t.Error("Expected stat error")
@@ -1271,17 +1268,17 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 			t.Errorf("Expected 'permission denied' error, got: %v", err)
 		}
 	})
-	
+
 	t.Run("nonexistent directory", func(t *testing.T) {
 		mockFS := &MockFileSystem{
 			StatError: os.ErrNotExist,
 		}
-		
+
 		config := &GenerateConfig{
 			OutputPath: "/nonexistent/directory/output.json",
 			Format:     "json",
 		}
-		
+
 		err := writeOutputWithFS(spec, config, mockFS)
 		if err == nil {
 			t.Error("Expected error for nonexistent directory")
@@ -1291,4 +1288,3 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 		}
 	})
 }
-

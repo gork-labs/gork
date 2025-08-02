@@ -45,7 +45,7 @@ func TestSetFieldValue_FloatTypes(t *testing.T) {
 	field32 := v.Type().Field(0)
 	fieldValue32 := v.Field(0)
 	setFieldValue(fieldValue32, field32, "3.14", []string{"3.14"})
-	
+
 	expected32 := float32(3.14)
 	if testStruct.Float32Field != expected32 {
 		t.Errorf("Expected %f, got %f", expected32, testStruct.Float32Field)
@@ -55,7 +55,7 @@ func TestSetFieldValue_FloatTypes(t *testing.T) {
 	field64 := v.Type().Field(1)
 	fieldValue64 := v.Field(1)
 	setFieldValue(fieldValue64, field64, "2.718281828", []string{"2.718281828"})
-	
+
 	expected64 := 2.718281828
 	if testStruct.Float64Field != expected64 {
 		t.Errorf("Expected %f, got %f", expected64, testStruct.Float64Field)
@@ -73,10 +73,10 @@ func TestSetFieldValue_InvalidFloatValues(t *testing.T) {
 
 	field := v.Type().Field(0)
 	fieldValue := v.Field(0)
-	
+
 	// Test with invalid float value - should not set the field
 	setFieldValue(fieldValue, field, "not-a-float", []string{"not-a-float"})
-	
+
 	// Field should remain zero since parsing failed
 	if testStruct.FloatField != 0 {
 		t.Errorf("Expected 0, got %f", testStruct.FloatField)
@@ -97,7 +97,7 @@ func TestSetFieldValue_ParseFloatError(t *testing.T) {
 	field32 := v.Type().Field(0)
 	fieldValue32 := v.Field(0)
 	setFieldValue(fieldValue32, field32, "invalid", []string{"invalid"})
-	
+
 	if testStruct.Float32Field != 0 {
 		t.Errorf("Expected 0 for invalid float32, got %f", testStruct.Float32Field)
 	}
@@ -106,7 +106,7 @@ func TestSetFieldValue_ParseFloatError(t *testing.T) {
 	field64 := v.Type().Field(1)
 	fieldValue64 := v.Field(1)
 	setFieldValue(fieldValue64, field64, "also-invalid", []string{"also-invalid"})
-	
+
 	if testStruct.Float64Field != 0 {
 		t.Errorf("Expected 0 for invalid float64, got %f", testStruct.Float64Field)
 	}
@@ -117,10 +117,10 @@ func TestSetFieldValue_ParseFloatError(t *testing.T) {
 // Test doc_extractor.go line 72.58,74.4 (processPackageFiles error handling)
 func TestDocExtractor_ProcessPackageFilesErrorHandling(t *testing.T) {
 	extractor := NewDocExtractor()
-	
+
 	// This will test the error path in processPackageFiles
 	// where the file processing could encounter issues
-	
+
 	// processPackageFiles is internal, but we can test through ParseDirectory
 	// which calls it internally. We've already tested this indirectly through
 	// other tests, but let's ensure the error path is covered
@@ -170,7 +170,7 @@ func TestResolveQueryParamName_OpenAPITag(t *testing.T) {
 				Name: "FieldName",
 				Tag:  reflect.StructTag(tt.tag),
 			}
-			
+
 			result := resolveQueryParamName(field)
 			if result != tt.expected {
 				t.Errorf("Expected %s, got %s", tt.expected, result)
@@ -182,7 +182,7 @@ func TestResolveQueryParamName_OpenAPITag(t *testing.T) {
 // Test to cover line 229.2,229.17 (setFieldValue default case return)
 func TestSetFieldValue_UnsupportedTypes(t *testing.T) {
 	type TestStruct struct {
-		UnsafePtr uintptr
+		UnsafePtr    uintptr
 		ComplexField complex64
 	}
 
@@ -192,21 +192,21 @@ func TestSetFieldValue_UnsupportedTypes(t *testing.T) {
 	// Test uintptr (unsupported type)
 	field := v.Type().Field(0)
 	fieldValue := v.Field(0)
-	
+
 	// This should hit the default case and return early
 	setFieldValue(fieldValue, field, "123", []string{"123"})
-	
+
 	// Value should remain zero since it's unsupported
 	if testStruct.UnsafePtr != 0 {
 		t.Errorf("Expected 0 for unsupported uintptr type, got %v", testStruct.UnsafePtr)
 	}
 
-	// Test complex64 (unsupported type)  
+	// Test complex64 (unsupported type)
 	field2 := v.Type().Field(1)
 	fieldValue2 := v.Field(1)
-	
+
 	setFieldValue(fieldValue2, field2, "1+2i", []string{"1+2i"})
-	
+
 	// Value should remain zero since it's unsupported
 	if testStruct.ComplexField != 0 {
 		t.Errorf("Expected 0 for unsupported complex64 type, got %v", testStruct.ComplexField)
