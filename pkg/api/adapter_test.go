@@ -12,17 +12,17 @@ import (
 
 // Test types for comprehensive parameter testing
 type queryTestReq struct {
-	Name     string   `json:"name"`
-	Age      int      `json:"age"`
-	Count    uint     `json:"count"`
-	Active   bool     `json:"active"`
-	Tags     []string `json:"tags"`
-	CSVTags  []string `json:"csvTags"`
-	Rating   float64  `json:"rating"`
-	APIKey   string   `openapi:"api_key,in=query" json:"apiKey"`
-	HeaderVal string  `openapi:"x-custom,in=header" json:"headerVal"`
-	CookieVal string  `openapi:"session,in=cookie" json:"cookieVal"`
-	PathID    string  `openapi:"id,in=path" json:"pathId"`
+	Name      string   `json:"name"`
+	Age       int      `json:"age"`
+	Count     uint     `json:"count"`
+	Active    bool     `json:"active"`
+	Tags      []string `json:"tags"`
+	CSVTags   []string `json:"csvTags"`
+	Rating    float64  `json:"rating"`
+	APIKey    string   `openapi:"api_key,in=query" json:"apiKey"`
+	HeaderVal string   `openapi:"x-custom,in=header" json:"headerVal"`
+	CookieVal string   `openapi:"session,in=cookie" json:"cookieVal"`
+	PathID    string   `openapi:"id,in=path" json:"pathId"`
 }
 
 type testReqWithOpenAPI struct {
@@ -750,13 +750,13 @@ func TestExtractFunctionNameFromRuntimeWithFunc(t *testing.T) {
 		mockProvider := func(uintptr) *runtime.Func {
 			return nil
 		}
-		
+
 		result := extractFunctionNameFromRuntimeWithFunc(DummyHandler, mockProvider)
 		if result != "" {
 			t.Errorf("Expected empty string for nil function, got %q", result)
 		}
 	})
-	
+
 	t.Run("with custom function provider", func(t *testing.T) {
 		// Test with the real provider to verify the behavior
 		result := extractFunctionNameFromRuntimeWithFunc(DummyHandler, runtime.FuncForPC)

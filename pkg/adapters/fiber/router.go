@@ -113,7 +113,7 @@ func NewRouter(app *fiber.App, opts ...api.Option) *Router {
 	return r
 }
 
-// HTTPRequestCreator allows dependency injection for testing
+// HTTPRequestCreator allows dependency injection for testing.
 type HTTPRequestCreator func(method, url string, body io.Reader) (*http.Request, error)
 
 var defaultHTTPRequestCreator HTTPRequestCreator = http.NewRequest
@@ -124,7 +124,7 @@ func createHTTPRequestFromFiber(c *fiber.Ctx) (*http.Request, error) {
 	return createHTTPRequestFromFiberWithCreator(c, defaultHTTPRequestCreator)
 }
 
-// createHTTPRequestFromFiberWithCreator allows injecting custom request creator for testing
+// createHTTPRequestFromFiberWithCreator allows injecting custom request creator for testing.
 func createHTTPRequestFromFiberWithCreator(c *fiber.Ctx, creator HTTPRequestCreator) (*http.Request, error) {
 	req, err := creator(c.Method(), c.OriginalURL(), strings.NewReader(string(c.Body())))
 	if err != nil {
@@ -147,7 +147,7 @@ func handleFiberRequest(c *fiber.Ctx, handler http.HandlerFunc) error {
 	return handleFiberRequestWithCreator(c, handler, defaultHTTPRequestCreator)
 }
 
-// handleFiberRequestWithCreator allows injecting custom request creator for testing
+// handleFiberRequestWithCreator allows injecting custom request creator for testing.
 func handleFiberRequestWithCreator(c *fiber.Ctx, handler http.HandlerFunc, creator HTTPRequestCreator) error {
 	req, err := createHTTPRequestFromFiberWithCreator(c, creator)
 	if err != nil {
@@ -244,7 +244,7 @@ func (r *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
 	r.typedRouter.ExportOpenAPIAndExit(opts...)
 }
 
-// fiberResponseWriter implements http.ResponseWriter for Fiber compatibility
+// fiberResponseWriter implements http.ResponseWriter for Fiber compatibility.
 type fiberResponseWriter struct {
 	ctx *fiber.Ctx
 }

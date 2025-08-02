@@ -535,7 +535,6 @@ func TestValidateRequest_Success(t *testing.T) {
 	req := TestRequest{Name: "Alice"} // Valid request
 
 	err := validateRequest(rr, req)
-
 	if err != nil {
 		t.Errorf("Unexpected validation error: %v", err)
 	}
@@ -544,7 +543,7 @@ func TestValidateRequest_Success(t *testing.T) {
 	if rr.Body.Len() != 0 {
 		t.Errorf("Unexpected response body written: %s", rr.Body.String())
 	}
-	
+
 	if len(rr.Header()) != 0 {
 		t.Errorf("Unexpected headers set: %v", rr.Header())
 	}

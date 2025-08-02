@@ -16,11 +16,7 @@ func defaultRouteFilter(info *RouteInfo) bool {
 
 	// Detect *api.OpenAPISpec (exact pointer match)
 	specPtrType := reflect.TypeOf(&OpenAPISpec{})
-	if info.ResponseType == specPtrType {
-		return false
-	}
-
-	return true
+	return info.ResponseType != specPtrType
 }
 
 // GenerateOpenAPI converts the runtime RouteRegistry into a basic OpenAPI 3.1
@@ -232,17 +228,16 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 }
 
 // reflectTypeToSchemaInternal is the internal implementation that allows us to control
-// whether pointer types should be treated as nullable
+// whether pointer types should be treated as nullable.
 func reflectTypeToSchemaInternal(t reflect.Type, registry map[string]*Schema, makePointerNullable bool) *Schema {
 	// Handle pointer types - these are nullable in OpenAPI 3.1 only if makePointerNullable is true
 	if t.Kind() == reflect.Ptr {
 		if makePointerNullable {
 			underlyingSchema := reflectTypeToSchemaInternal(t.Elem(), registry, true)
 			return makeNullableSchema(underlyingSchema)
-		} else {
-			// For top-level types, just unwrap the pointer without making it nullable
-			return reflectTypeToSchemaInternal(t.Elem(), registry, true)
 		}
+		// For top-level types, just unwrap the pointer without making it nullable
+		return reflectTypeToSchemaInternal(t.Elem(), registry, true)
 	}
 
 	// Check for built-in or user-defined union types
@@ -255,6 +250,7 @@ func reflectTypeToSchemaInternal(t reflect.Type, registry map[string]*Schema, ma
 		return schema
 	}
 
+	//nolint:exhaustive // Only handle specific types, default case covers the rest
 	switch t.Kind() {
 	case reflect.Struct:
 		return buildStructSchema(t, registry)
@@ -419,6 +415,7 @@ func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
 }
 
 func buildBasicTypeSchema(t reflect.Type) *Schema {
+	//nolint:exhaustive // All relevant cases are handled, exhaustive check is incorrect
 	switch t.Kind() {
 	case reflect.String:
 		return &Schema{Type: "string"}

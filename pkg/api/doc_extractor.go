@@ -69,14 +69,14 @@ func (d *DocExtractor) processDirectoryEntry(path string, de os.DirEntry, fset *
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			continue
 		}
-		
+
 		filePath := filepath.Join(path, entry.Name())
 		if err := d.parseFile(filePath, fset); err != nil {
 			// Skip files that fail to parse
 			continue
 		}
 	}
-	
+
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (d *DocExtractor) parseFile(filePath string, fset *token.FileSet) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ast.Inspect(file, d.inspectNode)
 	return nil
 }
@@ -219,7 +219,7 @@ func extractDescription(comment string) string {
 	if trimmed == "" {
 		return ""
 	}
-	
+
 	paragraphs := strings.Split(trimmed, "\n\n")
 	// Remove leading comment markers if present
 	lines := strings.Split(paragraphs[0], "\n")

@@ -1,3 +1,4 @@
+// Package fiber provides Fiber framework adapter for the gork toolkit.
 package fiber
 
 import (
@@ -8,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// YAMLMarshaler allows dependency injection for testing
+// YAMLMarshaler allows dependency injection for testing.
 type YAMLMarshaler func(interface{}) ([]byte, error)
 
 var defaultYAMLMarshaler YAMLMarshaler = yaml.Marshal
@@ -19,18 +20,18 @@ func DocsHandler(spec *api.OpenAPISpec, config api.DocsConfig) fiber.Handler {
 	return DocsHandlerWithMarshaler(spec, config, defaultYAMLMarshaler)
 }
 
-// DocsHandlerWithMarshaler allows injecting custom YAML marshaler for testing
+// DocsHandlerWithMarshaler allows injecting custom YAML marshaler for testing.
 func DocsHandlerWithMarshaler(spec *api.OpenAPISpec, config api.DocsConfig, marshaler YAMLMarshaler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
 
-		switch {
-		case path == config.OpenAPIPath:
+		switch path {
+		case config.OpenAPIPath:
 			// Serve the OpenAPI JSON specification
 			c.Set("Content-Type", "application/json")
 			return c.JSON(spec)
 
-		case path == config.OpenAPIPath+".yaml":
+		case config.OpenAPIPath + ".yaml":
 			// Serve the OpenAPI YAML specification
 			yamlData, err := marshaler(spec)
 			if err != nil {

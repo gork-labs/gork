@@ -7,20 +7,20 @@ import (
 	"os"
 )
 
-// ExitFunc allows dependency injection for testing
+// ExitFunc allows dependency injection for testing.
 type ExitFunc func(int)
 
-// LogFatalfFunc allows dependency injection for testing  
+// LogFatalfFunc allows dependency injection for testing.
 type LogFatalfFunc func(string, ...interface{})
 
-// ExportConfig holds configuration for export functionality
+// ExportConfig holds configuration for export functionality.
 type ExportConfig struct {
 	Output    io.Writer
 	ExitFunc  ExitFunc
 	LogFatalf LogFatalfFunc
 }
 
-// DefaultExportConfig returns the default export configuration
+// DefaultExportConfig returns the default export configuration.
 func DefaultExportConfig() ExportConfig {
 	return ExportConfig{
 		Output:    os.Stdout,
@@ -29,17 +29,15 @@ func DefaultExportConfig() ExportConfig {
 	}
 }
 
-var (
-	// exportConfig holds the current export configuration
-	exportConfig = DefaultExportConfig()
-)
+// exportConfig holds the current export configuration.
+var exportConfig = DefaultExportConfig()
 
-// SetExportConfig allows setting a custom export configuration for testing
+// SetExportConfig allows setting a custom export configuration for testing.
 func SetExportConfig(config ExportConfig) {
 	exportConfig = config
 }
 
-// exportOpenAPISpec generates and writes the OpenAPI spec using the provided configuration
+// exportOpenAPISpec generates and writes the OpenAPI spec using the provided configuration.
 func exportOpenAPISpec(registry *RouteRegistry, config ExportConfig, opts ...OpenAPIOption) error {
 	spec := GenerateOpenAPI(registry, opts...)
 
@@ -60,7 +58,9 @@ func exportOpenAPISpec(registry *RouteRegistry, config ExportConfig, opts ...Ope
 // only when they want to export the OpenAPI specification (e.g., when
 // GORK_EXPORT=1 environment variable is set).
 func (r *TypedRouter[T]) ExportOpenAPIAndExit(opts ...OpenAPIOption) {
-	exportOpenAPISpec(r.registry, exportConfig, opts...)
+	if err := exportOpenAPISpec(r.registry, exportConfig, opts...); err != nil {
+		return // Error already logged by exportOpenAPISpec
+	}
 
 	// Ensure graceful termination so that calling scripts can rely on the
 	// process exiting once the specification has been emitted.

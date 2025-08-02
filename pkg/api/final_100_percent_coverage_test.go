@@ -36,20 +36,20 @@ func TestSetSliceFieldValue_EmptyParamValueWithNonEmptyAllValues(t *testing.T) {
 func TestProcessDirectoryEntry_SkipNonGoFiles(t *testing.T) {
 	extractor := NewDocExtractor()
 	fset := token.NewFileSet()
-	
+
 	// Create a temp directory with a non-Go file
 	tempDir := t.TempDir()
 	nonGoFile := filepath.Join(tempDir, "readme.txt")
-	if err := os.WriteFile(nonGoFile, []byte("Not a Go file"), 0644); err != nil {
+	if err := os.WriteFile(nonGoFile, []byte("Not a Go file"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Also create a subdirectory to test directory skipping
 	subDir := filepath.Join(tempDir, "subdir")
-	if err := os.Mkdir(subDir, 0755); err != nil {
+	if err := os.Mkdir(subDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Process the directory - should skip the non-Go file
 	err := extractor.processDirectoryEntry(tempDir, &testDirEntry{name: filepath.Base(tempDir), isDir: true}, fset)
 	if err != nil {
@@ -63,11 +63,11 @@ func TestProcessDirectoryEntry_SkipNonGoFiles(t *testing.T) {
 // Test reflectTypeToSchemaInternal with func type
 func TestReflectTypeToSchemaInternal_FuncType(t *testing.T) {
 	registry := make(map[string]*Schema)
-	
+
 	// Test with a func type which should hit default case in the switch
 	funcType := reflect.TypeOf(func() {})
 	schema := reflectTypeToSchemaInternal(funcType, registry, false)
-	
+
 	if schema == nil {
 		t.Error("Expected non-nil schema for func type")
 	}
@@ -82,7 +82,7 @@ func TestReflectTypeToSchemaInternal_FuncType(t *testing.T) {
 // Test Schema.UnmarshalYAML error case
 func TestSchema_UnmarshalYAML_ComplexError(t *testing.T) {
 	schema := &Schema{}
-	
+
 	// Create YAML content that will cause unmarshal error
 	yamlContent := `
 type: 
@@ -92,13 +92,13 @@ type:
 properties:
   invalid: !!binary "V29ybGQ="
 `
-	
+
 	var node yaml.Node
 	err := yaml.Unmarshal([]byte(yamlContent), &node)
 	if err != nil {
 		t.Fatalf("Failed to create test YAML node: %v", err)
 	}
-	
+
 	// Try to unmarshal the problematic node
 	err = node.Decode(schema)
 	if err == nil {

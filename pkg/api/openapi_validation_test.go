@@ -128,7 +128,7 @@ func TestApplyValidationRule(t *testing.T) {
 			desc: "should set Pattern",
 		},
 		{
-			name:      "oneof constraint", 
+			name:      "oneof constraint",
 			key:       "oneof",
 			val:       "red blue green",
 			fieldType: reflect.TypeOf(""),
@@ -186,7 +186,7 @@ func TestApplyValidationRule(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := &Schema{}
 			applyValidationRule(schema, tt.key, tt.val, tt.fieldType)
-			
+
 			if !tt.verify(schema) {
 				t.Errorf("applyValidationRule() failed: %s", tt.desc)
 			}
@@ -244,7 +244,7 @@ func TestApplyMinConstraint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := &Schema{}
 			applyMinConstraint(schema, tt.val, tt.fieldType)
-			
+
 			if !tt.verify(schema) {
 				t.Errorf("applyMinConstraint() failed: %s", tt.desc)
 			}
@@ -302,7 +302,7 @@ func TestApplyMaxConstraint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := &Schema{}
 			applyMaxConstraint(schema, tt.val, tt.fieldType)
-			
+
 			if !tt.verify(schema) {
 				t.Errorf("applyMaxConstraint() failed: %s", tt.desc)
 			}
@@ -353,7 +353,7 @@ func TestApplyLenConstraint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := &Schema{}
 			applyLenConstraint(schema, tt.val, tt.fieldType)
-			
+
 			if !tt.verify(schema) {
 				t.Errorf("applyLenConstraint() failed: %s", tt.desc)
 			}
@@ -412,7 +412,7 @@ func TestApplyOneOfConstraint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := &Schema{}
 			applyOneOfConstraint(schema, tt.val)
-			
+
 			if !tt.verify(schema) {
 				t.Errorf("applyOneOfConstraint() failed: %s", tt.desc)
 			}
@@ -473,22 +473,22 @@ func TestApplyValidationConstraints_Integration(t *testing.T) {
 	schema := &Schema{}
 	parentSchema := &Schema{}
 	field := reflect.StructField{Name: "TestField", Type: reflect.TypeOf("")}
-	
+
 	// Test with a complex validate tag
 	validateTag := "required,min=5,max=100,regexp=^[a-zA-Z]+$"
 	fieldType := reflect.TypeOf("")
-	
+
 	applyValidationConstraints(schema, validateTag, fieldType, parentSchema, field)
-	
+
 	// Should have applied all constraints
 	if schema.MinLength == nil || *schema.MinLength != 5 {
 		t.Error("Should have applied min constraint")
 	}
-	
+
 	if schema.MaxLength == nil || *schema.MaxLength != 100 {
 		t.Error("Should have applied max constraint")
 	}
-	
+
 	if schema.Pattern != "^[a-zA-Z]+$" {
 		t.Error("Should have applied regexp constraint")
 	}
@@ -498,27 +498,27 @@ func TestValidationEdgeCases(t *testing.T) {
 	t.Run("empty validation rule", func(t *testing.T) {
 		schema := &Schema{}
 		applyValidationRule(schema, "", "", reflect.TypeOf(""))
-		
+
 		// Should not panic or modify schema
 		if schema.MinLength != nil || schema.MaxLength != nil || schema.Pattern != "" {
 			t.Error("Empty rule should not modify schema")
 		}
 	})
-	
+
 	t.Run("unknown validation rule", func(t *testing.T) {
 		schema := &Schema{}
 		applyValidationRule(schema, "unknown", "value", reflect.TypeOf(""))
-		
+
 		// Should not panic or modify schema
 		if schema.MinLength != nil || schema.MaxLength != nil || schema.Pattern != "" {
 			t.Error("Unknown rule should not modify schema")
 		}
 	})
-	
+
 	t.Run("negative numbers", func(t *testing.T) {
 		schema := &Schema{}
 		applyMinConstraint(schema, "-5", reflect.TypeOf(""))
-		
+
 		if schema.MinLength == nil || *schema.MinLength != -5 {
 			t.Error("Should handle negative numbers")
 		}

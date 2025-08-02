@@ -19,28 +19,28 @@ func TestProcessHandlerResponse_UnknownErrorCase(t *testing.T) {
 
 	// Create reflection value of the handler
 	handlerValue := reflect.ValueOf(mockHandler)
-	
+
 	// Create a request pointer
 	reqPtr := reflect.New(reflect.TypeOf(struct{}{}))
-	
+
 	// Create test HTTP objects
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/test", nil)
-	
+
 	// Call the function directly to trigger the unknown error case
 	processHandlerResponse(w, r, handlerValue, reqPtr)
-	
+
 	// Verify the response
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status %d, got %d", http.StatusInternalServerError, w.Code)
 	}
-	
+
 	// Due to writeError security filtering, we expect "Internal Server Error" not "unknown error"
 	expectedBody := `{"error":"Internal Server Error"}` + "\n"
 	if w.Body.String() != expectedBody {
 		t.Errorf("Expected body %q, got %q", expectedBody, w.Body.String())
 	}
-	
+
 	// Verify content type
 	if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
 		t.Errorf("Expected Content-Type 'application/json', got %q", contentType)

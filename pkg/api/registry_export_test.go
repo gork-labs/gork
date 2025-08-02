@@ -369,14 +369,14 @@ func BenchmarkRouteRegistry_Export_EmptyRegistry(b *testing.B) {
 
 func TestRouteRegistry_Register_NilRoute(t *testing.T) {
 	registry := NewRouteRegistry()
-	
+
 	initialCount := len(registry.GetRoutes())
-	
+
 	// Register nil route - should be ignored
 	registry.Register(nil)
-	
+
 	finalCount := len(registry.GetRoutes())
-	
+
 	if finalCount != initialCount {
 		t.Errorf("Expected route count to remain %d after registering nil route, got %d", initialCount, finalCount)
 	}

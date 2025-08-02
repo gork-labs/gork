@@ -1,3 +1,4 @@
+// Package api provides HTTP handler wrappers and OpenAPI generation capabilities.
 package api
 
 import (
@@ -213,7 +214,7 @@ func setSliceFieldValue(fieldValue reflect.Value, fieldType reflect.StructField,
 	}
 }
 
-// FunctionNameExtractor allows dependency injection for testing
+// FunctionNameExtractor allows dependency injection for testing.
 type FunctionNameExtractor func(interface{}) string
 
 var defaultFunctionNameExtractor FunctionNameExtractor = extractFunctionNameFromRuntime
@@ -230,7 +231,7 @@ func extractFunctionNameFromRuntime(i interface{}) string {
 	return extractFunctionNameFromRuntimeWithFunc(i, runtime.FuncForPC)
 }
 
-// FuncForPCProvider allows dependency injection for testing
+// FuncForPCProvider allows dependency injection for testing.
 type FuncForPCProvider func(uintptr) *runtime.Func
 
 func extractFunctionNameFromRuntimeWithFunc(i interface{}, funcProvider FuncForPCProvider) string {

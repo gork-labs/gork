@@ -151,32 +151,32 @@ func schemasEqual(a, b *Schema) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	
+
 	if a.Type != b.Type {
 		return false
 	}
-	
+
 	if len(a.Types) != len(b.Types) {
 		return false
 	}
-	
+
 	for i, t := range a.Types {
 		if t != b.Types[i] {
 			return false
 		}
 	}
-	
+
 	if len(a.Properties) != len(b.Properties) {
 		return false
 	}
-	
+
 	for key, propA := range a.Properties {
 		propB, exists := b.Properties[key]
 		if !exists || !schemasEqual(propA, propB) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
