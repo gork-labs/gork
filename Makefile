@@ -62,9 +62,17 @@ clean:
 		(cd $$module && go clean -cache -testcache); \
 	done
 
-# Lint all modules
+# Lint specific module or all modules
+# Usage: make lint [module_path]
+# Examples:
+#   make lint                    # lint all modules
+#   make lint pkg/adapters/chi   # lint specific module
 lint:
-	@./scripts/lint-all.sh
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		./scripts/lint-module.sh "$(filter-out $@,$(MAKECMDGOALS))"; \
+	else \
+		./scripts/lint-all.sh; \
+	fi
 
 # Generate HTML coverage reports for all modules
 coverage-html:
