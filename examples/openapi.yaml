@@ -288,21 +288,18 @@ components:
                 properties:
                     accountNumber:
                         type: string
-                        alias:
-                            description: AccountNumber is the bank account number
+                        alias: {}
                     routingNumber:
                         type: string
-                        alias:
-                            description: RoutingNumber is the bank routing number
+                        alias: {}
                     type:
                         type: string
-                        alias:
-                            description: Type is the payment method type discriminator
+                        alias: {}
                 required:
                     - type
                     - accountNumber
                     - routingNumber
-                description: BankPaymentMethod represents a bank account payment method.
+                description: BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise.
         CreateUserRequest:
             type: object
             alias:
@@ -322,16 +319,14 @@ components:
                 properties:
                     cardNumber:
                         type: string
-                        alias:
-                            description: CardNumber is the credit card number
+                        alias: {}
                     type:
                         type: string
-                        alias:
-                            description: Type is the payment method type discriminator
+                        alias: {}
                 required:
                     - type
                     - cardNumber
-                description: CreditCardPaymentMethod represents a credit card payment method.
+                description: CreditCardPaymentMethod returns the CreditCardPaymentMethod value if present, nil otherwise.
         ErrorResponse:
             type: object
             alias:
