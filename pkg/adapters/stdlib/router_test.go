@@ -9,52 +9,74 @@ import (
 	"github.com/gork-labs/gork/pkg/api"
 )
 
+// Test helper functions
+func createTestHandler() func(ctx context.Context, req struct {
+	Name string `json:"name"`
+}) (struct {
+	Message string `json:"message"`
+}, error) {
+	return func(ctx context.Context, req struct {
+		Name string `json:"name"`
+	}) (struct {
+		Message string `json:"message"`
+	}, error) {
+		return struct {
+			Message string `json:"message"`
+		}{
+			Message: "Hello " + req.Name,
+		}, nil
+	}
+}
+
 func TestNewRouter(t *testing.T) {
-	mux := http.NewServeMux()
-	router := NewRouter(mux)
-
-	if router == nil {
-		t.Fatal("NewRouter returned nil")
+	tests := []struct {
+		name        string
+		mux         *http.ServeMux
+		opts        []api.Option
+		expectNilMux bool
+	}{
+		{
+			name:        "with provided mux",
+			mux:         http.NewServeMux(),
+			opts:        nil,
+			expectNilMux: false,
+		},
+		{
+			name:        "with nil mux (should create new)",
+			mux:         nil,
+			opts:        nil,
+			expectNilMux: false,
+		},
+		{
+			name:        "with options",
+			mux:         http.NewServeMux(),
+			opts:        []api.Option{api.WithTags("test")},
+			expectNilMux: false,
+		},
 	}
 
-	if router.mux != mux {
-		t.Error("Router mux instance doesn't match provided instance")
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := NewRouter(tt.mux, tt.opts...)
 
-	if router.GetRegistry() == nil {
-		t.Error("Registry is nil")
-	}
-}
+			if router == nil {
+				t.Fatal("NewRouter returned nil")
+			}
 
-func TestNewRouterWithNilMux(t *testing.T) {
-	router := NewRouter(nil)
+			if tt.expectNilMux && router.mux != nil {
+				t.Error("Expected nil mux but got non-nil")
+			} else if !tt.expectNilMux && router.mux == nil {
+				t.Error("Expected non-nil mux but got nil")
+			}
 
-	if router == nil {
-		t.Fatal("NewRouter returned nil")
-	}
+			if tt.mux != nil && router.mux != tt.mux {
+				t.Error("Router mux instance doesn't match provided instance")
+			}
 
-	if router.mux == nil {
-		t.Error("Router should create new mux when nil is passed")
-	}
-
-	if router.GetRegistry() == nil {
-		t.Error("Registry is nil")
-	}
-}
-
-func TestNewRouterWithOptions(t *testing.T) {
-	mux := http.NewServeMux()
-
-	// Test with middleware option
-	middleware := api.WithTags("test")
-	router := NewRouter(mux, middleware)
-
-	if router == nil {
-		t.Fatal("NewRouter returned nil")
-	}
-
-	if router.GetRegistry() == nil {
-		t.Error("Registry is nil")
+			if router.GetRegistry() == nil {
+				t.Error("Registry is nil")
+			}
+		})
 	}
 }
 
@@ -71,173 +93,132 @@ func TestRouterGetRegistry(t *testing.T) {
 	}
 }
 
-func TestRouterGroup(t *testing.T) {
-	router := NewRouter(nil)
 
-	// Test creating a group
-	groupRouter := router.Group("/api/v1")
-	if groupRouter == nil {
-		t.Fatal("Group() returned nil")
-	}
-
-	if groupRouter.prefix != "/api/v1" {
-		t.Errorf("Group router prefix = %s, want /api/v1", groupRouter.prefix)
-	}
-
-	// Test that group router has same registry
-	if groupRouter.GetRegistry() != router.GetRegistry() {
-		t.Error("Group router does not share the same registry")
-	}
-
-	// Test that group router has same mux
-	if groupRouter.mux != router.mux {
-		t.Error("Group router does not share the same mux")
-	}
-}
-
-func TestStdlibParamAdapter_Path(t *testing.T) {
+func TestStdlibParamAdapter(t *testing.T) {
 	adapter := stdlibParamAdapter{}
-	mux := http.NewServeMux()
 
-	// Test with stdlib path values (Go 1.22+)
-	mux.HandleFunc("GET /users/{id}", func(w http.ResponseWriter, r *http.Request) {
-		// Test existing parameter
-		value, ok := adapter.Path(r, "id")
-		if !ok {
-			t.Error("Path() returned false for existing parameter")
-		}
-		if value != "123" {
-			t.Errorf("Path() returned %q, want %q", value, "123")
-		}
+	t.Run("Path", func(t *testing.T) {
+		t.Run("with path values", func(t *testing.T) {
+			mux := http.NewServeMux()
+			// Test with stdlib path values (Go 1.22+)
+			mux.HandleFunc("GET /users/{id}", func(w http.ResponseWriter, r *http.Request) {
+				// Test existing parameter
+				value, ok := adapter.Path(r, "id")
+				if !ok {
+					t.Error("Path() returned false for existing parameter")
+				}
+				if value != "123" {
+					t.Errorf("Path() returned %q, want %q", value, "123")
+				}
 
-		// Test non-existing parameter
-		value, ok = adapter.Path(r, "nonexistent")
-		if ok {
-			t.Error("Path() returned true for non-existing parameter")
-		}
-		if value != "" {
-			t.Errorf("Path() returned %q for non-existing parameter, want empty string", value)
-		}
+				// Test non-existing parameter
+				value, ok = adapter.Path(r, "nonexistent")
+				if ok {
+					t.Error("Path() returned true for non-existing parameter")
+				}
+				if value != "" {
+					t.Errorf("Path() returned %q for non-existing parameter, want empty string", value)
+				}
+				w.WriteHeader(http.StatusOK)
+			})
 
-		w.WriteHeader(http.StatusOK)
+			req := httptest.NewRequest("GET", "/users/123", nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Errorf("Request failed with status %d", rec.Code)
+			}
+		})
+
+		t.Run("without path values", func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/users/123", nil)
+			value, ok := adapter.Path(req, "id")
+			if ok {
+				t.Error("Path() returned true without path values")
+			}
+			if value != "" {
+				t.Errorf("Path() returned %q without path values, want empty string", value)
+			}
+		})
 	})
 
-	// Make a test request
-	req := httptest.NewRequest("GET", "/users/123", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
+	t.Run("Query", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test?name=john&age=30", nil)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("Request failed with status %d", rec.Code)
-	}
-}
+		// Test existing query parameter
+		value, ok := adapter.Query(req, "name")
+		if !ok {
+			t.Error("Query() returned false for existing parameter")
+		}
+		if value != "john" {
+			t.Errorf("Query() returned %q, want %q", value, "john")
+		}
 
-func TestStdlibParamAdapter_PathWithoutPathValues(t *testing.T) {
-	adapter := stdlibParamAdapter{}
-	req := httptest.NewRequest("GET", "/users/123", nil)
+		// Test non-existing query parameter
+		value, ok = adapter.Query(req, "nonexistent")
+		if ok {
+			t.Error("Query() returned true for non-existing parameter")
+		}
+		if value != "" {
+			t.Errorf("Query() returned %q for non-existing parameter, want empty string", value)
+		}
+	})
 
-	// Test without path values
-	value, ok := adapter.Path(req, "id")
-	if ok {
-		t.Error("Path() returned true without path values")
-	}
-	if value != "" {
-		t.Errorf("Path() returned %q without path values, want empty string", value)
-	}
-}
+	t.Run("Header", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Authorization", "Bearer token123")
+		req.Header.Set("Content-Type", "application/json")
 
-func TestStdlibParamAdapter_Query(t *testing.T) {
-	adapter := stdlibParamAdapter{}
-	req := httptest.NewRequest("GET", "/test?name=john&age=30", nil)
+		// Test existing header
+		value, ok := adapter.Header(req, "Authorization")
+		if !ok {
+			t.Error("Header() returned false for existing header")
+		}
+		if value != "Bearer token123" {
+			t.Errorf("Header() returned %q, want %q", value, "Bearer token123")
+		}
 
-	// Test existing query parameter
-	value, ok := adapter.Query(req, "name")
-	if !ok {
-		t.Error("Query() returned false for existing parameter")
-	}
-	if value != "john" {
-		t.Errorf("Query() returned %q, want %q", value, "john")
-	}
+		// Test non-existing header
+		value, ok = adapter.Header(req, "NonExistent")
+		if ok {
+			t.Error("Header() returned true for non-existing header")
+		}
+		if value != "" {
+			t.Errorf("Header() returned %q for non-existing header, want empty string", value)
+		}
+	})
 
-	// Test non-existing query parameter
-	value, ok = adapter.Query(req, "nonexistent")
-	if ok {
-		t.Error("Query() returned true for non-existing parameter")
-	}
-	if value != "" {
-		t.Errorf("Query() returned %q for non-existing parameter, want empty string", value)
-	}
-}
+	t.Run("Cookie", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.AddCookie(&http.Cookie{Name: "session", Value: "abc123"})
+		req.AddCookie(&http.Cookie{Name: "theme", Value: "dark"})
 
-func TestStdlibParamAdapter_Header(t *testing.T) {
-	adapter := stdlibParamAdapter{}
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("Authorization", "Bearer token123")
-	req.Header.Set("Content-Type", "application/json")
+		// Test existing cookie
+		value, ok := adapter.Cookie(req, "session")
+		if !ok {
+			t.Error("Cookie() returned false for existing cookie")
+		}
+		if value != "abc123" {
+			t.Errorf("Cookie() returned %q, want %q", value, "abc123")
+		}
 
-	// Test existing header
-	value, ok := adapter.Header(req, "Authorization")
-	if !ok {
-		t.Error("Header() returned false for existing header")
-	}
-	if value != "Bearer token123" {
-		t.Errorf("Header() returned %q, want %q", value, "Bearer token123")
-	}
-
-	// Test non-existing header
-	value, ok = adapter.Header(req, "NonExistent")
-	if ok {
-		t.Error("Header() returned true for non-existing header")
-	}
-	if value != "" {
-		t.Errorf("Header() returned %q for non-existing header, want empty string", value)
-	}
-}
-
-func TestStdlibParamAdapter_Cookie(t *testing.T) {
-	adapter := stdlibParamAdapter{}
-	req := httptest.NewRequest("GET", "/test", nil)
-
-	// Add cookies
-	req.AddCookie(&http.Cookie{Name: "session", Value: "abc123"})
-	req.AddCookie(&http.Cookie{Name: "theme", Value: "dark"})
-
-	// Test existing cookie
-	value, ok := adapter.Cookie(req, "session")
-	if !ok {
-		t.Error("Cookie() returned false for existing cookie")
-	}
-	if value != "abc123" {
-		t.Errorf("Cookie() returned %q, want %q", value, "abc123")
-	}
-
-	// Test non-existing cookie
-	value, ok = adapter.Cookie(req, "nonexistent")
-	if ok {
-		t.Error("Cookie() returned true for non-existing cookie")
-	}
-	if value != "" {
-		t.Errorf("Cookie() returned %q for non-existing cookie, want empty string", value)
-	}
+		// Test non-existing cookie
+		value, ok = adapter.Cookie(req, "nonexistent")
+		if ok {
+			t.Error("Cookie() returned true for non-existing cookie")
+		}
+		if value != "" {
+			t.Errorf("Cookie() returned %q for non-existing cookie, want empty string", value)
+		}
+	})
 }
 
 func TestRouterHTTPMethods(t *testing.T) {
 	router := NewRouter(nil)
+	handler := createTestHandler()
 
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Test all HTTP methods (using methods directly from TypedRouter)
+	// Test all HTTP methods
 	router.Get("/get", handler)
 	router.Post("/post", handler)
 	router.Put("/put", handler)
@@ -269,127 +250,85 @@ func TestRouterHTTPMethods(t *testing.T) {
 	}
 }
 
-func TestRouterIntegration(t *testing.T) {
+func TestRouterGroup(t *testing.T) {
 	router := NewRouter(nil)
 
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Register route
-	router.Post("/greet", handler)
-
-	// Verify route was registered
-	registry := router.GetRegistry()
-	routes := registry.GetRoutes()
-
-	found := false
-	for _, route := range routes {
-		if route.Method == "POST" && route.Path == "/greet" {
-			found = true
-			break
+	t.Run("basic group creation", func(t *testing.T) {
+		groupRouter := router.Group("/api/v1")
+		if groupRouter == nil {
+			t.Fatal("Group() returned nil")
 		}
-	}
 
-	if !found {
-		t.Error("Route was not registered in registry")
-	}
-}
-
-func TestRouterGroupNested(t *testing.T) {
-	router := NewRouter(nil)
-
-	// Create nested groups
-	apiGroup := router.Group("/api")
-	v1Group := apiGroup.Group("/v1")
-	usersGroup := v1Group.Group("/users")
-
-	// Check prefixes
-	if apiGroup.prefix != "/api" {
-		t.Errorf("API group prefix = %s, want /api", apiGroup.prefix)
-	}
-	if v1Group.prefix != "/api/v1" {
-		t.Errorf("V1 group prefix = %s, want /api/v1", v1Group.prefix)
-	}
-	if usersGroup.prefix != "/api/v1/users" {
-		t.Errorf("Users group prefix = %s, want /api/v1/users", usersGroup.prefix)
-	}
-
-	// Test that all groups share the same registry
-	if apiGroup.GetRegistry() != router.GetRegistry() {
-		t.Error("API group does not share registry")
-	}
-	if v1Group.GetRegistry() != router.GetRegistry() {
-		t.Error("V1 group does not share registry")
-	}
-	if usersGroup.GetRegistry() != router.GetRegistry() {
-		t.Error("Users group does not share registry")
-	}
-}
-
-func TestRouterGroupWithRouteRegistration(t *testing.T) {
-	router := NewRouter(nil)
-
-	// Create a group
-	apiGroup := router.Group("/api")
-
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
-
-	// Register route in the group
-	apiGroup.Post("/users", handler)
-
-	// Verify the route was registered with the correct path
-	registry := router.GetRegistry()
-	routes := registry.GetRoutes()
-
-	found := false
-	for _, route := range routes {
-		if route.Method == "POST" && route.Path == "/api/users" {
-			found = true
-			break
+		if groupRouter.prefix != "/api/v1" {
+			t.Errorf("Group router prefix = %s, want /api/v1", groupRouter.prefix)
 		}
-	}
 
-	if !found {
-		t.Error("Route was not registered with correct group prefix")
-	}
+		// Test that group router shares same registry and mux
+		if groupRouter.GetRegistry() != router.GetRegistry() {
+			t.Error("Group router does not share the same registry")
+		}
+		if groupRouter.mux != router.mux {
+			t.Error("Group router does not share the same mux")
+		}
+	})
+
+	t.Run("nested groups", func(t *testing.T) {
+		apiGroup := router.Group("/api")
+		v1Group := apiGroup.Group("/v1")
+		usersGroup := v1Group.Group("/users")
+
+		// Check prefixes
+		if apiGroup.prefix != "/api" {
+			t.Errorf("API group prefix = %s, want /api", apiGroup.prefix)
+		}
+		if v1Group.prefix != "/api/v1" {
+			t.Errorf("V1 group prefix = %s, want /api/v1", v1Group.prefix)
+		}
+		if usersGroup.prefix != "/api/v1/users" {
+			t.Errorf("Users group prefix = %s, want /api/v1/users", usersGroup.prefix)
+		}
+
+		// Test that all groups share the same registry
+		registries := []interface{}{
+			apiGroup.GetRegistry(),
+			v1Group.GetRegistry(), 
+			usersGroup.GetRegistry(),
+		}
+		for i, reg := range registries {
+			if reg != router.GetRegistry() {
+				t.Errorf("Group %d does not share registry", i)
+			}
+		}
+	})
+
+	t.Run("route registration with group prefix", func(t *testing.T) {
+		apiGroup := router.Group("/api")
+		handler := createTestHandler()
+
+		// Register route in the group
+		apiGroup.Post("/users", handler)
+
+		// Verify the route was registered with the correct path
+		registry := router.GetRegistry()
+		routes := registry.GetRoutes()
+
+		found := false
+		for _, route := range routes {
+			if route.Method == "POST" && route.Path == "/api/users" {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Error("Route was not registered with correct group prefix")
+		}
+	})
 }
 
 func TestRouterRegister(t *testing.T) {
 	router := NewRouter(nil)
-
-	// Define a simple handler
-	handler := func(ctx context.Context, req struct {
-		Name string `json:"name"`
-	}) (struct {
-		Message string `json:"message"`
-	}, error) {
-		return struct {
-			Message string `json:"message"`
-		}{
-			Message: "Hello " + req.Name,
-		}, nil
-	}
+	handler := createTestHandler()
 
 	// Test Register method
 	router.Register("POST", "/register-test", handler)
@@ -408,6 +347,22 @@ func TestRouterRegister(t *testing.T) {
 
 	if !found {
 		t.Error("Route was not registered using Register method")
+	}
+}
+
+func TestRouterDocsRoute(t *testing.T) {
+	router := NewRouter(nil)
+	
+	// Test DocsRoute method - it should delegate to the underlying TypedRouter
+	router.DocsRoute("/docs/*")
+	
+	// Verify that docs routes were registered by checking the registry
+	registry := router.GetRegistry()
+	routes := registry.GetRoutes()
+	
+	// Should have at least the spec route
+	if len(routes) == 0 {
+		t.Error("DocsRoute should register at least one route")
 	}
 }
 
