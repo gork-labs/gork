@@ -81,10 +81,12 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Lint ${{ matrix.module }}
-        run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-          make lint ${{ matrix.module }}
+      - name: golangci-lint ${{ matrix.module }}
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          working-directory: ${{ matrix.module }}
+          args: --timeout=5m
 
   validate-openapi:
     needs:
