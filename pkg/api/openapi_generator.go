@@ -20,11 +20,6 @@ func defaultRouteFilter(info *RouteInfo) bool {
 		return false
 	}
 
-	// If the response is a pointer to something else, unwrap once and compare
-	if info.ResponseType.Kind() == reflect.Ptr && info.ResponseType.Elem() == specPtrType.Elem() {
-		return false
-	}
-
 	return true
 }
 
@@ -233,8 +228,21 @@ func ensureStdResponses(comps *Components) {
 // structures such as unions or nested structs are handled recursively but with
 // many simplifications.
 func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
+	return reflectTypeToSchemaInternal(t, registry, false)
+}
+
+// reflectTypeToSchemaInternal is the internal implementation that allows us to control
+// whether pointer types should be treated as nullable
+func reflectTypeToSchemaInternal(t reflect.Type, registry map[string]*Schema, makePointerNullable bool) *Schema {
+	// Handle pointer types - these are nullable in OpenAPI 3.1 only if makePointerNullable is true
 	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
+		if makePointerNullable {
+			underlyingSchema := reflectTypeToSchemaInternal(t.Elem(), registry, true)
+			return makeNullableSchema(underlyingSchema)
+		} else {
+			// For top-level types, just unwrap the pointer without making it nullable
+			return reflectTypeToSchemaInternal(t.Elem(), registry, true)
+		}
 	}
 
 	// Check for built-in or user-defined union types
@@ -252,14 +260,51 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 		return buildStructSchema(t, registry)
 	case reflect.Slice, reflect.Array:
 		return buildArraySchema(t, registry)
-	case reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64, reflect.Bool, reflect.Invalid, reflect.Uintptr,
-		reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.Interface,
-		reflect.Map, reflect.Ptr, reflect.UnsafePointer:
-		return buildBasicTypeSchemaWithRegistry(t, registry)
 	default:
 		return buildBasicTypeSchemaWithRegistry(t, registry)
+	}
+}
+
+// makeNullableSchema creates a nullable version of the given schema according to OpenAPI 3.1 spec.
+// For basic types, it uses the "type": ["actualType", "null"] format.
+// For complex types (refs, objects with properties), it uses anyOf with null.
+func makeNullableSchema(originalSchema *Schema) *Schema {
+	if originalSchema == nil {
+		return &Schema{Type: "null"}
+	}
+
+	// If it's a reference or has complex properties, use anyOf
+	if originalSchema.Ref != "" || originalSchema.Properties != nil || originalSchema.OneOf != nil || originalSchema.AnyOf != nil {
+		return &Schema{
+			AnyOf: []*Schema{
+				originalSchema,
+				{Type: "null"},
+			},
+		}
+	}
+
+	// For basic types, use the array format
+	if originalSchema.Type != "" {
+		return &Schema{
+			Types:       []string{originalSchema.Type, "null"},
+			Description: originalSchema.Description,
+			Title:       originalSchema.Title,
+			Minimum:     originalSchema.Minimum,
+			Maximum:     originalSchema.Maximum,
+			MinLength:   originalSchema.MinLength,
+			MaxLength:   originalSchema.MaxLength,
+			Pattern:     originalSchema.Pattern,
+			Enum:        originalSchema.Enum,
+			Items:       originalSchema.Items,
+		}
+	}
+
+	// Fallback - just add null as anyOf
+	return &Schema{
+		AnyOf: []*Schema{
+			originalSchema,
+			{Type: "null"},
+		},
 	}
 }
 
@@ -324,7 +369,7 @@ func buildStructSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 }
 
 func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string]*Schema) {
-	embeddedSchema := reflectTypeToSchema(f.Type, registry)
+	embeddedSchema := reflectTypeToSchemaInternal(f.Type, registry, true)
 
 	// If embeddedSchema is a reference, resolve to actual for property extraction.
 	if embeddedSchema.Ref != "" {
@@ -345,7 +390,7 @@ func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string
 }
 
 func processStructField(f reflect.StructField, s *Schema, registry map[string]*Schema) {
-	fieldSchema := reflectTypeToSchema(f.Type, registry)
+	fieldSchema := reflectTypeToSchemaInternal(f.Type, registry, true)
 
 	// Handle discriminator values
 	if discVal, ok := parseDiscriminator(f.Tag.Get("openapi")); ok {
@@ -363,7 +408,7 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 }
 
 func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
-	itemSchema := reflectTypeToSchema(t.Elem(), registry)
+	itemSchema := reflectTypeToSchemaInternal(t.Elem(), registry, true)
 	var title, desc string
 	// If the element type has a name, expose it for nicer UI rendering.
 	if elemName := t.Elem().Name(); elemName != "" {
@@ -384,8 +429,6 @@ func buildBasicTypeSchema(t reflect.Type) *Schema {
 		return &Schema{Type: "number"}
 	case reflect.Bool:
 		return &Schema{Type: "boolean"}
-	case reflect.Invalid:
-		return &Schema{Type: "null"}
 	case reflect.Uintptr:
 		return &Schema{Type: "integer", Description: "Pointer-sized integer"}
 	case reflect.Complex64, reflect.Complex128:
@@ -400,9 +443,6 @@ func buildBasicTypeSchema(t reflect.Type) *Schema {
 		return &Schema{Type: "object", Description: "Map with dynamic keys"}
 	case reflect.UnsafePointer:
 		return &Schema{Type: "object", Description: "Unsafe pointer"}
-	case reflect.Array, reflect.Ptr, reflect.Slice, reflect.Struct:
-		// These cases should not reach here as they're handled in the main function
-		return &Schema{Type: "object"}
 	default:
 		return &Schema{Type: "object"}
 	}
@@ -410,7 +450,7 @@ func buildBasicTypeSchema(t reflect.Type) *Schema {
 
 func buildBasicTypeSchemaWithRegistry(t reflect.Type, registry map[string]*Schema) *Schema {
 	if t.Kind() == reflect.Ptr {
-		return reflectTypeToSchema(t.Elem(), registry)
+		return reflectTypeToSchemaInternal(t.Elem(), registry, true)
 	}
 	return buildBasicTypeSchema(t)
 }

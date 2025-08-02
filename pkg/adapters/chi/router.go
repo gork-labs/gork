@@ -9,7 +9,7 @@ import (
 )
 
 // path parameter adapter.
-type chiParamAdapter struct{ api.RequestParamAdapter }
+type chiParamAdapter struct{ api.HTTPParameterAdapter }
 
 func (chiParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	v := chibase.URLParamFromCtx(r.Context(), k)
@@ -109,32 +109,42 @@ func (r *Router) Unwrap() *chibase.Mux {
 	return r.mux
 }
 
-// Get delegates to the TypedRouter's Get method.
+// Get registers a GET route.
 func (r *Router) Get(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Get(path, handler, opts...)
+	r.typedRouter.Register("GET", path, handler, opts...)
 }
 
-// Post delegates to the TypedRouter's Post method.
+// Post registers a POST route.
 func (r *Router) Post(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Post(path, handler, opts...)
+	r.typedRouter.Register("POST", path, handler, opts...)
 }
 
-// Put delegates to the TypedRouter's Put method.
+// Put registers a PUT route.
 func (r *Router) Put(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Put(path, handler, opts...)
+	r.typedRouter.Register("PUT", path, handler, opts...)
 }
 
-// Delete delegates to the TypedRouter's Delete method.
+// Delete registers a DELETE route.
 func (r *Router) Delete(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Delete(path, handler, opts...)
+	r.typedRouter.Register("DELETE", path, handler, opts...)
 }
 
-// Patch delegates to the TypedRouter's Patch method.
+// Patch registers a PATCH route.
 func (r *Router) Patch(path string, handler interface{}, opts ...api.Option) {
-	r.typedRouter.Patch(path, handler, opts...)
+	r.typedRouter.Register("PATCH", path, handler, opts...)
+}
+
+// Register registers a route with the given HTTP method, path and handler.
+func (r *Router) Register(method, path string, handler interface{}, opts ...api.Option) {
+	r.typedRouter.Register(method, path, handler, opts...)
 }
 
 // DocsRoute delegates to the TypedRouter's DocsRoute method.
 func (r *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
 	r.typedRouter.DocsRoute(path, cfg...)
+}
+
+// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
+func (r *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
+	r.typedRouter.ExportOpenAPIAndExit(opts...)
 }

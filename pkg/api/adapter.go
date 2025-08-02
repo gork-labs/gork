@@ -213,18 +213,42 @@ func setSliceFieldValue(fieldValue reflect.Value, fieldType reflect.StructField,
 	}
 }
 
+// FunctionNameExtractor allows dependency injection for testing
+type FunctionNameExtractor func(interface{}) string
+
+var defaultFunctionNameExtractor FunctionNameExtractor = extractFunctionNameFromRuntime
+
 func getFunctionName(i interface{}) string {
+	return getFunctionNameWithExtractor(i, defaultFunctionNameExtractor)
+}
+
+func getFunctionNameWithExtractor(i interface{}, extractor FunctionNameExtractor) string {
+	return extractor(i)
+}
+
+func extractFunctionNameFromRuntime(i interface{}) string {
+	return extractFunctionNameFromRuntimeWithFunc(i, runtime.FuncForPC)
+}
+
+// FuncForPCProvider allows dependency injection for testing
+type FuncForPCProvider func(uintptr) *runtime.Func
+
+func extractFunctionNameFromRuntimeWithFunc(i interface{}, funcProvider FuncForPCProvider) string {
 	// Use FuncForPC to get the fully-qualified function name, then trim the package path
-	fn := runtime.FuncForPC(reflect.ValueOf(i).Pointer())
+	fn := funcProvider(reflect.ValueOf(i).Pointer())
 	if fn == nil {
 		return ""
 	}
 	fullName := fn.Name() // e.g., github.com/example/project/handlers.CreateUser
+	return trimFunctionName(fullName)
+}
+
+func trimFunctionName(fullName string) string {
 	if lastSlash := strings.LastIndex(fullName, "/"); lastSlash != -1 {
 		fullName = fullName[lastSlash+1:]
 	}
 	if lastDot := strings.LastIndex(fullName, "."); lastDot != -1 {
 		return fullName[lastDot+1:]
 	}
-	return fullName
+	return fullName // This is the fallback case we want to test
 }

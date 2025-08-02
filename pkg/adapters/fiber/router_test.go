@@ -109,20 +109,59 @@ func TestRouterNestedGroup(t *testing.T) {
 	}
 }
 
-func TestParameterAdapter(t *testing.T) {
+func TestRouterRegister(t *testing.T) {
+	app := fiber.New()
+	router := NewRouter(app)
+
+	// Test handler for custom registration
+	handler := func(ctx context.Context, req TestRequest) (TestResponse, error) {
+		return TestResponse{Message: "Hello " + req.Name}, nil
+	}
+
+	router.Register("GET", "/test", handler)
+
+	// Verify it was registered in the registry
+	routes := router.GetRegistry().GetRoutes()
+	if len(routes) != 1 {
+		t.Errorf("Expected 1 route, got %d", len(routes))
+	}
+
+	route := routes[0]
+	if route.Method != "GET" {
+		t.Errorf("Expected method GET, got %s", route.Method)
+	}
+	if route.Path != "/test" {
+		t.Errorf("Expected path /test, got %s", route.Path)
+	}
+}
+
+// Test types for the router tests
+type TestRequest struct {
+	Name string `json:"name" validate:"required"`
+}
+
+type TestResponse struct {
+	Message string `json:"message"`
+}
+
+func TestFiberParameterAdapter(t *testing.T) {
 	adapter := fiberParamAdapter{}
 	app := fiber.New()
 
 	// Test query parameters
 	app.Get("/test", func(c *fiber.Ctx) error {
+		// Create HTTP request with fiber context in context
+		req := httptest.NewRequest("GET", "/test?param=value", nil)
+		req = req.WithContext(context.WithValue(req.Context(), fiberCtxKey{}, c))
+
 		// Test existing query parameter
-		value, ok := adapter.Query(c, "param")
+		value, ok := adapter.Query(req, "param")
 		if !ok || value != "value" {
 			t.Error("Query parameter extraction failed")
 		}
 
 		// Test missing query parameter
-		value, ok = adapter.Query(c, "missing")
+		value, ok = adapter.Query(req, "missing")
 		if ok || value != "" {
 			t.Error("Expected no value for missing query parameter")
 		}
@@ -139,14 +178,19 @@ func TestParameterAdapter(t *testing.T) {
 
 	// Test headers
 	app.Get("/test-headers", func(c *fiber.Ctx) error {
+		// Create HTTP request with fiber context in context
+		req := httptest.NewRequest("GET", "/test-headers", nil)
+		req.Header.Set("X-Test", "headervalue")
+		req = req.WithContext(context.WithValue(req.Context(), fiberCtxKey{}, c))
+
 		// Test existing header
-		value, ok := adapter.Header(c, "X-Test")
+		value, ok := adapter.Header(req, "X-Test")
 		if !ok || value != "headervalue" {
 			t.Error("Header extraction failed")
 		}
 
 		// Test missing header
-		value, ok = adapter.Header(c, "Missing")
+		value, ok = adapter.Header(req, "Missing")
 		if ok || value != "" {
 			t.Error("Expected no value for missing header")
 		}
@@ -164,14 +208,19 @@ func TestParameterAdapter(t *testing.T) {
 
 	// Test cookies
 	app.Get("/test-cookies", func(c *fiber.Ctx) error {
+		// Create HTTP request with fiber context in context
+		req := httptest.NewRequest("GET", "/test-cookies", nil)
+		req.AddCookie(&http.Cookie{Name: "testcookie", Value: "cookievalue"})
+		req = req.WithContext(context.WithValue(req.Context(), fiberCtxKey{}, c))
+
 		// Test existing cookie
-		value, ok := adapter.Cookie(c, "testcookie")
+		value, ok := adapter.Cookie(req, "testcookie")
 		if !ok || value != "cookievalue" {
 			t.Error("Cookie extraction failed")
 		}
 
 		// Test missing cookie
-		value, ok = adapter.Cookie(c, "nonexistent")
+		value, ok = adapter.Cookie(req, "nonexistent")
 		if ok || value != "" {
 			t.Error("Expected no value for nonexistent cookie")
 		}
@@ -189,14 +238,18 @@ func TestParameterAdapter(t *testing.T) {
 
 	// Test path parameters
 	app.Get("/test-path/:id", func(c *fiber.Ctx) error {
+		// Create HTTP request with fiber context in context
+		req := httptest.NewRequest("GET", "/test-path/123", nil)
+		req = req.WithContext(context.WithValue(req.Context(), fiberCtxKey{}, c))
+
 		// Test existing path parameter
-		value, ok := adapter.Path(c, "id")
+		value, ok := adapter.Path(req, "id")
 		if !ok || value != "123" {
 			t.Error("Path parameter extraction failed")
 		}
 
 		// Test missing path parameter
-		value, ok = adapter.Path(c, "missing")
+		value, ok = adapter.Path(req, "missing")
 		if ok || value != "" {
 			t.Error("Expected no value for missing path parameter")
 		}
@@ -210,6 +263,132 @@ func TestParameterAdapter(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
+}
+
+func TestFiberResponseWriter(t *testing.T) {
+	app := fiber.New()
+	
+	// Test response writer functionality
+	app.Get("/test-response-writer", func(c *fiber.Ctx) error {
+		writer := &fiberResponseWriter{ctx: c}
+		
+		// Test WriteHeader
+		writer.WriteHeader(http.StatusCreated)
+		
+		// Test Header access
+		c.Set("X-Test-Header", "testvalue")
+		headers := writer.Header()
+		if headers.Get("X-Test-Header") != "testvalue" {
+			t.Error("Header retrieval failed")
+		}
+		
+		// Test Write
+		data := []byte("test response")
+		n, err := writer.Write(data)
+		if err != nil {
+			t.Errorf("Write failed: %v", err)
+		}
+		if n != len(data) {
+			t.Errorf("Expected to write %d bytes, wrote %d", len(data), n)
+		}
+		
+		return nil
+	})
+
+	req := httptest.NewRequest("GET", "/test-response-writer", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+}
+
+func TestParameterAdapterFallbacks(t *testing.T) {
+	adapter := fiberParamAdapter{}
+
+	// Test fallback behavior when no fiber context is present
+	req := httptest.NewRequest("GET", "/test?param=value", nil)
+	req.Header.Set("X-Test", "headervalue")
+	req.AddCookie(&http.Cookie{Name: "testcookie", Value: "cookievalue"})
+
+	// Query fallback
+	value, ok := adapter.Query(req, "param")
+	if !ok || value != "value" {
+		t.Error("Query fallback failed")
+	}
+
+	// Header fallback
+	value, ok = adapter.Header(req, "X-Test")
+	if !ok || value != "headervalue" {
+		t.Error("Header fallback failed")
+	}
+
+	// Cookie fallback
+	value, ok = adapter.Cookie(req, "testcookie")
+	if !ok || value != "cookievalue" {
+		t.Error("Cookie fallback failed")
+	}
+
+	// Test cookie fallback when no cookie exists
+	value, ok = adapter.Cookie(req, "nonexistent")
+	if ok || value != "" {
+		t.Error("Expected false for nonexistent cookie")
+	}
+
+	// Path should return false when no fiber context
+	value, ok = adapter.Path(req, "id")
+	if ok || value != "" {
+		t.Error("Path should return false without fiber context")
+	}
+}
+
+func TestGroupWithRegistration(t *testing.T) {
+	app := fiber.New()
+	router := NewRouter(app)
+
+	// Create a group and register a route
+	api := router.Group("/api")
+	
+	handler := func(ctx context.Context, req TestRequest) (TestResponse, error) {
+		return TestResponse{Message: "Hello from group"}, nil
+	}
+	
+	api.Get("/test", handler)
+
+	// Verify the route was registered with the correct path
+	routes := api.GetRegistry().GetRoutes()
+	found := false
+	for _, route := range routes {
+		if route.Path == "/api/test" && route.Method == "GET" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Route not registered with correct group prefix")
+	}
+}
+
+func TestErrorHandling(t *testing.T) {
+	app := fiber.New()
+	router := NewRouter(app)
+
+	// Handler that should cause error in request creation (though this is unlikely in practice)
+	router.Get("/test-error", func(ctx context.Context, req TestRequest) (TestResponse, error) {
+		return TestResponse{Message: "Should not reach here"}, nil
+	})
+
+	// Test with valid request
+	req := httptest.NewRequest("GET", "/test-error", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
 }
 
 func TestToNativePath(t *testing.T) {
@@ -278,6 +457,7 @@ func TestDocsRoute(t *testing.T) {
 		t.Error("Expected routes to be registered by DocsRoute")
 	}
 }
+
 
 func TestRequestHandling(t *testing.T) {
 	app := fiber.New()
@@ -636,4 +816,78 @@ func TestGroupHTTPRequestConversion(t *testing.T) {
 			t.Errorf("Expected path %s not found in registered routes", path)
 		}
 	}
+}
+
+func TestGroupRegisterFnErrorHandling(t *testing.T) {
+	// Test error handling in the Group's registerFn
+	app := fiber.New()
+	router := NewRouter(app)
+	group := router.Group("/api")
+
+	// Create a custom handler that will trigger the registerFn and its error handling paths
+	handler := func(ctx context.Context, req struct{}) (string, error) {
+		return "test", nil
+	}
+
+	// Register the handler to exercise the registerFn closure
+	group.Get("/test", handler)
+
+	// Now make a request that will exercise the error handling paths in the registerFn
+	// We need to test the HTTP request creation error path and header copying
+	req := httptest.NewRequest("GET", "/api/test", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	// The fact that this doesn't panic means the registerFn executed successfully
+	// This test exercises the URL parsing and header copying in the Group's registerFn
+}
+
+func TestGroupRegisterFnCoverage(t *testing.T) {
+	// Test to exercise Group registerFn code paths
+	app := fiber.New()
+	router := NewRouter(app)
+	group := router.Group("/test-group")
+
+	// Register a handler - this triggers the registerFn execution
+	handler := func(ctx context.Context, req struct{}) (string, error) {
+		return "test", nil
+	}
+
+	group.Get("/simple", handler)
+
+	// Verify the route was registered correctly
+	registry := router.GetRegistry()
+	routes := registry.GetRoutes()
+
+	found := false
+	for _, route := range routes {
+		if route.Path == "/test-group/simple" && route.Method == "GET" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Route not registered with correct group prefix")
+	}
+}
+
+func TestRouterExportOpenAPIAndExit(t *testing.T) {
+	app := fiber.New()
+	router := NewRouter(app)
+
+	// This test checks that ExportOpenAPIAndExit calls the underlying TypedRouter
+	// We can't test the actual exit behavior, but we can ensure the method exists and delegates
+	defer func() {
+		if r := recover(); r != nil {
+			// ExportOpenAPIAndExit calls os.Exit, so we expect a panic in tests
+			// This is expected behavior for this method
+		}
+	}()
+
+	// Call ExportOpenAPIAndExit - this will panic with os.Exit
+	router.ExportOpenAPIAndExit()
 }

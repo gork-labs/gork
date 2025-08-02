@@ -1,5 +1,7 @@
 package api
 
+import "encoding/json"
+
 // NOTE: These definitions intentionally keep only the fields we actively
 // populate for now. Additional fields can be added without breaking existing
 // users as we expand the generator.
@@ -85,10 +87,12 @@ type Schema struct {
 	// []UserResponse are shown as array[UserResponse] instead of array[object].
 	Title         string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Ref           string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	Type          string             `json:"type,omitempty" yaml:"type,omitempty"`
+	Type          string             `json:"-" yaml:"-"`
+	Types         []string           `json:"-" yaml:"-"`
 	Properties    map[string]*Schema `json:"properties,omitempty" yaml:"properties,omitempty"`
 	Required      []string           `json:"required,omitempty" yaml:"required,omitempty"`
 	OneOf         []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	AnyOf         []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 	Discriminator *Discriminator     `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
 	Description   string             `json:"description,omitempty" yaml:"description,omitempty"`
 	Minimum       *float64           `json:"minimum,omitempty" yaml:"minimum,omitempty"`
@@ -98,6 +102,109 @@ type Schema struct {
 	Pattern       string             `json:"pattern,omitempty" yaml:"pattern,omitempty"`
 	Enum          []string           `json:"enum,omitempty" yaml:"enum,omitempty"`
 	Items         *Schema            `json:"items,omitempty" yaml:"items,omitempty"`
+}
+
+// MarshalJSON implements custom JSON marshaling for Schema to handle the type field correctly.
+// If Types is set, it marshals as an array. If Type is set, it marshals as a string.
+func (s *Schema) MarshalJSON() ([]byte, error) {
+	type Alias Schema
+	aux := &struct {
+		Type interface{} `json:"type,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if len(s.Types) > 0 {
+		aux.Type = s.Types
+	} else if s.Type != "" {
+		aux.Type = s.Type
+	}
+
+	return json.Marshal(aux)
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Schema to handle the type field correctly.
+func (s *Schema) UnmarshalJSON(data []byte) error {
+	type Alias Schema
+	aux := &struct {
+		Type interface{} `json:"type"`
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	// Handle the type field based on its actual type
+	if aux.Type != nil {
+		switch v := aux.Type.(type) {
+		case string:
+			s.Type = v
+		case []interface{}:
+			s.Types = make([]string, len(v))
+			for i, item := range v {
+				if str, ok := item.(string); ok {
+					s.Types[i] = str
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// MarshalYAML implements custom YAML marshaling for Schema to handle the type field correctly.
+func (s *Schema) MarshalYAML() (interface{}, error) {
+	type Alias Schema
+	aux := &struct {
+		Type interface{} `yaml:"type,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if len(s.Types) > 0 {
+		aux.Type = s.Types
+	} else if s.Type != "" {
+		aux.Type = s.Type
+	}
+
+	return aux, nil
+}
+
+// UnmarshalYAML implements custom YAML unmarshaling for Schema to handle the type field correctly.
+func (s *Schema) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type Alias Schema
+	aux := &struct {
+		Type interface{} `yaml:"type"`
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := unmarshal(aux); err != nil {
+		return err
+	}
+
+	// Handle the type field based on its actual type
+	if aux.Type != nil {
+		switch v := aux.Type.(type) {
+		case string:
+			s.Type = v
+		case []interface{}:
+			s.Types = make([]string, len(v))
+			for i, item := range v {
+				if str, ok := item.(string); ok {
+					s.Types[i] = str
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // Discriminator represents an OpenAPI discriminator object for polymorphic schemas.

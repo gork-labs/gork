@@ -2,51 +2,67 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"os"
 )
 
-func init() {
-	if os.Getenv("GORK_EXPORT") == "1" {
-		EnableOpenAPIExport()
+// ExitFunc allows dependency injection for testing
+type ExitFunc func(int)
+
+// LogFatalfFunc allows dependency injection for testing  
+type LogFatalfFunc func(string, ...interface{})
+
+// ExportConfig holds configuration for export functionality
+type ExportConfig struct {
+	Output    io.Writer
+	ExitFunc  ExitFunc
+	LogFatalf LogFatalfFunc
+}
+
+// DefaultExportConfig returns the default export configuration
+func DefaultExportConfig() ExportConfig {
+	return ExportConfig{
+		Output:    os.Stdout,
+		ExitFunc:  os.Exit,
+		LogFatalf: log.Fatalf,
 	}
 }
 
-// exportMode guards whether the process should output the generated OpenAPI
-// specification to stdout and terminate after the router is fully
-// initialised. It is toggled via EnableOpenAPIExport() which is typically
-// called from an init() function behind the `openapi` build tag.
-var exportMode bool
+var (
+	// exportConfig holds the current export configuration
+	exportConfig = DefaultExportConfig()
+)
 
-// EnableOpenAPIExport activates export mode. Downstream applications are
-// expected to call this very early during program start-up (e.g. inside an
-// init() function) when building with `-tags openapi` so that subsequent
-// route registration can be captured but the HTTP server is never started.
-func EnableOpenAPIExport() {
-	exportMode = true
+// SetExportConfig allows setting a custom export configuration for testing
+func SetExportConfig(config ExportConfig) {
+	exportConfig = config
+}
+
+// exportOpenAPISpec generates and writes the OpenAPI spec using the provided configuration
+func exportOpenAPISpec(registry *RouteRegistry, config ExportConfig, opts ...OpenAPIOption) error {
+	spec := GenerateOpenAPI(registry, opts...)
+
+	enc := json.NewEncoder(config.Output)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(spec); err != nil {
+		config.LogFatalf("failed to encode OpenAPI spec: %v", err)
+		return err
+	}
+	return nil
 }
 
 // ExportOpenAPIAndExit generates an OpenAPI specification from the router's
 // internal RouteRegistry, writes it to stdout as pretty-printed JSON and then
 // terminates the process with exit code 0.
 //
-// The method is a no-op unless export mode has been previously enabled. This
-// allows the same code path to be executed in normal server mode without any
-// conditional compilation or additional build flags.
+// This function always exports and exits when called. Users should call it
+// only when they want to export the OpenAPI specification (e.g., when
+// GORK_EXPORT=1 environment variable is set).
 func (r *TypedRouter[T]) ExportOpenAPIAndExit(opts ...OpenAPIOption) {
-	if !exportMode {
-		return
-	}
-
-	spec := GenerateOpenAPI(r.registry, opts...)
-
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(spec); err != nil {
-		log.Fatalf("failed to encode OpenAPI spec: %v", err)
-	}
+	exportOpenAPISpec(r.registry, exportConfig, opts...)
 
 	// Ensure graceful termination so that calling scripts can rely on the
 	// process exiting once the specification has been emitted.
-	os.Exit(0)
+	exportConfig.ExitFunc(0)
 }

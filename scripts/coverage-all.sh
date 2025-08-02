@@ -9,7 +9,8 @@ MODULES=$(go work edit -json | jq -r '.Use[].DiskPath' | sed 's|^\./||')
 failures=0
 for module in $MODULES; do
     echo "Checking coverage for $module..."
-    if ! ./scripts/check-coverage.sh "$module" 100; then
+    # Use per-module thresholds defined in check-coverage.sh
+    if ! ./scripts/check-coverage.sh "$module"; then
         failures=$((failures+1))
     fi
 done

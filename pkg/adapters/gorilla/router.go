@@ -11,7 +11,7 @@ import (
 
 // Router wraps gorilla/mux Router.
 type Router struct {
-	*api.TypedRouter[*muxpkg.Router]
+	typedRouter *api.TypedRouter[*muxpkg.Router]
 
 	router     *muxpkg.Router
 	registry   *api.RouteRegistry
@@ -19,7 +19,7 @@ type Router struct {
 	middleware []api.Option
 }
 
-type gorillaParamAdapter struct{ api.RequestParamAdapter }
+type gorillaParamAdapter struct{ api.HTTPParameterAdapter }
 
 func (gorillaParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	v := muxpkg.Vars(r)[k]
@@ -73,7 +73,7 @@ func NewRouter(r *muxpkg.Router, opts ...api.Option) *Router {
 		gorillaParamAdapter{},
 		registerFn,
 	)
-	wrapper.TypedRouter = &tr
+	wrapper.typedRouter = &tr
 
 	return wrapper
 }
@@ -92,7 +92,7 @@ func (wr *Router) Group(prefix string) *Router {
 		registry:   wr.registry,
 		prefix:     newPrefix,
 		middleware: wr.middleware,
-		TypedRouter: func() *api.TypedRouter[*muxpkg.Router] {
+		typedRouter: func() *api.TypedRouter[*muxpkg.Router] {
 			tr2 := api.NewTypedRouter[*muxpkg.Router](
 				sub,
 				wr.registry,
@@ -108,6 +108,46 @@ func (wr *Router) Group(prefix string) *Router {
 
 // GetRegistry returns the route registry.
 func (wr *Router) GetRegistry() *api.RouteRegistry { return wr.registry }
+
+// Get registers a GET route.
+func (wr *Router) Get(path string, handler interface{}, opts ...api.Option) {
+	wr.typedRouter.Register("GET", path, handler, opts...)
+}
+
+// Post registers a POST route.
+func (wr *Router) Post(path string, handler interface{}, opts ...api.Option) {
+	wr.typedRouter.Register("POST", path, handler, opts...)
+}
+
+// Put registers a PUT route.
+func (wr *Router) Put(path string, handler interface{}, opts ...api.Option) {
+	wr.typedRouter.Register("PUT", path, handler, opts...)
+}
+
+// Delete registers a DELETE route.
+func (wr *Router) Delete(path string, handler interface{}, opts ...api.Option) {
+	wr.typedRouter.Register("DELETE", path, handler, opts...)
+}
+
+// Patch registers a PATCH route.
+func (wr *Router) Patch(path string, handler interface{}, opts ...api.Option) {
+	wr.typedRouter.Register("PATCH", path, handler, opts...)
+}
+
+// Register registers a route with the given HTTP method, path and handler.
+func (wr *Router) Register(method, path string, handler interface{}, opts ...api.Option) {
+	wr.typedRouter.Register(method, path, handler, opts...)
+}
+
+// DocsRoute registers documentation routes.
+func (wr *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
+	wr.typedRouter.DocsRoute(path, cfg...)
+}
+
+// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
+func (wr *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
+	wr.typedRouter.ExportOpenAPIAndExit(opts...)
+}
 
 // toNativePath converts goapi wildcard patterns ("/*") to gorilla/mux compatible
 // patterns using a regex catch-all segment. Example: "/docs/*" -> "/docs/{rest:.*}".

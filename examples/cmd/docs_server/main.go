@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gork-labs/gork/examples"
@@ -18,13 +19,14 @@ func main() {
 	// Register API routes.
 	router := examples.RegisterRoutes(mux)
 
-	// If this process is started for OpenAPI export (detected via GORK_EXPORT)
-	// we emit the spec enriched at build-time and exit immediately so that
-	// tooling such as `gork openapi generate` can capture it.
-	router.ExportOpenAPIAndExit(
-		api.WithTitle("Examples API"),
-		api.WithVersion("0.1.0"),
-	)
+	// Export OpenAPI spec and exit if this is a CLI generation run
+	// The CLI tool will set GORK_EXPORT=1 when it needs the spec
+	if os.Getenv("GORK_EXPORT") == "1" {
+		router.ExportOpenAPIAndExit(
+			api.WithTitle("Examples API"),
+			api.WithVersion("0.1.0"),
+		)
+	}
 
 	// Serve API documentation at /docs (Stoplight UI by default)
 	router.DocsRoute("/docs/*", api.DocsConfig{SpecFile: "examples/openapi.json"})
