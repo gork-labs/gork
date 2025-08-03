@@ -1,42 +1,51 @@
-# Gork - Go Development Tools Monorepo
+# Gork - Go API Development Toolkit
 
 [![CI](https://github.com/gork-labs/gork/workflows/CI/badge.svg)](https://github.com/gork-labs/gork/actions)
 [![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg)](https://codecov.io/gh/gork-labs/gork)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gork-labs/gork)](https://goreportcard.com/report/github.com/gork-labs/gork)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Gork is a collection of Go development tools designed to enhance productivity and code quality. This monorepo contains multiple tools and libraries that work together to provide a comprehensive development experience.
+Gork is a Go API development toolkit that provides type-safe HTTP handlers, automatic OpenAPI 3.1.0 generation, and union types. The toolkit includes multiple framework adapters and automatic API documentation generation from Go source code using go-playground/validator tags.
 
 ## Repository Structure
 
 ```
 gork/
+├── cmd/
+│   ├── gork/          # Main CLI tool for OpenAPI generation
+│   └── lintgork/      # Custom linter for struct validation and OpenAPI compliance
 ├── pkg/
-│   ├── api/           # HTTP API adapter utilities  
-│   ├── unions/        # Type-safe union types for Go
-│   └── webhooks/      # (Future) Webhook handling utilities
-├── tools/
-│   └── openapi-gen/   # OpenAPI 3.1.0 code generator
-│       ├── cmd/       # CLI entry point
-│       └── internal/  # Core generation logic
-├── examples/          # Example implementations
+│   ├── api/           # HTTP handler adapter and OpenAPI generation
+│   ├── adapters/      # Framework-specific adapters
+│   │   ├── chi/       # Chi router adapter
+│   │   ├── echo/      # Echo framework adapter  
+│   │   ├── fiber/     # Fiber framework adapter
+│   │   ├── gin/       # Gin framework adapter
+│   │   ├── gorilla/   # Gorilla Mux adapter
+│   │   └── stdlib/    # Standard library adapter
+│   └── unions/        # Type-safe union types for Go
+├── internal/
+│   ├── cli/           # CLI implementation
+│   └── lintgork/      # Linter implementation
+├── examples/          # Complete example API
 │   ├── handlers/      # Example HTTP handlers
-│   └── routes/        # Route registration examples
-├── bin/               # Compiled binaries
+│   ├── cmd/           # Example commands
+│   └── routes.go      # Route registration
+├── scripts/           # Build and development scripts
 └── Makefile           # Build and test automation
 ```
 
-## Modules
+## CLI Tools
 
-### openapi-gen
+### gork
 
-[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=tools%2Fopenapi-gen)](https://codecov.io/gh/gork-labs/gork/tree/main/tools/openapi-gen)
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=cmd%2Fgork)](https://codecov.io/gh/gork-labs/gork/tree/main/cmd/gork)
 
-An OpenAPI 3.1.0 specification generator that extracts API documentation from Go source code using struct tags and type information.
+A CLI tool for OpenAPI 3.1.0 specification generation that extracts API documentation from Go source code using struct tags and type information.
 
 **Installation:**
 ```bash
-go install github.com/gork-labs/gork/tools/openapi-gen/cmd/openapi-gen@latest
+go install github.com/gork-labs/gork/cmd/gork@latest
 ```
 
 **Features:**
@@ -45,23 +54,38 @@ go install github.com/gork-labs/gork/tools/openapi-gen/cmd/openapi-gen@latest
 - Union type support with discriminators  
 - Multiple web framework support (Gin, Echo, Chi, Gorilla Mux, Fiber, standard library)
 - JSON and YAML output formats
-- Optional union accessor method generation
-- Co-located code generation
+- Build-time and runtime spec generation
 - Custom validator support
 
 **Usage:**
 ```bash
-# Basic usage
-openapi-gen -i ./handlers -r ./routes.go -o openapi.json
+# Basic usage with build-time generation
+gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output openapi.json
 
-# With union accessor generation
-openapi-gen -i ./handlers --generate-union-accessors --union-output ./unions_gen.go
+# Runtime generation from source only
+gork openapi generate --source ./handlers --output openapi.json
 
 # YAML output with custom metadata
-openapi-gen -i ./pkg -r ./main.go -o spec.yaml -f yaml -t "My API" -v "2.0.0"
+gork openapi generate --source ./pkg --output spec.yaml --format yaml --title "My API" --version "2.0.0"
+
+# Using config file
+gork openapi generate --config .gork.yml
 ```
 
-[Read more →](./tools/openapi-gen/README.md)
+### lintgork
+
+A custom linter for struct validation and OpenAPI compliance that ensures your Go structs follow best practices for API generation.
+
+**Installation:**
+```bash
+go install github.com/gork-labs/gork/cmd/lintgork@latest
+```
+
+**Features:**
+- Validates struct tags for OpenAPI compliance
+- Checks path parameter consistency
+- Ensures proper discriminator usage
+- Integrates with golangci-lint
 
 ### pkg/unions
 
@@ -82,6 +106,8 @@ go get github.com/gork-labs/gork/pkg/unions
 
 [Read more →](./pkg/unions/README.md)
 
+## Libraries
+
 ### pkg/api
 
 [![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fapi)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
@@ -98,8 +124,26 @@ go get github.com/gork-labs/gork/pkg/api
 - Automatic error responses
 - OpenAPI metadata extraction
 - Context propagation
+- Framework-agnostic design
 
 [Read more →](./pkg/api/README.md)
+
+### pkg/adapters
+
+Framework-specific adapters that integrate the core API functionality with popular Go web frameworks:
+
+- **stdlib** - Standard library (`http.ServeMux`) adapter
+- **gin** - Gin framework adapter
+- **echo** - Echo framework adapter  
+- **chi** - Chi router adapter
+- **fiber** - Fiber framework adapter
+- **gorilla** - Gorilla Mux adapter
+
+Each adapter provides:
+- Seamless integration with framework routing
+- Parameter extraction from framework contexts
+- Path parameter conversion
+- Middleware support
 
 ## Development
 
@@ -113,25 +157,33 @@ cd gork
 # Run tests for all modules
 make test
 
-# Build all tools
+# Build CLI tools
 make build
 
-# Run specific module tests
-make test-openapi
-make test-unions
-make test-api
-
-# Generate coverage reports
+# Generate coverage reports (requires 100% coverage)
 make coverage
 
-# Run linting
-make lint-api
-make lint-unions
-make lint-openapi
+# Generate HTML coverage reports
+make coverage-html
 
-# Example OpenAPI generation
+# Run linting
+make lint
+
+# Format code
+make fmt
+
+# Install dependencies
+make deps
+
+# Security vulnerability check
+make vuln
+
+# OpenAPI generation and validation
 make openapi-gen
 make openapi-validate
+
+# Clean build artifacts
+make clean
 ```
 
 ### Requirements
@@ -179,13 +231,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ OpenAPI 3.1.0 generator with full validator tag support
 - ✅ Type-safe union types (Union2, Union3, Union4)
 - ✅ HTTP API adapter with metadata extraction
-- ✅ Multi-framework route detection
-- ✅ Union accessor method generation
+- ✅ Multi-framework route detection (Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib)
+- ✅ Build-time and runtime spec generation
 - ✅ JSON/YAML output formats
+- ✅ Custom linter for struct validation and OpenAPI compliance
 - ✅ 100% test coverage enforcement
+- ✅ Defensive slice copying to prevent aliasing issues
+- ✅ Comprehensive error wrapping for better debugging
 
 ### Planned
 - 🚧 Webhook signature verification utilities
+- 🚧 OpenAPI documentation serving middleware
+- 🚧 Enhanced union type discriminator support
 
 ## Support
 
