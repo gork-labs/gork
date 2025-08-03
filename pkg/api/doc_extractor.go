@@ -140,11 +140,24 @@ func (d *DocExtractor) processStructFields(st *ast.StructType, doc *Documentatio
 
 	for _, fld := range st.Fields.List {
 		desc := d.extractFieldDescription(fld)
-		if desc == "" {
-			continue
+		if desc != "" {
+			d.storeFieldDocumentation(fld, desc, doc)
 		}
 
-		d.storeFieldDocumentation(fld, desc, doc)
+		// Also process anonymous struct fields recursively
+		d.processAnonymousStructFields(fld, doc)
+	}
+}
+
+// processAnonymousStructFields recursively processes fields in anonymous structs.
+func (d *DocExtractor) processAnonymousStructFields(fld *ast.Field, doc *Documentation) {
+	// Check if this field is an anonymous struct (no field names means it's embedded)
+	if len(fld.Names) > 0 {
+		// This is a named field, check if it's a struct type
+		if st, ok := fld.Type.(*ast.StructType); ok {
+			// This is a named struct field, process its fields recursively
+			d.processStructFields(st, doc)
+		}
 	}
 }
 
@@ -175,16 +188,16 @@ func (d *DocExtractor) storeFieldDocByJSONTag(fld *ast.Field, desc string, doc *
 
 	tagVal := strings.Trim(fld.Tag.Value, "`")
 	st := reflect.StructTag(tagVal)
-	jsonTag := st.Get("json")
-	if jsonTag == "" {
-		return
-	}
 
-	if comma := strings.Index(jsonTag, ","); comma != -1 {
-		jsonTag = jsonTag[:comma]
-	}
-	if jsonTag != "" {
-		doc.Fields[jsonTag] = FieldDoc{Description: desc}
+	// Check for gork tag
+	gorkTag := st.Get("gork")
+	if gorkTag != "" {
+		if comma := strings.Index(gorkTag, ","); comma != -1 {
+			gorkTag = gorkTag[:comma]
+		}
+		if gorkTag != "" {
+			doc.Fields[gorkTag] = FieldDoc{Description: desc}
+		}
 	}
 }
 
@@ -211,6 +224,18 @@ func (d *DocExtractor) ExtractFunctionDoc(funcName string) Documentation {
 		return doc
 	}
 	return Documentation{}
+}
+
+// GetAllTypeNames returns all type names that have documentation.
+func (d *DocExtractor) GetAllTypeNames() []string {
+	var names []string
+	for name, doc := range d.docs {
+		// Only include types that have field documentation (indicating they're struct types)
+		if len(doc.Fields) > 0 {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // extractDescription returns the first paragraph (until double newline) trimmed.

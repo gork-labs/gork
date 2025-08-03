@@ -7,15 +7,15 @@ import (
 
 // Test types for comprehensive validator testing
 type DiscriminatorTestStruct struct {
-	Type        string `json:"type" openapi:"discriminator=user"`
-	UserField   string `json:"userField"`
-	RequiredOne string `json:"requiredOne" validate:"required"`
+	Type        string `gork:"type,discriminator=user"`
+	UserField   string `gork:"userField"`
+	RequiredOne string `gork:"requiredOne" validate:"required"`
 }
 
 type MultiDiscriminatorStruct struct {
-	EntityType string `json:"entityType" openapi:"discriminator=entity"`
-	Action     string `json:"action" openapi:"discriminator=create"`
-	Name       string `json:"name" validate:"required"`
+	EntityType string `gork:"entityType,discriminator=entity"`
+	Action     string `gork:"action,discriminator=create"`
+	Name       string `gork:"name" validate:"required"`
 }
 
 type NoDiscriminatorStruct struct {
@@ -28,15 +28,15 @@ type NestedDiscriminatorStruct struct {
 }
 
 type OuterStruct struct {
-	Inner InnerStruct `json:"inner"`
+	Inner InnerStruct `gork:"inner"`
 }
 
 type InnerStruct struct {
-	Type string `json:"type" openapi:"discriminator=nested"`
+	Type string `gork:"type,discriminator=nested"`
 }
 
 type PointerDiscriminatorStruct struct {
-	Type *string `json:"type" openapi:"discriminator=pointer"`
+	Type *string `gork:"type,discriminator=pointer"`
 }
 
 func TestCheckDiscriminatorErrors_ValidDiscriminator(t *testing.T) {
@@ -313,7 +313,7 @@ func TestCheckDiscriminatorErrors_EdgeCases(t *testing.T) {
 func TestCheckDiscriminatorErrors_ComplexOpenAPITags(t *testing.T) {
 	// Test complex openapi tags with multiple parameters
 	type ComplexTagStruct struct {
-		Type string `json:"type" openapi:"name=entity_type,in=query,discriminator=complex,required=true"`
+		Type string `gork:"entity_type,discriminator=complex"`
 	}
 
 	validStruct := ComplexTagStruct{Type: "complex"}
@@ -332,7 +332,7 @@ func TestCheckDiscriminatorErrors_ComplexOpenAPITags(t *testing.T) {
 func TestCheckDiscriminatorErrors_CaseInsensitive(t *testing.T) {
 	// Discriminator validation should be case-sensitive
 	type CaseTestStruct struct {
-		Type string `json:"type" openapi:"discriminator=User"`
+		Type string `gork:"type,discriminator=User"`
 	}
 
 	// Test exact case match
@@ -386,5 +386,111 @@ func BenchmarkCheckDiscriminatorErrors_NoDiscriminator(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		CheckDiscriminatorErrors(noDiscStruct)
+	}
+}
+
+// TestDefaultValidatorConfig tests the default validator configuration
+func TestDefaultValidatorConfig(t *testing.T) {
+	config := DefaultValidatorConfig()
+
+	if config.TagNameFunc == nil {
+		t.Error("Expected TagNameFunc to be set")
+	}
+
+	// Test with a mock struct field
+	field := reflect.StructField{
+		Name: "TestField",
+		Tag:  `gork:"test_name"`,
+	}
+
+	result := config.TagNameFunc(field)
+	expected := "test_name"
+
+	if result != expected {
+		t.Errorf("Expected %s, got %s", expected, result)
+	}
+}
+
+// TestDefaultTagNameFunc tests the default tag name function
+func TestDefaultTagNameFunc(t *testing.T) {
+	tests := []struct {
+		name     string
+		field    reflect.StructField
+		expected string
+	}{
+		{
+			name: "gork tag with name",
+			field: reflect.StructField{
+				Name: "TestField",
+				Tag:  `gork:"test_name"`,
+			},
+			expected: "test_name",
+		},
+		{
+			name: "gork tag without name",
+			field: reflect.StructField{
+				Name: "TestField",
+				Tag:  `gork:""`,
+			},
+			expected: "TestField",
+		},
+		{
+			name: "no gork tag",
+			field: reflect.StructField{
+				Name: "TestField",
+				Tag:  `json:"json_name"`,
+			},
+			expected: "TestField",
+		},
+		{
+			name: "gork tag with discriminator only",
+			field: reflect.StructField{
+				Name: "TestField",
+				Tag:  `gork:",discriminator=user"`,
+			},
+			expected: "TestField",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := defaultTagNameFunc(tt.field)
+			if result != tt.expected {
+				t.Errorf("Expected %s, got %s", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestNewValidator tests the NewValidator function
+func TestNewValidator(t *testing.T) {
+	// Test with default config
+	config := DefaultValidatorConfig()
+	v := NewValidator(config)
+
+	if v == nil {
+		t.Fatal("Expected validator to be created")
+	}
+
+	// Test with custom tag name function
+	customConfig := ValidatorConfig{
+		TagNameFunc: func(fld reflect.StructField) string {
+			return "custom_" + fld.Name
+		},
+	}
+
+	v2 := NewValidator(customConfig)
+	if v2 == nil {
+		t.Fatal("Expected validator to be created")
+	}
+
+	// Test with nil tag name function
+	nilConfig := ValidatorConfig{
+		TagNameFunc: nil,
+	}
+
+	v3 := NewValidator(nilConfig)
+	if v3 == nil {
+		t.Fatal("Expected validator to be created")
 	}
 }

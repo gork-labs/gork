@@ -9,19 +9,30 @@ import (
 
 // Test types for registry export testing
 type ExportTestRequest struct {
-	ID   string `json:"id" openapi:"name=id,in=path"`
-	Name string `json:"name" validate:"required"`
+	Path struct {
+		ID string `gork:"id"`
+	}
+	Body struct {
+		Name string `gork:"name" validate:"required"`
+	}
 }
 
 type ExportTestResponse struct {
-	Message string `json:"message"`
-	Success bool   `json:"success"`
+	Body struct {
+		Message string `gork:"message"`
+		Success bool   `gork:"success"`
+	}
 }
 
 func exportTestHandler(ctx context.Context, req ExportTestRequest) (ExportTestResponse, error) {
 	return ExportTestResponse{
-		Message: "Hello " + req.Name,
-		Success: true,
+		Body: struct {
+			Message string `gork:"message"`
+			Success bool   `gork:"success"`
+		}{
+			Message: "Hello " + req.Body.Name,
+			Success: true,
+		},
 	}, nil
 }
 

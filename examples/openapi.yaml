@@ -1,502 +1,443 @@
-openapi: 3.1.0
+components:
+    responses:
+        BadRequest:
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ValidationErrorResponse'
+            description: Bad Request - Validation failed
+        InternalServerError:
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+            description: Internal Server Error
+        UnprocessableEntity:
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+            description: Unprocessable Entity - Request body could not be parsed
+    schemas:
+        AdminUserType:
+            description: AdminUserType represents admin user data structure.
+            properties:
+                createdAt:
+                    description: CreatedAt is when the user was created
+                    type: string
+                updatedAt:
+                    description: UpdatedAt is when the user was last updated
+                    type: string
+                userID:
+                    description: UserID is the ID of the user
+                    type: string
+                username:
+                    description: Username is the username of the user
+                    type: string
+            title: AdminUserType
+            type: object
+        BankOrCreditBody:
+            title: BankOrCreditBody
+            type: object
+        BankPaymentMethod:
+            description: BankPaymentMethod represents a bank account payment method.
+            properties:
+                accountNumber:
+                    description: AccountNumber is the bank account number
+                    type: string
+                routingNumber:
+                    description: RoutingNumber is the bank routing number
+                    type: string
+                type:
+                    description: Type is the payment method type discriminator
+                    type: string
+            required:
+                - type
+                - accountNumber
+                - routingNumber
+            title: BankPaymentMethod
+            type: object
+        CreateUserBody:
+            properties:
+                username:
+                    description: Username is the username of the user to create
+                    type: string
+            required:
+                - username
+            title: CreateUserBody
+            type: object
+        CreditCardPaymentMethod:
+            description: CreditCardPaymentMethod represents a credit card payment method.
+            properties:
+                cardNumber:
+                    description: CardNumber is the credit card number
+                    type: string
+                type:
+                    description: Type is the payment method type discriminator
+                    type: string
+            required:
+                - type
+                - cardNumber
+            title: CreditCardPaymentMethod
+            type: object
+        DeleteUserBody:
+            properties:
+                userID:
+                    description: UserID is the ID of the user to delete
+                    type: string
+            required:
+                - userID
+            title: DeleteUserBody
+            type: object
+        ErrorResponse:
+            description: Generic error response structure
+            properties:
+                details:
+                    description: Additional error details
+                    type: object
+                error:
+                    description: Error message
+                    type: string
+            required:
+                - error
+            title: ErrorResponse
+            type: object
+        ListUsersResponse:
+            description: ListUsersResponse represents the response for listing users.
+            oneOf:
+                - description: Array of AdminUserType
+                  items:
+                    $ref: '#/components/schemas/AdminUserType'
+                  title: '[]AdminUserType'
+                  type: array
+                - description: Array of UserType
+                  items:
+                    $ref: '#/components/schemas/UserType'
+                  title: '[]UserType'
+                  type: array
+            title: ListUsersResponse
+        LoginResponse:
+            description: LoginResponse represents the response body for the login endpoint.
+            properties:
+                token:
+                    description: Token is the JWT token for the authenticated user
+                    type: string
+            title: LoginResponse
+            type: object
+        UpdateUserBody:
+            properties:
+                userID:
+                    description: UserID is the ID of the user to update
+                    type: string
+                username:
+                    description: Username is the new username for the user
+                    type: string
+            required:
+                - userID
+                - username
+            title: UpdateUserBody
+            type: object
+        UpdateUserPreferencesBody:
+            properties:
+                paymentMethod:
+                    description: PaymentMethod contains the user's payment method
+                    oneOf:
+                        - $ref: '#/components/schemas/BankPaymentMethod'
+                        - $ref: '#/components/schemas/CreditCardPaymentMethod'
+                primaryNotificationChannel:
+                    description: PrimaryNotificationChannel is the user's preferred notification channel
+                    enum:
+                        - email
+                        - sms
+                        - push
+                    type: string
+            required:
+                - paymentMethod
+                - primaryNotificationChannel
+            title: UpdateUserPreferencesBody
+            type: object
+        UserType:
+            description: UserType represents user data structure.
+            properties:
+                userID:
+                    description: UserID is the ID of the user
+                    type: string
+                username:
+                    description: Username is the username of the user
+                    type: string
+            title: UserType
+            type: object
+        ValidationErrorResponse:
+            description: Validation error response with field-level details
+            properties:
+                details:
+                    description: Field-level validation errors (maps field names to arrays of error messages)
+                    type: object
+                error:
+                    description: Error message
+                    type: string
+            required:
+                - error
+            title: ValidationErrorResponse
+            type: object
+    securitySchemes:
+        ApiKeyAuth:
+            in: header
+            name: X-API-Key
+            type: apiKey
+        BasicAuth:
+            scheme: basic
+            type: http
+        BearerAuth:
+            scheme: bearer
+            type: http
 info:
     title: Example API
     version: 1.0.0
+openapi: 3.1.0
 paths:
     /api/v1/auth/login:
         post:
-            operationId: Login
             description: Login handles user login requests.
+            operationId: Login
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/LoginResponse'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
             tags:
                 - auth
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            alias:
-                                $ref: '#/components/schemas/LoginRequest'
-            responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/LoginResponse'
-                "400":
-                    $ref: '#/components/responses/BadRequest'
-                "422":
-                    $ref: '#/components/responses/UnprocessableEntity'
-                "500":
-                    $ref: '#/components/responses/InternalServerError'
     /api/v1/users:
         get:
-            operationId: ListUsers
             description: ListUsers handles listing all users.
-            tags:
-                - users
-            security:
-                - BearerAuth: []
-            responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/ListUsersResponse'
-                "400":
-                    $ref: '#/components/responses/BadRequest'
-                "422":
-                    $ref: '#/components/responses/UnprocessableEntity'
-                "500":
-                    $ref: '#/components/responses/InternalServerError'
-        post:
-            operationId: CreateUser
-            description: CreateUser handles user creation requests.
-            tags:
-                - users
-            security:
-                - BasicAuth: []
+            operationId: ListUsers
             parameters:
-                - name: return-to
+                - description: Limit is the maximum number of users to return
                   in: query
-                  required: false
-                  schema:
-                    type: string
-                    alias: {}
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            alias:
-                                $ref: '#/components/schemas/CreateUserRequest'
-            responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/UserResponse'
-                "400":
-                    $ref: '#/components/responses/BadRequest'
-                "422":
-                    $ref: '#/components/responses/UnprocessableEntity'
-                "500":
-                    $ref: '#/components/responses/InternalServerError'
-    /api/v1/users/{userId}:
-        get:
-            operationId: GetUser
-            description: GetUser handles user retrieval requests.
-            tags:
-                - users
-            security:
-                - ApiKeyAuth: []
-            parameters:
-                - name: userId
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    alias: {}
-            responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/UserResponse'
-                "400":
-                    $ref: '#/components/responses/BadRequest'
-                "422":
-                    $ref: '#/components/responses/UnprocessableEntity'
-                "500":
-                    $ref: '#/components/responses/InternalServerError'
-        put:
-            operationId: UpdateUser
-            description: UpdateUser handles user update requests.
-            tags:
-                - users
-            security:
-                - BearerAuth: []
-            parameters:
-                - name: X-User-Version
-                  in: header
+                  name: limit
                   required: false
                   schema:
                     type: integer
-                    alias: {}
-                - name: userId
-                  in: path
-                  required: true
+                - description: Offset is the number of users to skip
+                  in: query
+                  name: offset
+                  required: false
                   schema:
-                    type: string
-                    alias: {}
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            alias:
-                                $ref: '#/components/schemas/UpdateUserRequest'
+                    type: integer
             responses:
                 "200":
-                    description: Success
                     content:
                         application/json:
                             schema:
-                                alias:
-                                    $ref: '#/components/schemas/UserResponse'
+                                $ref: '#/components/schemas/ListUsersResponse'
+                    description: Success
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
                     $ref: '#/components/responses/UnprocessableEntity'
                 "500":
                     $ref: '#/components/responses/InternalServerError'
-        delete:
-            operationId: DeleteUser
-            description: DeleteUser handles user deletion requests.
+            security:
+                - BearerAuth: []
             tags:
                 - users
+        post:
+            description: CreateUser handles user creation requests.
+            operationId: CreateUser
             parameters:
-                - name: force
+                - description: ReturnTo specifies where to redirect after user creation
                   in: query
+                  name: return-to
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateUserBody'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserType'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            security:
+                - BasicAuth: []
+            tags:
+                - users
+    /api/v1/users/{userId}:
+        delete:
+            description: DeleteUser handles user deletion requests.
+            operationId: DeleteUser
+            parameters:
+                - description: UserID is the ID of the user to delete
+                  in: path
+                  name: userId
+                  required: true
+                  schema:
+                    type: string
+                - description: Force specifies whether to force deletion
+                  in: query
+                  name: force
                   required: false
                   schema:
                     type: boolean
-                    alias: {}
-                - name: userId
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    alias: {}
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DeleteUserBody'
+                required: true
             responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/NoContentResponse'
+                "204":
+                    description: No Content
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
                     $ref: '#/components/responses/UnprocessableEntity'
                 "500":
                     $ref: '#/components/responses/InternalServerError'
+            tags:
+                - users
+        get:
+            description: GetUser handles user retrieval requests.
+            operationId: GetUser
+            parameters:
+                - description: UserID is the ID of the user to retrieve
+                  in: path
+                  name: userId
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserType'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            security:
+                - ApiKeyAuth: []
+            tags:
+                - users
+        put:
+            description: UpdateUser handles user update requests.
+            operationId: UpdateUser
+            parameters:
+                - description: UserID is the ID of the user to update
+                  in: path
+                  name: userId
+                  required: true
+                  schema:
+                    type: string
+                - description: Version specifies the user version for concurrency control
+                  in: header
+                  name: X-User-Version
+                  required: false
+                  schema:
+                    type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateUserBody'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserType'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            security:
+                - BearerAuth: []
+            tags:
+                - users
     /api/v1/users/{userId}/payment-method:
         put:
-            operationId: UpdateUserPaymentMethod
             description: UpdateUserPaymentMethod handles user payment method update requests.
-            tags:
-                - users
-            security:
-                - BearerAuth: []
+            operationId: UpdateUserPaymentMethod
             parameters:
-                - name: userId
-                  in: path
+                - in: path
+                  name: userId
                   required: true
                   schema:
                     type: string
-                    alias: {}
             requestBody:
-                required: true
                 content:
                     application/json:
                         schema:
-                            alias:
-                                $ref: '#/components/schemas/PaymentMethodRequest'
+                            $ref: '#/components/schemas/BankOrCreditBody'
+                required: true
             responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/NoContentResponse'
+                "204":
+                    description: No Content
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
                     $ref: '#/components/responses/UnprocessableEntity'
                 "500":
                     $ref: '#/components/responses/InternalServerError'
+            security:
+                - BearerAuth: []
+            tags:
+                - users
     /api/v1/users/{userId}/preferences:
         put:
-            operationId: UpdateUserPreferences
             description: UpdateUserPreferences handles user preferences update requests.
-            tags:
-                - users
-            security:
-                - BearerAuth: []
+            operationId: UpdateUserPreferences
             parameters:
-                - name: userId
+                - description: UserID is the ID of the user whose preferences are being updated
                   in: path
+                  name: userId
                   required: true
                   schema:
                     type: string
-                    alias: {}
             requestBody:
-                required: true
                 content:
                     application/json:
                         schema:
-                            alias:
-                                $ref: '#/components/schemas/UpdateUserPreferencesRequest'
+                            $ref: '#/components/schemas/UpdateUserPreferencesBody'
+                required: true
             responses:
-                "200":
-                    description: Success
-                    content:
-                        application/json:
-                            schema:
-                                alias:
-                                    $ref: '#/components/schemas/NoContentResponse'
+                "204":
+                    description: No Content
                 "400":
                     $ref: '#/components/responses/BadRequest'
                 "422":
                     $ref: '#/components/responses/UnprocessableEntity'
                 "500":
                     $ref: '#/components/responses/InternalServerError'
-components:
-    schemas:
-        AdminUserResponse:
-            type: object
-            alias:
-                title: AdminUserResponse
-                properties:
-                    createdAt:
-                        type: string
-                        alias: {}
-                    updatedAt:
-                        type: string
-                        alias: {}
-                    userID:
-                        type: string
-                        alias: {}
-                    username:
-                        type: string
-                        alias: {}
-                description: AdminUserResponse represents an admin user with additional fields.
-        BankPaymentMethod:
-            type: object
-            alias:
-                title: BankPaymentMethod
-                properties:
-                    accountNumber:
-                        type: string
-                        alias: {}
-                    routingNumber:
-                        type: string
-                        alias: {}
-                    type:
-                        type: string
-                        alias: {}
-                required:
-                    - type
-                    - accountNumber
-                    - routingNumber
-                description: BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise.
-        CreateUserRequest:
-            type: object
-            alias:
-                title: CreateUserRequest
-                properties:
-                    username:
-                        type: string
-                        alias:
-                            description: Username is the username of the user to create
-                required:
-                    - username
-                description: CreateUserRequest represents the request body for creating a user.
-        CreditCardPaymentMethod:
-            type: object
-            alias:
-                title: CreditCardPaymentMethod
-                properties:
-                    cardNumber:
-                        type: string
-                        alias: {}
-                    type:
-                        type: string
-                        alias: {}
-                required:
-                    - type
-                    - cardNumber
-                description: CreditCardPaymentMethod returns the CreditCardPaymentMethod value if present, nil otherwise.
-        ErrorResponse:
-            type: object
-            alias:
-                properties:
-                    details:
-                        type: object
-                        alias: {}
-                    error:
-                        type: string
-                        alias: {}
-                required:
-                    - error
-        ListUsersResponse:
-            alias:
-                oneOf:
-                    - type: array
-                      alias:
-                        title: '[]AdminUserResponse'
-                        description: Array of AdminUserResponse
-                        items:
-                            alias:
-                                $ref: '#/components/schemas/AdminUserResponse'
-                    - type: array
-                      alias:
-                        title: '[]UserResponse'
-                        description: Array of UserResponse
-                        items:
-                            alias:
-                                $ref: '#/components/schemas/UserResponse'
-                description: ListUsersResponse represents the response for listing users.
-        LoginRequest:
-            type: object
-            alias:
-                title: LoginRequest
-                properties:
-                    password:
-                        type: string
-                        alias:
-                            description: Password is the user's password
-                    username:
-                        type: string
-                        alias:
-                            description: Username is the user's username
-                required:
-                    - username
-                    - password
-                description: LoginRequest represents the request body for the login endpoint.
-        LoginResponse:
-            type: object
-            alias:
-                title: LoginResponse
-                properties:
-                    token:
-                        type: string
-                        alias:
-                            description: Token is the JWT token for the authenticated user
-                description: LoginResponse represents the response body for the login endpoint.
-        NoContentResponse:
-            type: object
-            alias:
-                title: NoContentResponse
-        PaymentMethodRequest:
-            alias:
-                oneOf:
-                    - alias:
-                        $ref: '#/components/schemas/BankPaymentMethod'
-                    - alias:
-                        $ref: '#/components/schemas/CreditCardPaymentMethod'
-                description: PaymentMethodRequest is the request body which is a union of payment methods.
-        Union2_BankPaymentMethod_CreditCardPaymentMethod:
-            alias:
-                oneOf:
-                    - alias:
-                        $ref: '#/components/schemas/BankPaymentMethod'
-                    - alias:
-                        $ref: '#/components/schemas/CreditCardPaymentMethod'
-        UpdateUserPreferencesRequest:
-            type: object
-            alias:
-                title: UpdateUserPreferencesRequest
-                properties:
-                    paymentMethod:
-                        alias:
-                            $ref: '#/components/schemas/Union2_BankPaymentMethod_CreditCardPaymentMethod'
-                            description: Preferences contains the user's updated preferences Payment methods are set in the "paymentMethods" field PaymentMethod contains the user's payment method
-                    primaryNotificationChannel:
-                        type: string
-                        alias:
-                            description: PrimaryNotificationChannel is the user's preferred notification channel
-                            enum:
-                                - email
-                                - sms
-                                - push
-                required:
-                    - paymentMethod
-                    - primaryNotificationChannel
-                description: UpdateUserPreferencesRequest represents the request for updating user preferences.
-        UpdateUserRequest:
-            type: object
-            alias:
-                title: UpdateUserRequest
-                properties:
-                    userID:
-                        type: string
-                        alias:
-                            description: UserID is the ID of the user to update
-                    username:
-                        type: string
-                        alias:
-                            description: Username is the new username for the user
-                required:
-                    - userID
-                    - username
-                description: UpdateUserRequest represents the request body for updating a user.
-        UserResponse:
-            type: object
-            alias:
-                title: UserResponse
-                properties:
-                    userID:
-                        type: string
-                        alias:
-                            description: UserID is the ID of the user
-                    username:
-                        type: string
-                        alias:
-                            description: Username is the username of the user
-                description: UserResponse represents the response for user operations.
-        ValidationErrorResponse:
-            type: object
-            alias:
-                properties:
-                    details:
-                        type: object
-                        alias: {}
-                    error:
-                        type: string
-                        alias: {}
-                required:
-                    - error
-    securitySchemes:
-        ApiKeyAuth:
-            type: apiKey
-            in: header
-            name: X-API-Key
-        BasicAuth:
-            type: http
-            scheme: basic
-        BearerAuth:
-            type: http
-            scheme: bearer
-    responses:
-        BadRequest:
-            description: Bad Request - Validation failed
-            content:
-                application/json:
-                    schema:
-                        alias:
-                            $ref: '#/components/schemas/ValidationErrorResponse'
-        InternalServerError:
-            description: Internal Server Error
-            content:
-                application/json:
-                    schema:
-                        alias:
-                            $ref: '#/components/schemas/ErrorResponse'
-        UnprocessableEntity:
-            description: Unprocessable Entity - Request body could not be parsed
-            content:
-                application/json:
-                    schema:
-                        alias:
-                            $ref: '#/components/schemas/ErrorResponse'
+            security:
+                - BearerAuth: []
+            tags:
+                - users

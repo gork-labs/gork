@@ -13,5 +13,6 @@ use (
 	./pkg/adapters/gorilla
 	./pkg/adapters/stdlib
 	./pkg/api
+	./pkg/gorkson
 	./pkg/unions
 )

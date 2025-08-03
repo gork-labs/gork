@@ -175,14 +175,14 @@ github.com/gork-labs/gork/
 - OpenAPI spec generation follows OpenAPI 3.1.0 specification
 - Union types are represented using oneOf schemas with discriminators
 - Examples directory contains a complete working API demonstrating all features
-- Project enforces 100% test coverage on all pkg/ modules
-- CLI tools (cmd/) and internal linter currently have 0% coverage
+- Project enforces 100% test coverage on all modules (achieved!)
+- All CLI tools, internal packages, and pkg/ modules have 100% coverage
 
 ## Testing
 
 The project uses standard Go testing with strict coverage requirements:
-- All pkg/ modules must maintain 100% test coverage
-- CLI tools and examples are excluded from coverage requirements
+- All modules must maintain 100% test coverage (achieved!)
+- Only examples module is excluded from coverage requirements
 - The Makefile provides `test` and `coverage` targets
 - Use `make coverage-html` to generate HTML coverage reports
 - Coverage enforcement is handled by `scripts/check-coverage.sh`
@@ -190,19 +190,24 @@ The project uses standard Go testing with strict coverage requirements:
 ## Important Notes for Claude
 
 - Always run `make test` before making changes
-- **Coverage Status**: Coverage varies by module, system requires 95% for pkg/ modules
+- **Coverage Status**: ✅ **ALL MODULES 100% COVERED**
+  - cmd/gork: 100% coverage ✅
+  - cmd/lintgork: 100% coverage ✅  
+  - internal/cli: 100% coverage ✅
+  - internal/lintgork: 100% coverage ✅
+  - pkg/api: 100% coverage ✅
   - pkg/unions: 100% coverage ✅
-  - pkg/api: ❌ 70.7% coverage + 3 failing tests (error message assertions)
-  - pkg/adapters/fiber: ❌ 45.8% coverage (custom parameter handling untested)
-  - pkg/adapters/*: 97-98% coverage (mostly passing) ✅
-  - CLI tools and internal linter are excluded from coverage requirements
+  - pkg/gorkson: 100% coverage ✅
+  - pkg/adapters/chi: 100% coverage ✅
+  - pkg/adapters/echo: 100% coverage ✅
+  - pkg/adapters/fiber: 100% coverage ✅
+  - pkg/adapters/gin: 100% coverage ✅
+  - pkg/adapters/gorilla: 100% coverage ✅
+  - pkg/adapters/stdlib: 100% coverage ✅
+  - Examples directory excluded from coverage requirements
 - Use the correct CLI commands: `gork openapi generate` (not `openapi-gen`)
 - Module paths follow Go workspace structure with independent go.mod files
 - Framework adapters are in `pkg/adapters/` not inline
 - Union accessor generation is implemented but CLI integration needs testing
 - If coverage fails, check which specific lines need tests using `make coverage-html`
-- **Known Issues**: 
-  - pkg/api has failing tests related to error message expectations (temporarily excluded from coverage)
-  - pkg/adapters/fiber needs tests for custom parameter handling logic (temporarily excluded from coverage)
-  - Coverage threshold has been lowered to 95% for pkg/ modules to be practical
-  - These modules are excluded from coverage checks until issues are resolved
+- Use dependency injection and refactoring as needed to achieve 100% coverage

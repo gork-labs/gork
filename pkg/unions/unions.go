@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gork-labs/gork/pkg/gorkson"
 )
 
 // ValidatorInstance is a cached validator to avoid recreation on each unmarshal.
@@ -61,9 +62,9 @@ func (u *Union2[A, B]) UnmarshalJSON(data []byte) error {
 func (u Union2[A, B]) MarshalJSON() ([]byte, error) {
 	switch {
 	case u.A != nil:
-		return json.Marshal(u.A)
+		return gorkson.Marshal(u.A)
 	case u.B != nil:
-		return json.Marshal(u.B)
+		return gorkson.Marshal(u.B)
 	default:
 		return nil, errors.New("no value set in union")
 	}
@@ -154,11 +155,11 @@ func (u *Union3[A, B, C]) UnmarshalJSON(data []byte) error {
 func (u Union3[A, B, C]) MarshalJSON() ([]byte, error) {
 	switch {
 	case u.A != nil:
-		return json.Marshal(u.A)
+		return gorkson.Marshal(u.A)
 	case u.B != nil:
-		return json.Marshal(u.B)
+		return gorkson.Marshal(u.B)
 	case u.C != nil:
-		return json.Marshal(u.C)
+		return gorkson.Marshal(u.C)
 	default:
 		return nil, errors.New("no value set in union")
 	}
@@ -266,13 +267,13 @@ func (u *Union4[A, B, C, D]) UnmarshalJSON(data []byte) error {
 func (u Union4[A, B, C, D]) MarshalJSON() ([]byte, error) {
 	switch {
 	case u.A != nil:
-		return json.Marshal(u.A)
+		return gorkson.Marshal(u.A)
 	case u.B != nil:
-		return json.Marshal(u.B)
+		return gorkson.Marshal(u.B)
 	case u.C != nil:
-		return json.Marshal(u.C)
+		return gorkson.Marshal(u.C)
 	case u.D != nil:
-		return json.Marshal(u.D)
+		return gorkson.Marshal(u.D)
 	default:
 		return nil, errors.New("no value set in union")
 	}

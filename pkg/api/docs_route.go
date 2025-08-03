@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -59,7 +58,7 @@ func defaultDocsConfig() DocsConfig {
 // documentation immediately while we iterate on a more sophisticated solution.
 func (r *TypedRouter[T]) DocsRoute(path string, cfg ...DocsConfig) {
 	// Prepare configuration.
-	conf := prepareDocsConfig(cfg...)
+	conf := PrepareDocsConfig(cfg...)
 
 	// Normalise docs base path to always end with "/*".
 	basePath := normalizeDocsPath(path)
@@ -78,7 +77,7 @@ func (r *TypedRouter[T]) DocsRoute(path string, cfg ...DocsConfig) {
 	confWithFullPath.OpenAPIPath = openapiPath
 
 	// Prepare static spec if SpecFile is provided.
-	staticSpec := loadStaticSpec(conf.SpecFile)
+	staticSpec := LoadStaticSpec(conf.SpecFile)
 
 	// Register OpenAPI spec endpoint
 	r.registerOpenAPIEndpoint(openapiPath, staticSpec)
@@ -89,7 +88,8 @@ func (r *TypedRouter[T]) DocsRoute(path string, cfg ...DocsConfig) {
 	}
 }
 
-func prepareDocsConfig(cfg ...DocsConfig) DocsConfig {
+// PrepareDocsConfig prepares the documentation configuration with defaults applied.
+func PrepareDocsConfig(cfg ...DocsConfig) DocsConfig {
 	conf := defaultDocsConfig()
 	if len(cfg) > 0 {
 		conf = cfg[0]
@@ -118,42 +118,110 @@ func normalizeDocsPath(path string) string {
 	return strings.TrimSuffix(path, "/*")
 }
 
-func loadStaticSpec(specFile string) *OpenAPISpec {
+// FileReader interface for dependency injection.
+type FileReader interface {
+	ReadFile(filename string) ([]byte, error)
+}
+
+// osFileReader implements FileReader using os.ReadFile.
+type osFileReader struct{}
+
+func (r osFileReader) ReadFile(filename string) ([]byte, error) {
+	return os.ReadFile(filename) // #nosec G304
+}
+
+// SpecParser interface for parsing spec data.
+type SpecParser interface {
+	ParseJSON(data []byte) (*OpenAPISpec, error)
+	ParseYAML(data []byte) (*OpenAPISpec, error)
+}
+
+// defaultSpecParser implements SpecParser.
+type defaultSpecParser struct{}
+
+func (p defaultSpecParser) ParseJSON(data []byte) (*OpenAPISpec, error) {
+	var spec OpenAPISpec
+	err := json.Unmarshal(data, &spec)
+	return &spec, err
+}
+
+func (p defaultSpecParser) ParseYAML(data []byte) (*OpenAPISpec, error) {
+	var spec OpenAPISpec
+	err := yaml.Unmarshal(data, &spec)
+	return &spec, err
+}
+
+// LoadStaticSpecWithDeps loads a spec file with dependency injection.
+func LoadStaticSpecWithDeps(specFile string, fileReader FileReader, parser SpecParser) *OpenAPISpec {
 	if specFile == "" {
 		return nil
 	}
 
-	b, err := os.ReadFile(specFile) // #nosec G304
+	data, err := fileReader.ReadFile(specFile)
 	if err != nil {
 		return nil
 	}
 
-	var tmp OpenAPISpec
-	// Try JSON first.
-	if err := json.Unmarshal(b, &tmp); err == nil {
-		return &tmp
+	// Try JSON first
+	if spec, err := parser.ParseJSON(data); err == nil {
+		return spec
 	}
-	if yamlErr := yaml.Unmarshal(b, &tmp); yamlErr == nil {
-		return &tmp
+
+	// Try YAML
+	if spec, err := parser.ParseYAML(data); err == nil {
+		return spec
 	}
+
 	return nil
 }
 
-func (r *TypedRouter[T]) registerOpenAPIEndpoint(openapiPath string, staticSpec *OpenAPISpec) {
-	type emptyReq struct{}
-
-	r.Get(openapiPath, func(_ context.Context, _ emptyReq) (*OpenAPISpec, error) {
-		if staticSpec != nil {
-			return staticSpec, nil
-		}
-		spec := GenerateOpenAPI(r.registry)
-		return spec, nil
-	})
+// LoadStaticSpec loads an OpenAPI specification from a file.
+func LoadStaticSpec(specFile string) *OpenAPISpec {
+	return LoadStaticSpecWithDeps(specFile, osFileReader{}, defaultSpecParser{})
 }
 
-// createDocsHandler returns an http.HandlerFunc that serves a pre-rendered HTML
-// page loading one of the supported documentation UIs from a CDN.
-func (r *TypedRouter[T]) createDocsHandler(basePath string, cfg DocsConfig) http.HandlerFunc {
+// openAPIHandler returns the OpenAPI spec, either from staticSpec or by generating it from registry.
+func (r *TypedRouter[T]) openAPIHandler(staticSpec *OpenAPISpec) (*OpenAPISpec, error) {
+	if staticSpec != nil {
+		return staticSpec, nil
+	}
+	spec := GenerateOpenAPI(r.registry)
+	return spec, nil
+}
+
+func (r *TypedRouter[T]) registerOpenAPIEndpoint(openapiPath string, staticSpec *OpenAPISpec) {
+	// Register raw HTTP handler to bypass convention system for OpenAPI spec
+	if r.registerFn != nil {
+		r.registerFn(http.MethodGet, openapiPath, func(w http.ResponseWriter, req *http.Request) {
+			spec, _ := r.openAPIHandler(staticSpec)
+			r.handleOpenAPIRequest(w, req, spec)
+		}, nil)
+	}
+}
+
+// handleOpenAPIRequest handles the OpenAPI HTTP request with the given spec.
+func (r *TypedRouter[T]) handleOpenAPIRequest(w http.ResponseWriter, _ *http.Request, spec *OpenAPISpec) {
+	r.handleOpenAPIRequestWithEncoder(w, spec, json.NewEncoder(w))
+}
+
+// handleOpenAPIRequestWithEncoder handles the OpenAPI HTTP request with a custom encoder.
+func (r *TypedRouter[T]) handleOpenAPIRequestWithEncoder(w http.ResponseWriter, spec *OpenAPISpec, encoder JSONEncoder) {
+	if spec == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"Failed to generate OpenAPI spec"}`))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := encoder.Encode(spec); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"Failed to encode OpenAPI spec"}`))
+		return
+	}
+}
+
+// generateDocsHTML generates the HTML content for the docs page.
+func (r *TypedRouter[T]) generateDocsHTML(basePath string, cfg DocsConfig) string {
 	// Use the provided UI template.
 	htmlTmpl := string(cfg.UITemplate)
 
@@ -163,14 +231,24 @@ func (r *TypedRouter[T]) createDocsHandler(basePath string, cfg DocsConfig) http
 		"{{.OpenAPIPath}}", cfg.OpenAPIPath,
 		"{{.BasePath}}", basePath,
 	)
-	html := replacer.Replace(htmlTmpl)
+	return replacer.Replace(htmlTmpl)
+}
 
+// serveDocsHTML returns an http.HandlerFunc that serves the docs HTML content with proper headers.
+func (r *TypedRouter[T]) serveDocsHTML(html string) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		// We intentionally ignore the write error – serving docs must never
 		// crash the application.
 		_, _ = w.Write([]byte(html))
 	}
+}
+
+// createDocsHandler returns an http.HandlerFunc that serves a pre-rendered HTML
+// page loading one of the supported documentation UIs from a CDN.
+func (r *TypedRouter[T]) createDocsHandler(basePath string, cfg DocsConfig) http.HandlerFunc {
+	html := r.generateDocsHTML(basePath, cfg)
+	return r.serveDocsHTML(html)
 }
 
 // -----------------------------------------------------------------------------

@@ -456,6 +456,21 @@ func TestIsStringKind(t *testing.T) {
 			t:        reflect.TypeOf(struct{}{}),
 			expected: false,
 		},
+		{
+			name:     "pointer to string",
+			t:        reflect.TypeOf((*string)(nil)),
+			expected: true,
+		},
+		{
+			name:     "pointer to int",
+			t:        reflect.TypeOf((*int)(nil)),
+			expected: false,
+		},
+		{
+			name:     "double pointer to string",
+			t:        reflect.TypeOf((**string)(nil)),
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -523,4 +538,42 @@ func TestValidationEdgeCases(t *testing.T) {
 			t.Error("Should handle negative numbers")
 		}
 	})
+
+	t.Run("nil fieldSchema", func(t *testing.T) {
+		// Test early return when fieldSchema is nil
+		parentSchema := &Schema{}
+		field := reflect.StructField{Name: "TestField", Type: reflect.TypeOf("")}
+
+		// This should not panic and should return early
+		applyValidationConstraints(nil, "required,min=5", reflect.TypeOf(""), parentSchema, field)
+
+		// Parent schema should not be modified since fieldSchema was nil
+		if len(parentSchema.Required) != 0 {
+			t.Error("Parent schema should not be modified when fieldSchema is nil")
+		}
+	})
+}
+
+// TestWithRouteFilter tests the WithRouteFilter function
+func TestWithRouteFilter(t *testing.T) {
+	filterFunc := func(route *RouteInfo) bool {
+		return route.Path != "/excluded"
+	}
+
+	option := WithRouteFilter(filterFunc)
+
+	spec := &OpenAPISpec{}
+	option(spec)
+
+	// Test that the filter is applied correctly
+	route1 := &RouteInfo{Path: "/included"}
+	route2 := &RouteInfo{Path: "/excluded"}
+
+	if !spec.routeFilter(route1) {
+		t.Error("Expected /included route to pass filter")
+	}
+
+	if spec.routeFilter(route2) {
+		t.Error("Expected /excluded route to be filtered out")
+	}
 }

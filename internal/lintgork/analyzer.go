@@ -1,10 +1,9 @@
-// Package lintgork provides an OpenAPI tag linter for Gork projects.
+// Package lintgork provides a Convention Over Configuration linter for Gork projects.
 package lintgork
 
 import (
 	"go/ast"
 	"go/token"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,132 +11,20 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// Analyzer is the gork OpenAPI tag linter.
+// Analyzer is the gork Convention Over Configuration linter.
 var Analyzer = &analysis.Analyzer{
 	Name: "lintgork",
-	Doc:  "checks struct openapi tags for correct format",
+	Doc:  "checks struct gork tags and convention compliance",
 	Run:  run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, file := range pass.Files {
-		inspectStructFields(file, pass)
+		// Convention Over Configuration linting only
+		analyzeConventionStructure(file, pass)
 	}
 	collectPathParamDiagnostics(pass)
-	checkDuplicateDiscriminatorValues(pass)
 	return nil, nil
-}
-
-func inspectStructFields(file *ast.File, pass *analysis.Pass) {
-	ast.Inspect(file, func(n ast.Node) bool {
-		ts, ok := n.(*ast.TypeSpec)
-		if !ok {
-			return true
-		}
-		st, ok := ts.Type.(*ast.StructType)
-		if !ok {
-			return true
-		}
-		validateStructFields(st, pass)
-		return false
-	})
-}
-
-func validateStructFields(st *ast.StructType, pass *analysis.Pass) {
-	for _, fld := range st.Fields.List {
-		if fld.Tag == nil {
-			continue
-		}
-		tagVal, err := strconv.Unquote(fld.Tag.Value)
-		if err != nil {
-			continue
-		}
-		validateOpenAPITag(tagVal, fld, pass)
-	}
-}
-
-func validateOpenAPITag(tagVal string, fld *ast.Field, pass *analysis.Pass) {
-	tag := reflect.StructTag(tagVal)
-	if openapiTag, ok := tag.Lookup("openapi"); ok {
-		if !validOpenAPITag(openapiTag) {
-			pass.Reportf(fld.Tag.Pos(), "invalid openapi tag %q: expect '<name>,in=<query|path|header>' or 'discriminator=<value>'", openapiTag)
-		}
-	}
-}
-
-func checkDuplicateDiscriminatorValues(pass *analysis.Pass) {
-	discSeen := map[string]ast.Node{}
-	for _, file := range pass.Files {
-		ast.Inspect(file, func(n ast.Node) bool {
-			ts, ok := n.(*ast.TypeSpec)
-			if !ok {
-				return true
-			}
-			st, ok := ts.Type.(*ast.StructType)
-			if !ok {
-				return true
-			}
-			checkStructFieldsForDuplicates(st, discSeen, pass)
-			return false
-		})
-	}
-}
-
-func checkStructFieldsForDuplicates(st *ast.StructType, discSeen map[string]ast.Node, pass *analysis.Pass) {
-	for _, fld := range st.Fields.List {
-		if fld.Tag == nil {
-			continue
-		}
-		tagVal, err := strconv.Unquote(fld.Tag.Value)
-		if err != nil {
-			continue
-		}
-		checkDiscriminatorTag(tagVal, fld, discSeen, pass)
-	}
-}
-
-func checkDiscriminatorTag(tagVal string, fld *ast.Field, discSeen map[string]ast.Node, pass *analysis.Pass) {
-	tag := reflect.StructTag(tagVal)
-	if openapiTag, ok := tag.Lookup("openapi"); ok {
-		if val, ok := parseDiscriminator(openapiTag); ok {
-			if prev, dup := discSeen[val]; dup {
-				pass.Reportf(fld.Tag.Pos(), "duplicate discriminator value %q also used at %s", val, pass.Fset.Position(prev.Pos()))
-			} else {
-				discSeen[val] = fld.Tag
-			}
-		}
-	}
-}
-
-func validOpenAPITag(tag string) bool {
-	if tag == "" {
-		return false
-	}
-	// discriminator=val pattern
-	if strings.HasPrefix(tag, "discriminator=") {
-		val := strings.TrimPrefix(tag, "discriminator=")
-		return val != ""
-	}
-	parts := strings.Split(tag, ",")
-	if len(parts) < 2 {
-		return false
-	}
-	name := strings.TrimSpace(parts[0])
-	loc := ""
-	for _, p := range parts[1:] {
-		p = strings.TrimSpace(p)
-		if strings.HasPrefix(p, "in=") {
-			loc = strings.TrimPrefix(p, "in=")
-		}
-	}
-	if name == "" || loc == "" {
-		return false
-	}
-	switch loc {
-	case "query", "path", "header":
-		return true
-	}
-	return false
 }
 
 // ---------------- path param check ----------------

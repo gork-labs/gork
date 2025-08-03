@@ -354,15 +354,23 @@ func TestRouterDocsRoute(t *testing.T) {
 	router := NewRouter(nil)
 	
 	// Test DocsRoute method - it should delegate to the underlying TypedRouter
+	// and should not panic
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("DocsRoute should not panic: %v", r)
+		}
+	}()
+	
 	router.DocsRoute("/docs/*")
 	
-	// Verify that docs routes were registered by checking the registry
+	// DocsRoute should not add routes to the metadata registry
+	// as they are infrastructure routes, not business API routes
 	registry := router.GetRegistry()
 	routes := registry.GetRoutes()
 	
-	// Should have at least the spec route
-	if len(routes) == 0 {
-		t.Error("DocsRoute should register at least one route")
+	// Registry should be empty since we haven't registered any business API routes
+	if len(routes) != 0 {
+		t.Errorf("Expected no routes in registry after DocsRoute calls, got %d", len(routes))
 	}
 }
 

@@ -6,9 +6,17 @@ import (
 	"testing"
 )
 
-type Req struct{}
+type Req struct {
+	Body struct {
+		ID string `gork:"id"`
+	}
+}
 
-type Resp struct{}
+type Resp struct {
+	Body struct {
+		Message string `gork:"message"`
+	}
+}
 
 func TestGenerateOpenAPIWithDocs(t *testing.T) {
 	registry := NewRouteRegistry()
@@ -17,7 +25,7 @@ func TestGenerateOpenAPIWithDocs(t *testing.T) {
 		Path:         "/foo",
 		HandlerName:  "GetFoo",
 		RequestType:  reflect.TypeOf(Req{}),
-		ResponseType: reflect.TypeOf(Resp{}),
+		ResponseType: reflect.TypeOf((*Resp)(nil)),
 	}
 	registry.Register(info)
 
@@ -35,21 +43,50 @@ func TestGenerateOpenAPIWithDocs(t *testing.T) {
 	}
 }
 
+func TestGenerateOpenAPIWithDocs_NilExtractor(t *testing.T) {
+	registry := NewRouteRegistry()
+	info := &RouteInfo{
+		Method:       "GET",
+		Path:         "/test",
+		HandlerName:  "GetTest",
+		RequestType:  reflect.TypeOf(Req{}),
+		ResponseType: reflect.TypeOf((*Resp)(nil)),
+	}
+	registry.Register(info)
+
+	// Test with nil extractor - should return spec without docs enhancement
+	spec := GenerateOpenAPIWithDocs(registry, nil)
+
+	if spec == nil {
+		t.Fatal("GenerateOpenAPIWithDocs() returned nil for nil extractor")
+	}
+
+	p := spec.Paths["/test"]
+	if p == nil || p.Get == nil {
+		t.Fatalf("missing get path")
+	}
+
+	// Should not have description since extractor was nil
+	if p.Get.Description != "" {
+		t.Errorf("description should be empty when extractor is nil, got: %q", p.Get.Description)
+	}
+}
+
 // Test types for nullable field testing
 type TestRequestWithNullables struct {
-	RequiredField string  `json:"requiredField" validate:"required"`
-	OptionalField *string `json:"optionalField,omitempty"`
-	OptionalInt   *int    `json:"optionalInt,omitempty"`
+	RequiredField string  `gork:"requiredField" validate:"required"`
+	OptionalField *string `gork:"optionalField"`
+	OptionalInt   *int    `gork:"optionalInt"`
 }
 
 type TestComplexStruct struct {
-	Name string `json:"name"`
-	Age  int    `json:"age"`
+	Name string `gork:"name"`
+	Age  int    `gork:"age"`
 }
 
 type TestRequestWithNullableStruct struct {
-	RequiredStruct TestComplexStruct  `json:"requiredStruct"`
-	OptionalStruct *TestComplexStruct `json:"optionalStruct,omitempty"`
+	RequiredStruct TestComplexStruct  `gork:"requiredStruct"`
+	OptionalStruct *TestComplexStruct `gork:"optionalStruct"`
 }
 
 func TestNullableFieldsInOpenAPI(t *testing.T) {

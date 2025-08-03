@@ -1,0 +1,1965 @@
+{
+  "entities": {
+    "API Handler Adapter": {
+      "name": "API Handler Adapter",
+      "entity_type": "component",
+      "category": "business_entity",
+      "observations": [
+        "Wraps HTTP handlers with type-safe request/response handling",
+        "Provides automatic OpenAPI metadata extraction from handler signatures",
+        "Supports security requirements (basic auth, bearer token, API key)",
+        "Enables context propagation and error handling",
+        "Framework-agnostic design allows integration with multiple web frameworks",
+        "Uses reflection to extract type information for OpenAPI generation",
+        "Supports handler options for tags and security configuration"
+      ],
+      "tags": [
+        "api-adapter",
+        "type-safety",
+        "http-handlers",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:23:27.62332+02:00",
+      "updated": "2025-08-05T10:23:27.62332+02:00"
+    },
+    "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type": {
+      "name": "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type",
+      "entity_type": "process_flow",
+      "category": "process_flow",
+      "observations": [
+        "Process flow from Define Handler Signature to Structure Request Type"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "from_step:Define_Handler_Signature",
+        "to_step:Structure_Request_Type",
+        "category:process_flow"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:00.739314+02:00",
+      "updated": "2025-08-05T10:25:00.739314+02:00"
+    },
+    "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec": {
+      "name": "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec",
+      "entity_type": "process_flow",
+      "category": "process_flow",
+      "observations": [
+        "Process flow from Register Route to Generate OpenAPI Spec"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "from_step:Register_Route",
+        "to_step:Generate_OpenAPI_Spec",
+        "category:process_flow"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:07.634367+02:00",
+      "updated": "2025-08-05T10:25:07.634367+02:00"
+    },
+    "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route": {
+      "name": "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route",
+      "entity_type": "process_flow",
+      "category": "process_flow",
+      "observations": [
+        "Process flow from Structure Request Type to Register Route"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "from_step:Structure_Request_Type",
+        "to_step:Register_Route",
+        "category:process_flow"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:04.191644+02:00",
+      "updated": "2025-08-05T10:25:04.191644+02:00"
+    },
+    "API_Development_Workflow_Step_Define_Handler_Signature": {
+      "name": "API_Development_Workflow_Step_Define_Handler_Signature",
+      "entity_type": "process_step",
+      "category": "process_step",
+      "observations": [
+        "Define Go function with signature: func(ctx context.Context, req RequestType) (*ResponseType, error)",
+        "Expected outcomes: type_safe_handler, openapi_extractable"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "step:Define_Handler_Signature",
+        "category:process_step",
+        "outcome:type_safe_handler",
+        "outcome:openapi_extractable"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:42.048935+02:00",
+      "updated": "2025-08-05T10:24:42.048935+02:00"
+    },
+    "API_Development_Workflow_Step_Generate_OpenAPI_Spec": {
+      "name": "API_Development_Workflow_Step_Generate_OpenAPI_Spec",
+      "entity_type": "process_step",
+      "category": "process_step",
+      "observations": [
+        "Use gork CLI tool to generate OpenAPI 3.1.0 specification from registered routes and types",
+        "Prerequisites: routes_registered, types_defined",
+        "Expected outcomes: openapi_spec_generated, api_documented"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "step:Generate_OpenAPI_Spec",
+        "category:process_step",
+        "prerequisite:routes_registered",
+        "prerequisite:types_defined",
+        "outcome:openapi_spec_generated",
+        "outcome:api_documented"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:56.890321+02:00",
+      "updated": "2025-08-05T10:24:56.890321+02:00"
+    },
+    "API_Development_Workflow_Step_Register_Route": {
+      "name": "API_Development_Workflow_Step_Register_Route",
+      "entity_type": "process_step",
+      "category": "process_step",
+      "observations": [
+        "Register handler with framework adapter (Chi, Gin, Echo, etc.) including path and HTTP method",
+        "Prerequisites: request_type_structured, handler_implemented",
+        "Expected outcomes: route_registered, runtime_accessible"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "step:Register_Route",
+        "category:process_step",
+        "prerequisite:request_type_structured",
+        "prerequisite:handler_implemented",
+        "outcome:route_registered",
+        "outcome:runtime_accessible"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:52.691941+02:00",
+      "updated": "2025-08-05T10:24:52.691941+02:00"
+    },
+    "API_Development_Workflow_Step_Structure_Request_Type": {
+      "name": "API_Development_Workflow_Step_Structure_Request_Type",
+      "entity_type": "process_step",
+      "category": "process_step",
+      "observations": [
+        "Create request struct with convention sections: Query, Body, Path, Headers, Cookies using gork tags",
+        "Prerequisites: handler_signature_defined",
+        "Expected outcomes: convention_compliant_request, validatable_structure"
+      ],
+      "tags": [
+        "process:API_Development_Workflow",
+        "step:Structure_Request_Type",
+        "category:process_step",
+        "prerequisite:handler_signature_defined",
+        "outcome:convention_compliant_request",
+        "outcome:validatable_structure"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:47.627416+02:00",
+      "updated": "2025-08-05T10:24:47.627416+02:00"
+    },
+    "Advanced Rule Features": {
+      "name": "Advanced Rule Features",
+      "entity_type": "feature_set",
+      "category": "business_entity",
+      "observations": [
+        "Context-aware rules access request context for user info and tracing",
+        "Database-backed rules support complex validation with external data",
+        "Conditional rule application based on field values",
+        "Rule composition and templates for reusability",
+        "Rule documentation extraction from Go comments",
+        "Integration with linter for rule validation and usage checking",
+        "Rule testing framework for business logic validation"
+      ],
+      "tags": [
+        "context-awareness",
+        "database-integration",
+        "rule-composition",
+        "documentation-extraction",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:37.027714+02:00",
+      "updated": "2025-08-06T15:03:37.027714+02:00"
+    },
+    "Build-Time vs Runtime Generation": {
+      "name": "Build-Time vs Runtime Generation",
+      "entity_type": "generation_strategy",
+      "category": "business_rule",
+      "observations": [
+        "Two modes: build-time spec generation and runtime serving",
+        "Build-time: compiles temporary binary to extract route metadata",
+        "Runtime: serves OpenAPI spec from live application registry",
+        "Build-time mode enables CI/CD integration for spec validation",
+        "Runtime mode supports dynamic documentation serving",
+        "Both modes use same underlying RouteRegistry and type extraction",
+        "Build runner interface allows testing with mock implementations"
+      ],
+      "tags": [
+        "build-time",
+        "runtime",
+        "generation-modes",
+        "ci-cd-integration",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:43.539847+02:00",
+      "updated": "2025-08-06T14:59:43.539847+02:00"
+    },
+    "Business Rule Validation Pattern": {
+      "name": "Business Rule Validation Pattern",
+      "entity_type": "validation_pattern",
+      "category": "business_rule",
+      "observations": [
+        "Clear separation between request format validation and business domain validation",
+        "validate tags handle format validation (required, email, min/max)",
+        "rule tags handle business logic validation (ownership, permissions, constraints)",
+        "Processing order: parse sections → request validation → type parsing → business rules",
+        "Business rules only execute after successful format validation",
+        "Rules can be chained and combined for complex validation scenarios",
+        "Context-aware validation with access to user information and external data"
+      ],
+      "tags": [
+        "business-validation",
+        "separation-of-concerns",
+        "validation-pipeline",
+        "rule-chaining",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:24.003125+02:00",
+      "updated": "2025-08-06T15:03:24.003125+02:00"
+    },
+    "Code Quality Metrics": {
+      "name": "Code Quality Metrics",
+      "entity_type": "quality_metrics",
+      "category": "business_requirement",
+      "observations": [
+        "100% test coverage across all production modules",
+        "Zero linting issues with comprehensive static analysis",
+        "Strict code quality enforcement via Makefile targets",
+        "All tests passing with comprehensive edge case coverage",
+        "Production-ready codebase with no technical debt",
+        "Exhaustive validation test suites for all error scenarios",
+        "Performance-optimized with cached validator instances",
+        "Memory-efficient error handling with structured response formats"
+      ],
+      "tags": [
+        "code-quality",
+        "testing",
+        "metrics",
+        "production-ready",
+        "category:business_requirement"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:58:38.955429+02:00",
+      "updated": "2025-08-06T14:58:38.955429+02:00"
+    },
+    "Configuration Management": {
+      "name": "Configuration Management",
+      "entity_type": "configuration_system",
+      "category": "business_entity",
+      "observations": [
+        "YAML-based configuration files for OpenAPI generation",
+        "Command-line flag overrides for CI/CD integration",
+        "Environment variable support for deployment flexibility",
+        "Default configurations with sensible fallbacks",
+        "Validation of configuration parameters at startup",
+        "Support for complex generation workflows through config files",
+        "Framework-specific configuration options for adapters"
+      ],
+      "tags": [
+        "configuration",
+        "yaml",
+        "cli-flags",
+        "deployment-flexibility",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:01:01.168691+02:00",
+      "updated": "2025-08-06T15:01:01.168691+02:00"
+    },
+    "Convention Compliance Rule": {
+      "name": "Convention Compliance Rule",
+      "entity_type": "rule",
+      "category": "business_rule",
+      "observations": [
+        "Request structs MUST use exact section names: Query, Body, Path, Headers, Cookies",
+        "Field naming MUST use gork tags instead of json tags",
+        "Validation rules MUST use go-playground/validator tags",
+        "Static analysis enforces convention compliance via lintgork",
+        "Non-compliant code fails linting and cannot be merged",
+        "Self-documenting API structure requirement"
+      ],
+      "tags": [
+        "convention-compliance",
+        "linting-rules",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:41.657045+02:00",
+      "updated": "2025-08-05T10:25:41.657045+02:00"
+    },
+    "Convention Over Configuration": {
+      "name": "Convention Over Configuration",
+      "entity_type": "pattern",
+      "category": "business_rule",
+      "observations": [
+        "Defines explicit structure for HTTP request/response types",
+        "Replaces tag-based parameter mapping with embedded structs",
+        "Standard section names: Query, Body, Path, Headers, Cookies",
+        "Self-documenting API structure where request structs serve as documentation",
+        "Uses gork tags for field naming instead of json tags",
+        "Enables namespaced validation error reporting",
+        "Enforces consistent naming across Gork codebases",
+        "Simplifies parsing logic and OpenAPI generation"
+      ],
+      "tags": [
+        "convention",
+        "request-structure",
+        "api-design",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:23:55.867234+02:00",
+      "updated": "2025-08-05T10:23:55.867234+02:00"
+    },
+    "Convention Validation System": {
+      "name": "Convention Validation System",
+      "entity_type": "validation_system",
+      "category": "business_entity",
+      "observations": [
+        "Complete validation system built into pkg/api/convention_validation.go",
+        "Uses ConventionValidator struct with go-playground/validator integration",
+        "Validates requests in three phases: section validation, custom validation, error aggregation",
+        "Section-specific error categorization: body, query, path, headers, cookies",
+        "Supports custom Validator interface for business logic validation",
+        "ValidationError interface for client-side validation errors (HTTP 400)",
+        "Server errors (non-validation) return HTTP 500",
+        "Error details formatted as map[string][]string for structured response",
+        "ValidationErrorResponse wraps validation errors with message and details",
+        "IsValidationError helper function to distinguish validation vs server errors"
+      ],
+      "tags": [
+        "validation",
+        "error-handling",
+        "convention",
+        "http-status",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:58:14.227379+02:00",
+      "updated": "2025-08-06T14:58:14.227379+02:00"
+    },
+    "Coverage Analysis": {
+      "name": "Coverage Analysis",
+      "entity_type": "analysis",
+      "category": "business_requirement",
+      "observations": [
+        "cmd/gork: 100% coverage - COMPLETE",
+        "cmd/lintgork: 100% coverage - COMPLETE",
+        "internal/cli: 100% coverage - COMPLETE",
+        "internal/lintgork: 100% coverage - COMPLETE",
+        "pkg/unions: 100% coverage - COMPLETE",
+        "pkg/api/docs: 100% coverage - COMPLETE",
+        "pkg/api: 97.2% coverage - NEEDS WORK",
+        "Target: 100% coverage for all modules"
+      ],
+      "tags": [
+        "coverage",
+        "testing",
+        "analysis",
+        "category:business_requirement"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-04T10:00:35.041804+02:00",
+      "updated": "2025-08-04T10:00:35.041804+02:00"
+    },
+    "Coverage Enforcement Policy": {
+      "name": "Coverage Enforcement Policy",
+      "entity_type": "policy",
+      "category": "business_rule",
+      "observations": [
+        "100% test coverage required for all pkg/ modules",
+        "CLI tools and internal packages included in coverage requirements",
+        "Examples module excluded from coverage enforcement",
+        "Coverage checks integrated into CI/CD pipeline",
+        "HTML coverage reports generated for analysis",
+        "Coverage regression blocks deployment"
+      ],
+      "tags": [
+        "coverage-policy",
+        "quality-assurance",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:41.657935+02:00",
+      "updated": "2025-08-05T10:25:41.657935+02:00"
+    },
+    "Current Implementation Status": {
+      "name": "Current Implementation Status",
+      "entity_type": "status_report",
+      "category": "business_requirement",
+      "observations": [
+        "Error handling system is COMPLETE and PRODUCTION READY",
+        "All validation infrastructure already implemented in codebase",
+        "100% test coverage achieved across all modules (cmd/gork, cmd/lintgork, internal/cli, internal/lintgork, pkg/api, pkg/unions, pkg/gorkson, pkg/adapters/*)",
+        "Zero linting issues with strict code quality standards",
+        "Comprehensive validation pipeline with section-specific error handling",
+        "Standard HTTP status code mapping fully operational",
+        "OpenAPI documentation with error schemas automatically generated",
+        "No implementation work required - system is fully functional"
+      ],
+      "tags": [
+        "implementation-status",
+        "production-ready",
+        "complete",
+        "category:business_requirement"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:58:33.59454+02:00",
+      "updated": "2025-08-06T14:58:33.59454+02:00"
+    },
+    "Developer Experience Focus": {
+      "name": "Developer Experience Focus",
+      "entity_type": "design_philosophy",
+      "category": "business_rule",
+      "observations": [
+        "Minimal boilerplate with maximum type safety",
+        "Convention over configuration reduces cognitive load",
+        "Auto-generated documentation eliminates manual maintenance",
+        "Framework adapters enable gradual adoption",
+        "Clear error messages with structured validation feedback",
+        "Static analysis catches issues at development time",
+        "Self-documenting API structures through request/response types"
+      ],
+      "tags": [
+        "developer-experience",
+        "minimal-boilerplate",
+        "type-safety",
+        "auto-documentation",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:57.457997+02:00",
+      "updated": "2025-08-06T14:59:57.457997+02:00"
+    },
+    "Documentation Integration System": {
+      "name": "Documentation Integration System",
+      "entity_type": "documentation_system",
+      "category": "business_entity",
+      "observations": [
+        "Extracts GoDoc comments from source code for OpenAPI schemas",
+        "Supports both build-time and runtime documentation extraction",
+        "Integrates field-level documentation with struct tag metadata",
+        "TypeDocs structure holds extracted documentation by type and field",
+        "Stub implementation allows compilation without full AST parsing",
+        "Designed for future enhancement with full AST-based extraction",
+        "Links source code comments to generated OpenAPI field descriptions"
+      ],
+      "tags": [
+        "documentation",
+        "godoc",
+        "ast-parsing",
+        "openapi-integration",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:43.536375+02:00",
+      "updated": "2025-08-06T14:59:43.536375+02:00"
+    },
+    "Extensibility Architecture": {
+      "name": "Extensibility Architecture",
+      "entity_type": "extensibility_pattern",
+      "category": "business_entity",
+      "observations": [
+        "Plugin-style framework adapters for easy extension",
+        "Interface-based design enables custom implementations",
+        "Middleware support through framework adapter hooks",
+        "Custom validator integration through interfaces",
+        "Extensible route filtering for documentation control",
+        "Open architecture for additional authentication methods",
+        "Modular design allows selective component usage"
+      ],
+      "tags": [
+        "extensibility",
+        "plugin-architecture",
+        "interface-design",
+        "modularity",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:01:01.170397+02:00",
+      "updated": "2025-08-06T15:01:01.170397+02:00"
+    },
+    "Framework Adapter Pattern": {
+      "name": "Framework Adapter Pattern",
+      "entity_type": "pattern",
+      "category": "business_entity",
+      "observations": [
+        "Adapters for Chi, Echo, Gin, Gorilla Mux, Fiber, and standard library",
+        "Each adapter provides seamless integration with framework routing",
+        "Parameter extraction from framework-specific contexts",
+        "Path parameter conversion between generic format and framework format",
+        "Middleware support for framework-specific features",
+        "DocsRoute helper for serving OpenAPI documentation",
+        "Consistent API across all framework adapters"
+      ],
+      "tags": [
+        "framework-adapters",
+        "routing",
+        "middleware",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:23:27.625424+02:00",
+      "updated": "2025-08-05T10:23:27.625424+02:00"
+    },
+    "Gork API Development Toolkit": {
+      "name": "Gork API Development Toolkit",
+      "entity_type": "system",
+      "category": "business_entity",
+      "observations": [
+        "Go API development toolkit providing type-safe HTTP handlers",
+        "Automatic OpenAPI 3.1.0 generation from Go source code",
+        "Union types support for type-safe API design",
+        "Multi-framework adapter support (Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib)",
+        "Build-time and runtime OpenAPI spec generation",
+        "Uses go-playground/validator tags for automatic API documentation",
+        "MIT licensed open-source project",
+        "Monorepo structure with independent module versioning",
+        "Requires Go 1.24 or higher",
+        "100% test coverage enforcement across all modules"
+      ],
+      "tags": [
+        "api-toolkit",
+        "openapi",
+        "type-safety",
+        "go",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:22:59.096441+02:00",
+      "updated": "2025-08-05T10:22:59.096441+02:00"
+    },
+    "Gork Architecture Overview": {
+      "name": "Gork Architecture Overview",
+      "entity_type": "architecture",
+      "category": "business_entity",
+      "observations": [
+        "Comprehensive Go API development toolkit with four main pillars",
+        "Type-safe HTTP handlers using strict function signatures and reflection",
+        "Convention-over-configuration approach with standardized request/response structures",
+        "Multi-framework support through adapter pattern (6 major Go web frameworks)",
+        "Automatic OpenAPI 3.1.0 generation from Go source code and struct tags",
+        "Union type system for type-safe API variants with JSON marshaling",
+        "Static analysis and linting for convention compliance",
+        "100% test coverage enforcement across all library modules",
+        "Monorepo structure with independent module versioning",
+        "Developer productivity focused with minimal boilerplate",
+        "Error handling is a core pillar of the Gork architecture",
+        "Comprehensive validation system with go-playground/validator integration",
+        "Convention-driven error categorization by request sections",
+        "Standard HTTP status code mapping (400 for validation, 500 for server errors)",
+        "OpenAPI documentation includes standardized error response schemas",
+        "Production-ready with 100% test coverage and zero technical debt"
+      ],
+      "tags": [
+        "architecture-overview",
+        "api-toolkit",
+        "developer-productivity",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:57.564947+02:00",
+      "updated": "2025-08-06T14:58:22.207987+02:00"
+    },
+    "Gork CLI Tool": {
+      "name": "Gork CLI Tool",
+      "entity_type": "tool",
+      "category": "business_entity",
+      "observations": [
+        "Main CLI tool for OpenAPI 3.1.0 specification generation",
+        "Supports build-time and runtime spec generation",
+        "Extracts API documentation from Go source code using struct tags",
+        "Supports multiple web frameworks (Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib)",
+        "Provides JSON and YAML output formats",
+        "Supports custom validator tags and union types",
+        "Built using Cobra CLI framework",
+        "Can be used with config files for complex setups"
+      ],
+      "tags": [
+        "cli-tool",
+        "openapi-generation",
+        "cobra",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:36.355838+02:00",
+      "updated": "2025-08-05T10:24:36.355838+02:00"
+    },
+    "Gork Tag System": {
+      "name": "Gork Tag System",
+      "entity_type": "tagging_system",
+      "category": "business_entity",
+      "observations": [
+        "Custom struct tag system using `gork` instead of `json` tags",
+        "Supports field naming with wire format mapping",
+        "Enables discriminator patterns for union types",
+        "Supports options like source parameter specification",
+        "Used by OpenAPI generation for field documentation",
+        "Integrates with go-playground/validator for validation rules",
+        "Critical for Convention Over Configuration approach",
+        "Parsed by parseGorkTag function for structured metadata"
+      ],
+      "tags": [
+        "gork-tags",
+        "metadata",
+        "struct-tags",
+        "field-naming",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:43.535337+02:00",
+      "updated": "2025-08-06T14:59:43.535337+02:00"
+    },
+    "Gorka Integration": {
+      "name": "Gorka Integration",
+      "entity_type": "tooling_integration",
+      "category": "business_entity",
+      "observations": [
+        "Custom .gorka directory structure for AI-assisted development",
+        "Thinking session storage for development workflow tracking",
+        "Gitignore patterns preserve directory structure while excluding temporary files",
+        "Evidence of AI-powered development toolchain integration",
+        "Storage patterns suggest automated development session management"
+      ],
+      "tags": [
+        "gorka",
+        "ai-tooling",
+        "development-workflow",
+        "session-tracking",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:02:39.16168+02:00",
+      "updated": "2025-08-06T15:02:39.16168+02:00"
+    },
+    "Handler Factory Validation Integration": {
+      "name": "Handler Factory Validation Integration",
+      "entity_type": "integration_pattern",
+      "category": "business_entity",
+      "observations": [
+        "ConventionHandlerFactory in pkg/api/convention_handler_factory.go",
+        "Creates HTTP handlers with automatic request validation",
+        "Integrates ConventionValidator for request validation before handler execution",
+        "Maps validation errors to appropriate HTTP status codes",
+        "Preserves existing handler signature patterns",
+        "Validation occurs transparently without changing handler implementation",
+        "Error responses follow consistent JSON structure",
+        "Supports both field-level and custom business logic validation"
+      ],
+      "tags": [
+        "handler-factory",
+        "validation-integration",
+        "http-middleware",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:58:14.231394+02:00",
+      "updated": "2025-08-06T14:58:14.231394+02:00"
+    },
+    "Hidden Implementation Details": {
+      "name": "Hidden Implementation Details",
+      "entity_type": "implementation_notes",
+      "category": "business_entity",
+      "observations": [
+        "Panic-driven validation provides clear error messages at development time",
+        "Default parameter adapter panics force framework-specific implementations",
+        "Convention violations cause immediate failures rather than silent errors",
+        "Handler signature validation prevents runtime surprises",
+        "Method/body validation catches REST API design issues early",
+        "Fail-fast philosophy ensures problems surface during development"
+      ],
+      "tags": [
+        "panic-validation",
+        "fail-fast",
+        "development-errors",
+        "implementation-strategy",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:02:39.160814+02:00",
+      "updated": "2025-08-06T15:02:39.160814+02:00"
+    },
+    "JSON Marshaling Strategy": {
+      "name": "JSON Marshaling Strategy",
+      "entity_type": "serialization_strategy",
+      "category": "business_entity",
+      "observations": [
+        "Custom JSON marshaling through gorkson package",
+        "Handles union types with discriminator-based serialization",
+        "Integrates validation during unmarshaling process",
+        "Supports complex nested structures with type safety",
+        "Enables OpenAPI-compliant JSON schema generation",
+        "Critical for API request/response processing",
+        "Maintains consistency between Go types and JSON representation"
+      ],
+      "tags": [
+        "json-marshaling",
+        "serialization",
+        "gorkson",
+        "union-support",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:57.454572+02:00",
+      "updated": "2025-08-06T14:59:57.454572+02:00"
+    },
+    "LintGork Static Analyzer": {
+      "name": "LintGork Static Analyzer",
+      "entity_type": "tool",
+      "category": "business_entity",
+      "observations": [
+        "Custom Go static analyzer for Convention Over Configuration compliance",
+        "Validates struct gork tags and convention structure",
+        "Checks path parameter consistency in routing calls",
+        "Ensures proper discriminator usage for union types",
+        "Integrates with golang.org/x/tools/go/analysis framework",
+        "Can be integrated with golangci-lint",
+        "Runs as standalone linter using singlechecker.Main",
+        "Provides diagnostics for OpenAPI compliance issues"
+      ],
+      "tags": [
+        "static-analysis",
+        "linting",
+        "convention-compliance",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:36.357006+02:00",
+      "updated": "2025-08-05T10:24:36.357006+02:00"
+    },
+    "Monorepo Workspace Architecture": {
+      "name": "Monorepo Workspace Architecture",
+      "entity_type": "project_structure",
+      "category": "business_entity",
+      "observations": [
+        "Go workspace with independent module versioning",
+        "Separate go.mod files for each major component",
+        "Shared development tools and scripts across modules",
+        "Independent testing and coverage enforcement per module",
+        "Enables modular consumption of Gork components",
+        "Supports different release cycles for different modules",
+        "Maintains clear boundaries between core packages and adapters"
+      ],
+      "tags": [
+        "monorepo",
+        "go-workspace",
+        "modular-architecture",
+        "independent-versioning",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:57.455589+02:00",
+      "updated": "2025-08-06T14:59:57.455589+02:00"
+    },
+    "OpenAPI Error Response Schema": {
+      "name": "OpenAPI Error Response Schema",
+      "entity_type": "schema_pattern",
+      "category": "business_entity",
+      "observations": [
+        "Standard error response components in OpenAPI generation",
+        "ValidationErrorResponse schema with message and details fields",
+        "Details field as object with string array values for field errors",
+        "Automatic 400 and 500 response documentation for all operations",
+        "Error schemas integrated into OpenAPI 3.1.0 specification",
+        "Consistent error response structure across all API endpoints",
+        "Machine-readable error format for client error handling"
+      ],
+      "tags": [
+        "openapi",
+        "error-schema",
+        "api-documentation",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:58:14.232446+02:00",
+      "updated": "2025-08-06T14:58:14.232446+02:00"
+    },
+    "OpenAPI Generation Process": {
+      "name": "OpenAPI Generation Process",
+      "entity_type": "process",
+      "category": "business_process",
+      "observations": [
+        "Converts runtime RouteRegistry into OpenAPI 3.1 specification",
+        "Uses reflection to extract type information from handler signatures",
+        "Supports both build-time and runtime spec generation",
+        "Default route filter excludes internal documentation endpoints",
+        "Generates schemas for request/response types using go-playground/validator tags",
+        "Maps validator tags to OpenAPI constraints (required, email, min/max, etc.)",
+        "Supports union types with oneOf schemas and discriminators",
+        "Provides JSON and YAML output formats"
+      ],
+      "tags": [
+        "openapi",
+        "code-generation",
+        "reflection",
+        "category:business_process"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:23:55.868344+02:00",
+      "updated": "2025-08-05T10:23:55.868344+02:00"
+    },
+    "Parameter Adapter System": {
+      "name": "Parameter Adapter System",
+      "entity_type": "adapter_system",
+      "category": "business_entity",
+      "observations": [
+        "GenericParameterAdapter interface for framework abstraction",
+        "Extracts path, query, header, and cookie parameters",
+        "Framework-specific implementations for each supported web framework",
+        "Enables consistent parameter access across different frameworks",
+        "Supports type-safe parameter extraction with validation",
+        "Critical for Convention Over Configuration parameter mapping",
+        "Allows framework switching without handler code changes"
+      ],
+      "tags": [
+        "parameter-extraction",
+        "framework-abstraction",
+        "type-safety",
+        "adapter-pattern",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:43.541328+02:00",
+      "updated": "2025-08-06T14:59:43.541328+02:00"
+    },
+    "Performance Optimization Strategy": {
+      "name": "Performance Optimization Strategy",
+      "entity_type": "optimization_strategy",
+      "category": "business_rule",
+      "observations": [
+        "Cached validator instances to avoid recreation overhead",
+        "Memory-efficient error handling with structured response formats",
+        "Reflection-based approach minimizes runtime allocations",
+        "Single-pass route registration reduces startup time",
+        "Lazy initialization of framework adapters",
+        "Efficient JSON marshaling through gorkson optimizations",
+        "Minimal memory footprint with zero-copy parameter extraction where possible"
+      ],
+      "tags": [
+        "performance",
+        "caching",
+        "memory-efficiency",
+        "optimization",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:01:01.167562+02:00",
+      "updated": "2025-08-06T15:01:01.167562+02:00"
+    },
+    "Reflection-Based Type System": {
+      "name": "Reflection-Based Type System",
+      "entity_type": "type_system",
+      "category": "business_entity",
+      "observations": [
+        "Heavy use of Go reflection for runtime type analysis",
+        "Extracts handler signatures for OpenAPI generation",
+        "Processes struct fields and tags for schema generation",
+        "Enables generic parameter extraction across web frameworks",
+        "Type-safe conversion between Go types and JSON schemas",
+        "Critical for Convention Over Configuration without code generation",
+        "Validates handler signatures at runtime for compliance"
+      ],
+      "tags": [
+        "reflection",
+        "runtime-analysis",
+        "type-extraction",
+        "schema-mapping",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:43.537662+02:00",
+      "updated": "2025-08-06T14:59:43.537662+02:00"
+    },
+    "Role_API_Developer": {
+      "name": "Role_API_Developer",
+      "entity_type": "stakeholder",
+      "category": "business_stakeholder",
+      "observations": [
+        "Business stakeholder role: API Developer",
+        "Responsibilities: Define HTTP handler signatures following Gork conventions, Structure request/response types with proper sections, Implement business logic in type-safe handlers, Register routes with framework adapters, Generate OpenAPI specifications for documentation",
+        "Permissions: create_handlers, define_types, register_routes, generate_specs"
+      ],
+      "tags": [
+        "role:API_Developer",
+        "category:business_stakeholder",
+        "responsibility:Define HTTP handler signatures following Gork conventions",
+        "responsibility:Structure request/response types with proper sections",
+        "responsibility:Implement business logic in type-safe handlers",
+        "responsibility:Register routes with framework adapters",
+        "responsibility:Generate OpenAPI specifications for documentation",
+        "permission:create_handlers",
+        "permission:define_types",
+        "permission:register_routes",
+        "permission:generate_specs"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:24.010658+02:00",
+      "updated": "2025-08-05T10:25:24.010658+02:00"
+    },
+    "Role_Platform_Engineer": {
+      "name": "Role_Platform_Engineer",
+      "entity_type": "stakeholder",
+      "category": "business_stakeholder",
+      "observations": [
+        "Business stakeholder role: Platform Engineer",
+        "Responsibilities: Maintain framework adapters for different web frameworks, Ensure 100% test coverage across all modules, Configure CI/CD pipelines with coverage enforcement, Manage monorepo structure and versioning, Integrate linting tools with development workflow",
+        "Permissions: modify_adapters, configure_ci_cd, enforce_coverage, manage_versions"
+      ],
+      "tags": [
+        "role:Platform_Engineer",
+        "category:business_stakeholder",
+        "responsibility:Maintain framework adapters for different web frameworks",
+        "responsibility:Ensure 100% test coverage across all modules",
+        "responsibility:Configure CI/CD pipelines with coverage enforcement",
+        "responsibility:Manage monorepo structure and versioning",
+        "responsibility:Integrate linting tools with development workflow",
+        "permission:modify_adapters",
+        "permission:configure_ci_cd",
+        "permission:enforce_coverage",
+        "permission:manage_versions"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:31.418171+02:00",
+      "updated": "2025-08-05T10:25:31.418171+02:00"
+    },
+    "Route Registry Pattern": {
+      "name": "Route Registry Pattern",
+      "entity_type": "registry_pattern",
+      "category": "business_entity",
+      "observations": [
+        "Central registry for all HTTP routes and their metadata",
+        "RouteInfo structure captures handler, types, and options",
+        "Enables introspection of registered routes for OpenAPI generation",
+        "Framework-agnostic route storage and retrieval",
+        "Supports route filtering for documentation generation",
+        "Powers both runtime serving and build-time spec generation",
+        "Maintains relationship between HTTP routes and Go handlers"
+      ],
+      "tags": [
+        "route-registry",
+        "metadata-storage",
+        "introspection",
+        "framework-agnostic",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:43.538773+02:00",
+      "updated": "2025-08-06T14:59:43.538773+02:00"
+    },
+    "Rule Engine Architecture": {
+      "name": "Rule Engine Architecture",
+      "entity_type": "architecture",
+      "category": "business_entity",
+      "observations": [
+        "Declarative business domain rule validation system",
+        "Separates business logic from request format validation",
+        "Type-safe rules with explicit type switches for supported entity types",
+        "Cross-section access allows rules to reference any part of parsed request",
+        "Performance-optimized with no reflection overhead during rule execution",
+        "Rules work across different request types and entity combinations",
+        "Context-aware rules can access user information and make database calls"
+      ],
+      "tags": [
+        "rule-engine",
+        "business-logic",
+        "type-safety",
+        "cross-section-validation",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:24.000232+02:00",
+      "updated": "2025-08-06T15:03:24.000232+02:00"
+    },
+    "Rule Engine Error Handling": {
+      "name": "Rule Engine Error Handling",
+      "entity_type": "error_system",
+      "category": "business_entity",
+      "observations": [
+        "Rules return same validation error types as existing validation system",
+        "Section-specific errors: PathValidationError, QueryValidationError, BodyValidationError, etc.",
+        "Cross-section validation uses RequestValidationError",
+        "Server errors (database failures) return generic error for HTTP 500",
+        "Error aggregation with other validation errors",
+        "Clear error messages with business context",
+        "Structured error responses maintain API consistency"
+      ],
+      "tags": [
+        "rule-errors",
+        "validation-consistency",
+        "error-aggregation",
+        "business-context",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:37.026534+02:00",
+      "updated": "2025-08-06T15:03:37.026534+02:00"
+    },
+    "Rule Engine Integration Points": {
+      "name": "Rule Engine Integration Points",
+      "entity_type": "integration_system",
+      "category": "business_entity",
+      "observations": [
+        "Integrates with existing validation pipeline after format validation",
+        "Works with Convention Over Configuration request structures",
+        "Compatible with OpenAPI documentation generation",
+        "Linter integration validates rule registrations and usage",
+        "Testing framework supports rule unit testing",
+        "Future webhook integration for event-based rule execution",
+        "Extensible architecture for custom rule implementations"
+      ],
+      "tags": [
+        "validation-integration",
+        "openapi-integration",
+        "linter-integration",
+        "testing-integration",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:37.029998+02:00",
+      "updated": "2025-08-06T15:03:37.029998+02:00"
+    },
+    "Rule Engine Performance Strategy": {
+      "name": "Rule Engine Performance Strategy",
+      "entity_type": "performance_strategy",
+      "category": "business_rule",
+      "observations": [
+        "Rule registry caching to avoid function lookup overhead",
+        "Argument resolution caching for field path parsing",
+        "Type switch optimization to minimize reflection",
+        "Lazy evaluation executes rules only for successfully parsed entities",
+        "No reflection overhead during rule execution",
+        "Efficient argument resolution and type assertion",
+        "Performance-first design with cached lookups"
+      ],
+      "tags": [
+        "performance-optimization",
+        "caching-strategy",
+        "lazy-evaluation",
+        "reflection-avoidance",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:37.029001+02:00",
+      "updated": "2025-08-06T15:03:37.029001+02:00"
+    },
+    "Rule Reference Syntax": {
+      "name": "Rule Reference Syntax",
+      "entity_type": "syntax_specification",
+      "category": "business_rule",
+      "observations": [
+        "Section reference syntax: Path.FieldName, Query.FieldName, Body.FieldName, etc.",
+        "Multiple arguments supported with comma separation",
+        "Chained rules applied to single field using comma separation",
+        "Conditional rule application based on other field values",
+        "Cross-entity validation with multiple argument types",
+        "Field path parsing and argument resolution at runtime",
+        "Type-safe argument passing to rule functions"
+      ],
+      "tags": [
+        "syntax",
+        "field-references",
+        "argument-syntax",
+        "cross-entity-validation",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:24.004163+02:00",
+      "updated": "2025-08-06T15:03:24.004163+02:00"
+    },
+    "Rule Registration System": {
+      "name": "Rule Registration System",
+      "entity_type": "registration_system",
+      "category": "business_entity",
+      "observations": [
+        "Global rule registry with function-based rule definitions",
+        "Two rule signatures: SingleEntityRule and MultiArgumentRule",
+        "Rules use explicit type switches for each supported entity type",
+        "Supports complex business rules with multiple arguments",
+        "Rules can reference entities from Path, Query, Body, Headers, Cookies",
+        "Rule argument resolution with type assertion and error handling",
+        "Cached rule function lookups for performance optimization"
+      ],
+      "tags": [
+        "rule-registry",
+        "function-based-rules",
+        "type-switches",
+        "argument-resolution",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:03:24.001522+02:00",
+      "updated": "2025-08-06T15:03:24.001523+02:00"
+    },
+    "Security Integration Points": {
+      "name": "Security Integration Points",
+      "entity_type": "security_system",
+      "category": "business_entity",
+      "observations": [
+        "Handler options support security requirements",
+        "Basic auth, bearer token, and API key authentication",
+        "Security metadata captured in OpenAPI specifications",
+        "Framework-agnostic security requirement definition",
+        "Integrates with OpenAPI 3.1.0 security schemes",
+        "Supports per-handler security configuration",
+        "Security validation delegated to framework implementations"
+      ],
+      "tags": [
+        "security",
+        "authentication",
+        "openapi-security",
+        "framework-integration",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:00:12.025581+02:00",
+      "updated": "2025-08-06T15:00:12.025581+02:00"
+    },
+    "Static Analysis Integration": {
+      "name": "Static Analysis Integration",
+      "entity_type": "analysis_system",
+      "category": "business_entity",
+      "observations": [
+        "Custom analyzer built on golang.org/x/tools/go/analysis",
+        "Validates Convention Over Configuration compliance",
+        "Checks gork tag correctness and consistency",
+        "Ensures path parameter alignment with handler signatures",
+        "Integrates with existing linting workflows",
+        "Provides detailed diagnostic messages",
+        "Prevents runtime errors through compile-time validation"
+      ],
+      "tags": [
+        "static-analysis",
+        "golang-tools",
+        "convention-validation",
+        "compile-time-checks",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:00:12.02706+02:00",
+      "updated": "2025-08-06T15:00:12.02706+02:00"
+    },
+    "Test Analysis Results": {
+      "name": "Test Analysis Results",
+      "entity_type": "analysis",
+      "category": "business_requirement",
+      "observations": [
+        "Discovered 81 test files across the codebase, with 67 in pkg/api alone",
+        "All modules have achieved 100% test coverage as confirmed by coverage check",
+        "Adapter tests follow consistent patterns but test different framework-specific behaviors",
+        "Path conversion tests (toNativePath) are similar but test different framework syntaxes",
+        "Docs route tests have similar structure but test different framework implementations",
+        "Validation section tests focus on different edge cases and scenarios",
+        "No obvious duplicate test cases found - tests are focused and purpose-built",
+        "Test organization follows clear patterns: function-specific, framework-specific, and scenario-specific"
+      ],
+      "tags": [
+        "test-analysis",
+        "coverage",
+        "consolidation",
+        "category:business_requirement"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:19:03.185161+02:00",
+      "updated": "2025-08-05T10:19:03.185161+02:00"
+    },
+    "Test Coverage Philosophy": {
+      "name": "Test Coverage Philosophy",
+      "entity_type": "testing_philosophy",
+      "category": "business_rule",
+      "observations": [
+        "100% test coverage as non-negotiable requirement",
+        "Coverage enforcement prevents regression and maintains quality",
+        "Examples excluded to focus on library code quality",
+        "Tests serve as documentation and behavioral specification",
+        "Edge case coverage ensures robustness in production",
+        "Mock implementations enable dependency isolation",
+        "Comprehensive test suites validate both happy path and error scenarios"
+      ],
+      "tags": [
+        "testing-philosophy",
+        "100-percent-coverage",
+        "quality-assurance",
+        "behavioral-specification",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:59:57.457009+02:00",
+      "updated": "2025-08-06T14:59:57.457009+02:00"
+    },
+    "Testing and Coverage Strategy": {
+      "name": "Testing and Coverage Strategy",
+      "entity_type": "strategy",
+      "category": "business_rule",
+      "observations": [
+        "Enforces 100% test coverage across all pkg/ modules",
+        "Examples module excluded from coverage requirements",
+        "CLI tools and internal packages included in coverage",
+        "Uses Go workspace structure for multi-module testing",
+        "Automated coverage checking with colored output",
+        "HTML coverage reports generated automatically",
+        "Modular testing approach allowing per-module test runs",
+        "Coverage enforcement integrated into CI/CD pipelines",
+        "Strict coverage thresholds prevent regression"
+      ],
+      "tags": [
+        "testing-strategy",
+        "coverage-enforcement",
+        "quality-assurance",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:24:36.35824+02:00",
+      "updated": "2025-08-05T10:24:36.35824+02:00"
+    },
+    "Type Safety Principle": {
+      "name": "Type Safety Principle",
+      "entity_type": "principle",
+      "category": "business_rule",
+      "observations": [
+        "All handlers must follow strict signature: func(ctx context.Context, req RequestType) (*ResponseType, error)",
+        "Request and response types must be strongly typed structs",
+        "No dynamic typing or interface{} in API boundaries",
+        "Compile-time validation of handler signatures",
+        "Type information drives OpenAPI schema generation",
+        "Union types provide type-safe variants for multiple formats"
+      ],
+      "tags": [
+        "type-safety",
+        "compile-time-validation",
+        "category:business_rule"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:25:41.656148+02:00",
+      "updated": "2025-08-05T10:25:41.656148+02:00"
+    },
+    "Union Schema Bug Fix": {
+      "name": "Union Schema Bug Fix",
+      "entity_type": "bug_fix",
+      "category": "business_entity",
+      "observations": [
+        "Fixed union types exposing internal A/B fields in OpenAPI schemas",
+        "Removed Body property wrapper from response schemas",
+        "Union types now generate clean oneOf schemas without implementation details",
+        "Created comprehensive unit tests to prevent regression",
+        "Fix applies to both response and request body schemas"
+      ],
+      "tags": [
+        "openapi",
+        "union-types",
+        "schema-generation",
+        "bug-fix",
+        "category:business_entity"
+      ],
+      "aliases": [
+        "union implementation details bug",
+        "A B fields bug"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-04T13:51:45.045425+02:00",
+      "updated": "2025-08-04T13:51:45.045425+02:00"
+    },
+    "Union Type Schema Name Bug": {
+      "name": "Union Type Schema Name Bug",
+      "entity_type": "bug",
+      "category": "business_entity",
+      "observations": [
+        "Union type schema names contain invalid characters for OpenAPI specification",
+        "Issue occurs in generateRequestBodyComponentName function at line 477",
+        "Function concatenates bodyType.Name() + 'Body' without sanitization",
+        "Union type names like 'Union2[github.com/gork-labs/gork/examples/handlers.BankPaymentMethod,github.com/gork-labs/gork/examples/handlers.CreditCardPaymentMethod]Body' violate OpenAPI naming conventions",
+        "sanitizeSchemaName function exists but is not applied to union type names in request body generation",
+        "Pattern is inconsistent with other schema name generation locations that properly use sanitizeSchemaName",
+        "Second occurrence at line 485 also lacks sanitization for requestName concatenation"
+      ],
+      "tags": [
+        "union-types",
+        "schema-naming",
+        "openapi-validation",
+        "sanitization",
+        "bug",
+        "category:business_entity"
+      ],
+      "lifetime": "task",
+      "expires_at": "2025-08-13T19:32:54.362673+02:00",
+      "created": "2025-08-06T19:32:54.362674+02:00",
+      "updated": "2025-08-06T19:32:54.362674+02:00"
+    },
+    "Union Type System": {
+      "name": "Union Type System",
+      "entity_type": "component",
+      "category": "business_entity",
+      "observations": [
+        "Provides Union2, Union3, and Union4 generic types for type-safe variants",
+        "Implements JSON marshaling/unmarshaling with validation",
+        "Uses go-playground/validator for automatic validation during unmarshaling",
+        "Supports discriminator-based serialization for OpenAPI compatibility",
+        "Cached validator instance to avoid recreation overhead",
+        "Enables type-safe API design with multiple possible request/response formats",
+        "Integrates with gorkson package for custom JSON handling"
+      ],
+      "tags": [
+        "union-types",
+        "type-safety",
+        "json-marshaling",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:23:27.624463+02:00",
+      "updated": "2025-08-05T10:23:27.624463+02:00"
+    },
+    "UserType Field Documentation Bug": {
+      "name": "UserType Field Documentation Bug",
+      "entity_type": "bug",
+      "category": "business_entity",
+      "observations": [
+        "UserType fields with gork tags don't get documented in OpenAPI schema",
+        "DocExtractor.storeFieldDocByJSONTag only looks for json tags, not gork tags",
+        "UserType uses gork:\"userID\" and gork:\"username\" tags",
+        "Generated schema lacks field descriptions for UserType.UserID and UserType.Username",
+        "Bug in doc_extractor.go line 178: only checks st.Get(\"json\")",
+        "Need to also check for gork tags when storing field documentation",
+        "UserType fields now have documentation after gork tag fix",
+        "UserResponse schema missing field descriptions even though it uses UserType",
+        "UserResponse.Body field contains UserType but schema flattened without field docs",
+        "Schema generation may not be propagating field docs when flattening Body wrapper"
+      ],
+      "tags": [
+        "openapi",
+        "documentation",
+        "gork-tags",
+        "field-descriptions",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-04T17:55:54.883122+02:00",
+      "updated": "2025-08-04T17:59:06.076386+02:00"
+    },
+    "Validation Architecture": {
+      "name": "Validation Architecture",
+      "entity_type": "architecture",
+      "category": "business_entity",
+      "observations": [
+        "Uses go-playground/validator for struct validation",
+        "Defines ValidationError interface for client-side validation issues",
+        "Section-specific validation errors (RequestValidationError, BodyValidationError, QueryValidationError)",
+        "Custom Validator interface for domain-specific validation",
+        "Validation errors return HTTP 400 status",
+        "Supports namespaced error reporting by request section",
+        "Integrates validation with OpenAPI constraint generation",
+        "Cached validator instance to avoid recreation overhead",
+        "Complete error handling system already implemented and operational",
+        "All modules maintain 100% test coverage with comprehensive validation tests",
+        "Zero lint issues across entire codebase with strict code quality enforcement",
+        "Production-ready validation pipeline with section-specific error categorization",
+        "Seamless integration with existing Convention Over Configuration pattern",
+        "No implementation gaps - system is fully functional and battle-tested"
+      ],
+      "tags": [
+        "validation",
+        "error-handling",
+        "http-status",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-05T10:23:55.869791+02:00",
+      "updated": "2025-08-06T14:58:22.207156+02:00"
+    },
+    "Validation Error Types": {
+      "name": "Validation Error Types",
+      "entity_type": "error_taxonomy",
+      "category": "business_entity",
+      "observations": [
+        "RequestValidationError for request-level validation issues",
+        "BodyValidationError for request body validation failures",
+        "QueryValidationError for query parameter validation failures",
+        "PathValidationError for path parameter validation failures",
+        "HeadersValidationError for header validation failures",
+        "CookiesValidationError for cookie validation failures",
+        "All implement ValidationError interface with GetErrors() method",
+        "All provide structured error messages with section context",
+        "Used for HTTP 400 responses with detailed field-level feedback"
+      ],
+      "tags": [
+        "error-types",
+        "validation",
+        "http-400",
+        "category:business_entity"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T14:58:14.229657+02:00",
+      "updated": "2025-08-06T14:58:14.229657+02:00"
+    },
+    "Webhook Support Roadmap": {
+      "name": "Webhook Support Roadmap",
+      "entity_type": "future_feature",
+      "category": "business_requirement",
+      "observations": [
+        "Planned Stripe webhook support with type-safe event handlers",
+        "Provider-agnostic design for multiple webhook providers (Stripe, GitHub, SendGrid)",
+        "Builder pattern for registering event-specific handlers",
+        "Automatic OpenAPI schema generation for webhook endpoints",
+        "Type-safe event payload structures with validation",
+        "Backward compatibility maintained with existing functionality",
+        "Focus on developer experience with intuitive API"
+      ],
+      "tags": [
+        "webhooks",
+        "future-feature",
+        "stripe",
+        "type-safety",
+        "openapi-generation",
+        "category:business_requirement"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-06T15:02:39.159038+02:00",
+      "updated": "2025-08-06T15:02:39.159038+02:00"
+    },
+    "pkg/api Coverage Issues": {
+      "name": "pkg/api Coverage Issues",
+      "entity_type": "technical_debt",
+      "category": "business_requirement",
+      "observations": [
+        "convention_openapi_generator.go functions at 78.9%-90.9%",
+        "convention_validation.go functions at 75.0%-88.2%",
+        "doc_extractor.go processDirectoryEntry at 92.9%",
+        "docs_route.go DocsRoute at 91.7%",
+        "gork_json.go functions at 83.3%-90.5%",
+        "openapi_doc_integration.go functions at 75.0%-83.3%",
+        "openapi_generator.go functions at 87.5%-94.1%"
+      ],
+      "tags": [
+        "uncovered",
+        "pkg-api",
+        "testing",
+        "category:business_requirement"
+      ],
+      "lifetime": "permanent",
+      "created": "2025-08-04T10:00:35.042912+02:00",
+      "updated": "2025-08-04T10:00:35.042912+02:00"
+    }
+  },
+  "relations": {
+    "API Handler Adapter|enables|OpenAPI Generation Process": {
+      "id": "API Handler Adapter|enables|OpenAPI Generation Process",
+      "from": "API Handler Adapter",
+      "to": "OpenAPI Generation Process",
+      "relation_type": "enables",
+      "created": "2025-08-05T10:25:48.950164+02:00"
+    },
+    "API Handler Adapter|implements|Handler Factory Validation Integration": {
+      "id": "API Handler Adapter|implements|Handler Factory Validation Integration",
+      "from": "API Handler Adapter",
+      "to": "Handler Factory Validation Integration",
+      "relation_type": "implements",
+      "created": "2025-08-06T14:58:27.279041+02:00"
+    },
+    "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type_from_API_Development_Workflow_Step_Define_Handler_Signature": {
+      "id": "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type_from_API_Development_Workflow_Step_Define_Handler_Signature",
+      "from": "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type",
+      "to": "API_Development_Workflow_Step_Define_Handler_Signature",
+      "relation_type": "from_step",
+      "created": "2025-08-05T10:25:00.739314+02:00"
+    },
+    "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type_to_API_Development_Workflow_Step_Structure_Request_Type": {
+      "id": "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type_to_API_Development_Workflow_Step_Structure_Request_Type",
+      "from": "API_Development_Workflow_Flow_Define_Handler_Signature_to_Structure_Request_Type",
+      "to": "API_Development_Workflow_Step_Structure_Request_Type",
+      "relation_type": "to_step",
+      "created": "2025-08-05T10:25:00.739314+02:00"
+    },
+    "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec_from_API_Development_Workflow_Step_Register_Route": {
+      "id": "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec_from_API_Development_Workflow_Step_Register_Route",
+      "from": "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec",
+      "to": "API_Development_Workflow_Step_Register_Route",
+      "relation_type": "from_step",
+      "created": "2025-08-05T10:25:07.634367+02:00"
+    },
+    "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec_to_API_Development_Workflow_Step_Generate_OpenAPI_Spec": {
+      "id": "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec_to_API_Development_Workflow_Step_Generate_OpenAPI_Spec",
+      "from": "API_Development_Workflow_Flow_Register_Route_to_Generate_OpenAPI_Spec",
+      "to": "API_Development_Workflow_Step_Generate_OpenAPI_Spec",
+      "relation_type": "to_step",
+      "created": "2025-08-05T10:25:07.634367+02:00"
+    },
+    "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route_from_API_Development_Workflow_Step_Structure_Request_Type": {
+      "id": "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route_from_API_Development_Workflow_Step_Structure_Request_Type",
+      "from": "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route",
+      "to": "API_Development_Workflow_Step_Structure_Request_Type",
+      "relation_type": "from_step",
+      "created": "2025-08-05T10:25:04.191644+02:00"
+    },
+    "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route_to_API_Development_Workflow_Step_Register_Route": {
+      "id": "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route_to_API_Development_Workflow_Step_Register_Route",
+      "from": "API_Development_Workflow_Flow_Structure_Request_Type_to_Register_Route",
+      "to": "API_Development_Workflow_Step_Register_Route",
+      "relation_type": "to_step",
+      "created": "2025-08-05T10:25:04.191644+02:00"
+    },
+    "API_Development_Workflow_Step_Define_Handler_Signature_leads_to_API_Development_Workflow_Step_Structure_Request_Type": {
+      "id": "API_Development_Workflow_Step_Define_Handler_Signature_leads_to_API_Development_Workflow_Step_Structure_Request_Type",
+      "from": "API_Development_Workflow_Step_Define_Handler_Signature",
+      "to": "API_Development_Workflow_Step_Structure_Request_Type",
+      "relation_type": "leads_to",
+      "created": "2025-08-05T10:25:00.739314+02:00"
+    },
+    "API_Development_Workflow_Step_Register_Route_leads_to_API_Development_Workflow_Step_Generate_OpenAPI_Spec": {
+      "id": "API_Development_Workflow_Step_Register_Route_leads_to_API_Development_Workflow_Step_Generate_OpenAPI_Spec",
+      "from": "API_Development_Workflow_Step_Register_Route",
+      "to": "API_Development_Workflow_Step_Generate_OpenAPI_Spec",
+      "relation_type": "leads_to",
+      "created": "2025-08-05T10:25:07.634367+02:00"
+    },
+    "API_Development_Workflow_Step_Structure_Request_Type_leads_to_API_Development_Workflow_Step_Register_Route": {
+      "id": "API_Development_Workflow_Step_Structure_Request_Type_leads_to_API_Development_Workflow_Step_Register_Route",
+      "from": "API_Development_Workflow_Step_Structure_Request_Type",
+      "to": "API_Development_Workflow_Step_Register_Route",
+      "relation_type": "leads_to",
+      "created": "2025-08-05T10:25:04.191644+02:00"
+    },
+    "Advanced Rule Features|enhances|Rule Engine Architecture": {
+      "id": "Advanced Rule Features|enhances|Rule Engine Architecture",
+      "from": "Advanced Rule Features",
+      "to": "Rule Engine Architecture",
+      "relation_type": "enhances",
+      "created": "2025-08-06T15:03:42.597868+02:00"
+    },
+    "Business Rule Validation Pattern|integrates_with|Convention Over Configuration": {
+      "id": "Business Rule Validation Pattern|integrates_with|Convention Over Configuration",
+      "from": "Business Rule Validation Pattern",
+      "to": "Convention Over Configuration",
+      "relation_type": "integrates_with",
+      "created": "2025-08-06T15:03:42.597865+02:00"
+    },
+    "Configuration Management|configures|Gork CLI Tool": {
+      "id": "Configuration Management|configures|Gork CLI Tool",
+      "from": "Configuration Management",
+      "to": "Gork CLI Tool",
+      "relation_type": "configures",
+      "created": "2025-08-06T15:01:06.188072+02:00"
+    },
+    "Convention Over Configuration|enables|Convention Validation System": {
+      "id": "Convention Over Configuration|enables|Convention Validation System",
+      "from": "Convention Over Configuration",
+      "to": "Convention Validation System",
+      "relation_type": "enables",
+      "created": "2025-08-06T14:58:27.27904+02:00"
+    },
+    "Convention Over Configuration|integrates_with|Validation Architecture": {
+      "id": "Convention Over Configuration|integrates_with|Validation Architecture",
+      "from": "Convention Over Configuration",
+      "to": "Validation Architecture",
+      "relation_type": "integrates_with",
+      "created": "2025-08-05T10:25:48.950164+02:00"
+    },
+    "Convention Validation System|implements|Validation Architecture": {
+      "id": "Convention Validation System|implements|Validation Architecture",
+      "from": "Convention Validation System",
+      "to": "Validation Architecture",
+      "relation_type": "implements",
+      "created": "2025-08-06T14:58:27.279037+02:00"
+    },
+    "Coverage Enforcement Policy|defines|Testing and Coverage Strategy": {
+      "id": "Coverage Enforcement Policy|defines|Testing and Coverage Strategy",
+      "from": "Coverage Enforcement Policy",
+      "to": "Testing and Coverage Strategy",
+      "relation_type": "defines",
+      "created": "2025-08-05T10:25:48.950167+02:00"
+    },
+    "Developer Experience Focus|guides|Gork API Development Toolkit": {
+      "id": "Developer Experience Focus|guides|Gork API Development Toolkit",
+      "from": "Developer Experience Focus",
+      "to": "Gork API Development Toolkit",
+      "relation_type": "guides",
+      "created": "2025-08-06T15:00:03.913447+02:00"
+    },
+    "Documentation Integration System|enhances|OpenAPI Generation Process": {
+      "id": "Documentation Integration System|enhances|OpenAPI Generation Process",
+      "from": "Documentation Integration System",
+      "to": "OpenAPI Generation Process",
+      "relation_type": "enhances",
+      "created": "2025-08-06T15:00:03.913441+02:00"
+    },
+    "Extensibility Architecture|enables|Framework Adapter Pattern": {
+      "id": "Extensibility Architecture|enables|Framework Adapter Pattern",
+      "from": "Extensibility Architecture",
+      "to": "Framework Adapter Pattern",
+      "relation_type": "enables",
+      "created": "2025-08-06T15:01:06.188073+02:00"
+    },
+    "Gork API Development Toolkit|contains|API Handler Adapter": {
+      "id": "Gork API Development Toolkit|contains|API Handler Adapter",
+      "from": "Gork API Development Toolkit",
+      "to": "API Handler Adapter",
+      "relation_type": "contains",
+      "created": "2025-08-05T10:25:48.950161+02:00"
+    },
+    "Gork API Development Toolkit|contains|Union Type System": {
+      "id": "Gork API Development Toolkit|contains|Union Type System",
+      "from": "Gork API Development Toolkit",
+      "to": "Union Type System",
+      "relation_type": "contains",
+      "created": "2025-08-05T10:25:48.950163+02:00"
+    },
+    "Gork API Development Toolkit|implements|Framework Adapter Pattern": {
+      "id": "Gork API Development Toolkit|implements|Framework Adapter Pattern",
+      "from": "Gork API Development Toolkit",
+      "to": "Framework Adapter Pattern",
+      "relation_type": "implements",
+      "created": "2025-08-05T10:25:48.950164+02:00"
+    },
+    "Gork CLI Tool|executes|OpenAPI Generation Process": {
+      "id": "Gork CLI Tool|executes|OpenAPI Generation Process",
+      "from": "Gork CLI Tool",
+      "to": "OpenAPI Generation Process",
+      "relation_type": "executes",
+      "created": "2025-08-05T10:25:48.950165+02:00"
+    },
+    "Gork Tag System|enables|Convention Over Configuration": {
+      "id": "Gork Tag System|enables|Convention Over Configuration",
+      "from": "Gork Tag System",
+      "to": "Convention Over Configuration",
+      "relation_type": "enables",
+      "created": "2025-08-06T15:00:03.913439+02:00"
+    },
+    "Handler Factory Validation Integration|integrates_with|Convention Validation System": {
+      "id": "Handler Factory Validation Integration|integrates_with|Convention Validation System",
+      "from": "Handler Factory Validation Integration",
+      "to": "Convention Validation System",
+      "relation_type": "integrates_with",
+      "created": "2025-08-06T14:58:27.279039+02:00"
+    },
+    "JSON Marshaling Strategy|supports|Union Type System": {
+      "id": "JSON Marshaling Strategy|supports|Union Type System",
+      "from": "JSON Marshaling Strategy",
+      "to": "Union Type System",
+      "relation_type": "supports",
+      "created": "2025-08-06T15:00:03.913446+02:00"
+    },
+    "LintGork Static Analyzer|enforces|Convention Compliance Rule": {
+      "id": "LintGork Static Analyzer|enforces|Convention Compliance Rule",
+      "from": "LintGork Static Analyzer",
+      "to": "Convention Compliance Rule",
+      "relation_type": "enforces",
+      "created": "2025-08-05T10:25:48.950167+02:00"
+    },
+    "Monorepo Workspace Architecture|structures|Gork Architecture Overview": {
+      "id": "Monorepo Workspace Architecture|structures|Gork Architecture Overview",
+      "from": "Monorepo Workspace Architecture",
+      "to": "Gork Architecture Overview",
+      "relation_type": "structures",
+      "created": "2025-08-06T15:00:03.913446+02:00"
+    },
+    "OpenAPI Error Response Schema|documents|Validation Error Types": {
+      "id": "OpenAPI Error Response Schema|documents|Validation Error Types",
+      "from": "OpenAPI Error Response Schema",
+      "to": "Validation Error Types",
+      "relation_type": "documents",
+      "created": "2025-08-06T14:58:27.27904+02:00"
+    },
+    "Parameter Adapter System|implements|Framework Adapter Pattern": {
+      "id": "Parameter Adapter System|implements|Framework Adapter Pattern",
+      "from": "Parameter Adapter System",
+      "to": "Framework Adapter Pattern",
+      "relation_type": "implements",
+      "created": "2025-08-06T15:00:03.913442+02:00"
+    },
+    "Performance Optimization Strategy|contributes_to|Code Quality Metrics": {
+      "id": "Performance Optimization Strategy|contributes_to|Code Quality Metrics",
+      "from": "Performance Optimization Strategy",
+      "to": "Code Quality Metrics",
+      "relation_type": "contributes_to",
+      "created": "2025-08-06T15:01:06.188071+02:00"
+    },
+    "Reflection-Based Type System|powers|API Handler Adapter": {
+      "id": "Reflection-Based Type System|powers|API Handler Adapter",
+      "from": "Reflection-Based Type System",
+      "to": "API Handler Adapter",
+      "relation_type": "powers",
+      "created": "2025-08-06T15:00:03.913441+02:00"
+    },
+    "Route Registry Pattern|feeds|OpenAPI Generation Process": {
+      "id": "Route Registry Pattern|feeds|OpenAPI Generation Process",
+      "from": "Route Registry Pattern",
+      "to": "OpenAPI Generation Process",
+      "relation_type": "feeds",
+      "created": "2025-08-06T15:00:03.913442+02:00"
+    },
+    "Rule Engine Architecture|extends|Validation Architecture": {
+      "id": "Rule Engine Architecture|extends|Validation Architecture",
+      "from": "Rule Engine Architecture",
+      "to": "Validation Architecture",
+      "relation_type": "extends",
+      "created": "2025-08-06T15:03:42.597863+02:00"
+    },
+    "Rule Engine Error Handling|reuses|Validation Error Types": {
+      "id": "Rule Engine Error Handling|reuses|Validation Error Types",
+      "from": "Rule Engine Error Handling",
+      "to": "Validation Error Types",
+      "relation_type": "reuses",
+      "created": "2025-08-06T15:03:42.597867+02:00"
+    },
+    "Rule Engine Integration Points|integrates_with|Gork Architecture Overview": {
+      "id": "Rule Engine Integration Points|integrates_with|Gork Architecture Overview",
+      "from": "Rule Engine Integration Points",
+      "to": "Gork Architecture Overview",
+      "relation_type": "integrates_with",
+      "created": "2025-08-06T15:03:42.59787+02:00"
+    },
+    "Rule Engine Performance Strategy|extends|Performance Optimization Strategy": {
+      "id": "Rule Engine Performance Strategy|extends|Performance Optimization Strategy",
+      "from": "Rule Engine Performance Strategy",
+      "to": "Performance Optimization Strategy",
+      "relation_type": "extends",
+      "created": "2025-08-06T15:03:42.597869+02:00"
+    },
+    "Rule Registration System|implements|Rule Engine Architecture": {
+      "id": "Rule Registration System|implements|Rule Engine Architecture",
+      "from": "Rule Registration System",
+      "to": "Rule Engine Architecture",
+      "relation_type": "implements",
+      "created": "2025-08-06T15:03:42.597866+02:00"
+    },
+    "Test Coverage Philosophy|drives|Code Quality Metrics": {
+      "id": "Test Coverage Philosophy|drives|Code Quality Metrics",
+      "from": "Test Coverage Philosophy",
+      "to": "Code Quality Metrics",
+      "relation_type": "drives",
+      "created": "2025-08-06T15:00:03.913446+02:00"
+    },
+    "Type Safety Principle|governs|API Handler Adapter": {
+      "id": "Type Safety Principle|governs|API Handler Adapter",
+      "from": "Type Safety Principle",
+      "to": "API Handler Adapter",
+      "relation_type": "governs",
+      "created": "2025-08-05T10:25:48.950167+02:00"
+    },
+    "Validation Error Types|used_by|Convention Validation System": {
+      "id": "Validation Error Types|used_by|Convention Validation System",
+      "from": "Validation Error Types",
+      "to": "Convention Validation System",
+      "relation_type": "used_by",
+      "created": "2025-08-06T14:58:27.279038+02:00"
+    }
+  },
+  "tags": {
+    "100-percent-coverage": 1,
+    "adapter-pattern": 1,
+    "ai-tooling": 1,
+    "analysis": 1,
+    "api-adapter": 1,
+    "api-design": 1,
+    "api-documentation": 1,
+    "api-toolkit": 2,
+    "architecture-overview": 1,
+    "argument-resolution": 1,
+    "argument-syntax": 1,
+    "ast-parsing": 1,
+    "authentication": 1,
+    "auto-documentation": 1,
+    "behavioral-specification": 1,
+    "bug": 1,
+    "bug-fix": 1,
+    "build-time": 1,
+    "business-context": 1,
+    "business-logic": 1,
+    "business-validation": 1,
+    "caching": 1,
+    "caching-strategy": 1,
+    "category:business_entity": 33,
+    "category:business_process": 1,
+    "category:business_requirement": 6,
+    "category:business_rule": 12,
+    "category:business_stakeholder": 2,
+    "category:process_flow": 3,
+    "category:process_step": 4,
+    "ci-cd-integration": 1,
+    "cli-flags": 1,
+    "cli-tool": 1,
+    "cobra": 1,
+    "code-generation": 1,
+    "code-quality": 1,
+    "compile-time-checks": 1,
+    "compile-time-validation": 1,
+    "complete": 1,
+    "configuration": 1,
+    "consolidation": 1,
+    "context-awareness": 1,
+    "convention": 2,
+    "convention-compliance": 2,
+    "convention-validation": 1,
+    "coverage": 2,
+    "coverage-enforcement": 1,
+    "coverage-policy": 1,
+    "cross-entity-validation": 1,
+    "cross-section-validation": 1,
+    "database-integration": 1,
+    "deployment-flexibility": 1,
+    "developer-experience": 1,
+    "developer-productivity": 1,
+    "development-errors": 1,
+    "development-workflow": 1,
+    "documentation": 2,
+    "documentation-extraction": 1,
+    "error-aggregation": 1,
+    "error-handling": 2,
+    "error-schema": 1,
+    "error-types": 1,
+    "extensibility": 1,
+    "fail-fast": 1,
+    "field-descriptions": 1,
+    "field-naming": 1,
+    "field-references": 1,
+    "framework-abstraction": 1,
+    "framework-adapters": 1,
+    "framework-agnostic": 1,
+    "framework-integration": 1,
+    "from_step:Define_Handler_Signature": 1,
+    "from_step:Register_Route": 1,
+    "from_step:Structure_Request_Type": 1,
+    "function-based-rules": 1,
+    "future-feature": 1,
+    "generation-modes": 1,
+    "go": 1,
+    "go-workspace": 1,
+    "godoc": 1,
+    "golang-tools": 1,
+    "gork-tags": 2,
+    "gorka": 1,
+    "gorkson": 1,
+    "handler-factory": 1,
+    "http-400": 1,
+    "http-handlers": 1,
+    "http-middleware": 1,
+    "http-status": 2,
+    "implementation-status": 1,
+    "implementation-strategy": 1,
+    "independent-versioning": 1,
+    "interface-design": 1,
+    "introspection": 1,
+    "json-marshaling": 2,
+    "lazy-evaluation": 1,
+    "linter-integration": 1,
+    "linting": 1,
+    "linting-rules": 1,
+    "memory-efficiency": 1,
+    "metadata": 1,
+    "metadata-storage": 1,
+    "metrics": 1,
+    "middleware": 1,
+    "minimal-boilerplate": 1,
+    "modular-architecture": 1,
+    "modularity": 1,
+    "monorepo": 1,
+    "openapi": 5,
+    "openapi-generation": 2,
+    "openapi-integration": 2,
+    "openapi-security": 1,
+    "openapi-validation": 1,
+    "optimization": 1,
+    "outcome:api_documented": 1,
+    "outcome:convention_compliant_request": 1,
+    "outcome:openapi_extractable": 1,
+    "outcome:openapi_spec_generated": 1,
+    "outcome:route_registered": 1,
+    "outcome:runtime_accessible": 1,
+    "outcome:type_safe_handler": 1,
+    "outcome:validatable_structure": 1,
+    "panic-validation": 1,
+    "parameter-extraction": 1,
+    "performance": 1,
+    "performance-optimization": 1,
+    "permission:configure_ci_cd": 1,
+    "permission:create_handlers": 1,
+    "permission:define_types": 1,
+    "permission:enforce_coverage": 1,
+    "permission:generate_specs": 1,
+    "permission:manage_versions": 1,
+    "permission:modify_adapters": 1,
+    "permission:register_routes": 1,
+    "pkg-api": 1,
+    "plugin-architecture": 1,
+    "prerequisite:handler_implemented": 1,
+    "prerequisite:handler_signature_defined": 1,
+    "prerequisite:request_type_structured": 1,
+    "prerequisite:routes_registered": 1,
+    "prerequisite:types_defined": 1,
+    "process:API_Development_Workflow": 7,
+    "production-ready": 2,
+    "quality-assurance": 3,
+    "reflection": 2,
+    "reflection-avoidance": 1,
+    "request-structure": 1,
+    "responsibility:Configure CI/CD pipelines with coverage enforcement": 1,
+    "responsibility:Define HTTP handler signatures following Gork conventions": 1,
+    "responsibility:Ensure 100% test coverage across all modules": 1,
+    "responsibility:Generate OpenAPI specifications for documentation": 1,
+    "responsibility:Implement business logic in type-safe handlers": 1,
+    "responsibility:Integrate linting tools with development workflow": 1,
+    "responsibility:Maintain framework adapters for different web frameworks": 1,
+    "responsibility:Manage monorepo structure and versioning": 1,
+    "responsibility:Register routes with framework adapters": 1,
+    "responsibility:Structure request/response types with proper sections": 1,
+    "role:API_Developer": 1,
+    "role:Platform_Engineer": 1,
+    "route-registry": 1,
+    "routing": 1,
+    "rule-chaining": 1,
+    "rule-composition": 1,
+    "rule-engine": 1,
+    "rule-errors": 1,
+    "rule-registry": 1,
+    "runtime": 1,
+    "runtime-analysis": 1,
+    "sanitization": 1,
+    "schema-generation": 1,
+    "schema-mapping": 1,
+    "schema-naming": 1,
+    "security": 1,
+    "separation-of-concerns": 1,
+    "serialization": 1,
+    "session-tracking": 1,
+    "static-analysis": 2,
+    "step:Define_Handler_Signature": 1,
+    "step:Generate_OpenAPI_Spec": 1,
+    "step:Register_Route": 1,
+    "step:Structure_Request_Type": 1,
+    "stripe": 1,
+    "struct-tags": 1,
+    "syntax": 1,
+    "test-analysis": 1,
+    "testing": 3,
+    "testing-integration": 1,
+    "testing-philosophy": 1,
+    "testing-strategy": 1,
+    "to_step:Generate_OpenAPI_Spec": 1,
+    "to_step:Register_Route": 1,
+    "to_step:Structure_Request_Type": 1,
+    "type-extraction": 1,
+    "type-safety": 8,
+    "type-switches": 1,
+    "uncovered": 1,
+    "union-support": 1,
+    "union-types": 3,
+    "validation": 3,
+    "validation-consistency": 1,
+    "validation-integration": 2,
+    "validation-pipeline": 1,
+    "webhooks": 1,
+    "yaml": 1
+  },
+  "embeddings": {},
+  "updated": "2025-08-06T19:32:54.36268+02:00"
+}

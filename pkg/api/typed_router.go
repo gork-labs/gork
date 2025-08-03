@@ -78,6 +78,9 @@ func (r *TypedRouter[T]) Register(method, path string, handler interface{}, opts
 	allOpts = append(allOpts, opts...)
 	httpHandler, info := createHandlerFromAny(r.adapter, handler, allOpts...)
 
+	// Validate that Body sections are not used with read-only HTTP methods
+	validateBodyUsageForMethod(method, info.RequestType)
+
 	// Fill remaining route information.
 	info.Method = method
 	info.Path = r.prefix + path

@@ -3,16 +3,15 @@ package handlers
 import (
 	"context"
 
-	"github.com/gork-labs/gork/pkg/api"
 	"github.com/gork-labs/gork/pkg/unions"
 )
 
 // CreditCardPaymentMethod represents a credit card payment method.
 type CreditCardPaymentMethod struct {
 	// Type is the payment method type discriminator
-	Type string `json:"type" validate:"required,eq=credit_card"`
+	Type string `gork:"type" validate:"required,eq=credit_card"`
 	// CardNumber is the credit card number
-	CardNumber string `json:"cardNumber" validate:"required"`
+	CardNumber string `gork:"cardNumber" validate:"required"`
 }
 
 // DiscriminatorValue implements unions.Discriminator interface
@@ -24,11 +23,11 @@ func (c CreditCardPaymentMethod) DiscriminatorValue() string {
 // BankPaymentMethod represents a bank account payment method.
 type BankPaymentMethod struct {
 	// Type is the payment method type discriminator
-	Type string `json:"type" validate:"required,eq=bank_account"`
+	Type string `gork:"type" validate:"required,eq=bank_account"`
 	// AccountNumber is the bank account number
-	AccountNumber string `json:"accountNumber" validate:"required"`
+	AccountNumber string `gork:"accountNumber" validate:"required"`
 	// RoutingNumber is the bank routing number
-	RoutingNumber string `json:"routingNumber" validate:"required"`
+	RoutingNumber string `gork:"routingNumber" validate:"required"`
 }
 
 // DiscriminatorValue implements unions.Discriminator interface
@@ -38,11 +37,16 @@ func (b BankPaymentMethod) DiscriminatorValue() string {
 }
 
 // PaymentMethodRequest is the request body which is a union of payment methods.
-type PaymentMethodRequest unions.Union2[BankPaymentMethod, CreditCardPaymentMethod]
+type PaymentMethodRequest struct {
+	Path struct {
+		// UserID is the ID of the user whose payment method is being updated
+		UserID string `gork:"userId" validate:"required"`
+	}
+	Body unions.Union2[BankPaymentMethod, CreditCardPaymentMethod]
+}
 
 // UpdateUserPaymentMethod handles user payment method update requests.
-func UpdateUserPaymentMethod(_ context.Context, _ *PaymentMethodRequest) (*api.NoContentResponse, error) {
+func UpdateUserPaymentMethod(_ context.Context, _ PaymentMethodRequest) (*struct{}, error) {
 	// Handle user payment method update logic here
-	// The userId would come from path parameters via the context
-	return &api.NoContentResponse{}, nil
+	return nil, nil
 }

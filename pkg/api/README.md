@@ -1,8 +1,8 @@
-# pkg/api - Type-Safe HTTP Handler Adapter
+# pkg/api - Convention Over Configuration HTTP Handler
 
 [![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fapi)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
 
-This package provides a type-safe HTTP handler adapter that bridges between your business logic and HTTP transport layer.
+This package provides a Convention Over Configuration HTTP handler adapter that uses structured request types to eliminate the need for parameter location tags.
 
 ## Installation
 
@@ -10,7 +10,9 @@ This package provides a type-safe HTTP handler adapter that bridges between your
 go get github.com/gork-labs/gork/pkg/api
 ```
 
-## Usage
+## Convention Over Configuration
+
+Instead of using tags to specify parameter locations, use structured request types with standard sections: `Query`, `Body`, `Path`, `Headers`, and `Cookies`.
 
 ### Basic Example
 
@@ -23,36 +25,48 @@ import (
     "github.com/gork-labs/gork/pkg/api"
 )
 
-// Define request and response types
+// User represents the user data structure
+type User struct {
+    // ID is the unique identifier for the user
+    ID    string `gork:"id"`
+    // Name is the user's full name
+    Name  string `gork:"name"`
+    // Email is the user's email address
+    Email string `gork:"email"`
+}
+
+// Convention Over Configuration request structure
 type CreateUserRequest struct {
-    Name  string `json:"name" validate:"required,min=3"`
-    Email string `json:"email" validate:"required,email"`
+    Body struct {
+        // Name is the user's full name
+        Name  string `gork:"name" validate:"required,min=3"`
+        // Email is the user's email address
+        Email string `gork:"email" validate:"required,email"`
+    }
 }
 
 type CreateUserResponse struct {
-    ID    string `json:"id"`
-    Name  string `json:"name"`
-    Email string `json:"email"`
+    Body User
 }
 
 // Implement your business logic
 func CreateUser(ctx context.Context, req CreateUserRequest) (*CreateUserResponse, error) {
-    // Your business logic here
     return &CreateUserResponse{
-        ID:    "user-123",
-        Name:  req.Name,
-        Email: req.Email,
+        Body: User{
+            ID:    "user-123",
+            Name:  req.Body.Name,
+            Email: req.Body.Email,
+        },
     }, nil
 }
 
 func main() {
-    // Create HTTP handler
-    handler := api.HandlerFunc(CreateUser)
+    // Create convention handler
+    factory := api.NewConventionHandlerFactory()
+    adapter := &api.HTTPParameterAdapter{}
+    handler, _ := factory.CreateHandler(adapter, CreateUser)
     
-    // Use with standard library
     http.HandleFunc("/users", handler)
-    
-    // Or with any router that accepts http.HandlerFunc
     http.ListenAndServe(":8080", nil)
 }
 ```
@@ -62,95 +76,73 @@ func main() {
 The adapter automatically handles errors and returns appropriate HTTP responses:
 
 ```go
-func GetUser(ctx context.Context, req GetUserRequest) (*User, error) {
-    user, err := db.GetUser(req.ID)
+func GetUser(ctx context.Context, req GetUserRequest) (*GetUserResponse, error) {
+    user, err := db.GetUser(req.Path.ID)
     if err != nil {
         if errors.Is(err, ErrNotFound) {
-            return nil, api.NewError(http.StatusNotFound, "User not found")
+            return nil, &api.ErrorResponse{Error: "User not found"}
         }
         return nil, err // 500 Internal Server Error
     }
-    return user, nil
+    return &GetUserResponse{Body: user}, nil
 }
 ```
 
-### Request Validation
+### Request Structure
 
-The adapter automatically validates requests using struct tags:
+Use structured sections to organize parameters by their HTTP location:
 
 ```go
 type UpdateUserRequest struct {
-    ID    string `json:"id" validate:"required,uuid"`
-    Name  string `json:"name" validate:"omitempty,min=3,max=100"`
-    Email string `json:"email" validate:"omitempty,email"`
+    Path struct {
+        // UserID is the unique identifier for the user to update
+        UserID string `gork:"user_id" validate:"required,uuid"`
+    }
+    Query struct {
+        // Notify determines if notifications should be sent
+        Notify bool `gork:"notify"`
+    }
+    Headers struct {
+        // Version specifies the API version for the request
+        Version int `gork:"X-User-Version"`
+    }
+    Body struct {
+        // Name is the updated user's full name
+        Name  string `gork:"name" validate:"omitempty,min=3,max=100"`
+        // Email is the updated user's email address
+        Email string `gork:"email" validate:"omitempty,email"`
+    }
 }
 ```
 
-### Parameter Handling
+### Mixed Parameter Example
 
-The adapter supports multiple parameter locations through the `openapi` tag:
+All parameter types in one request:
 
-#### Query Parameters
-
-Query parameters are automatically parsed from the URL for GET and DELETE requests:
-
-```go
-type ListUsersRequest struct {
-    // Using json tag (default behavior)
-    Page     int    `json:"page" validate:"min=1"`
-    PageSize int    `json:"page_size" validate:"min=1,max=100"`
-    
-    // Using openapi tag for explicit query parameters
-    Filter   string `openapi:"filter,in=query"`
-    Sort     string `openapi:"sort_by,in=query"` // Custom parameter name
-}
-
-// Usage: GET /users?page=1&page_size=20&filter=active&sort_by=name
-```
-
-#### Mixed Parameters
-
-The same struct can have parameters from different sources:
-
-```go
-type UpdateUserRequest struct {
-    // From path (handled by router)
-    UserID   string `openapi:"userID,in=path"`
-    
-    // From request body (JSON)
-    Name     string `json:"name"`
-    Email    string `json:"email"`
-    
-    // From query string
-    Notify   bool   `openapi:"notify,in=query"`
-    
-    // From headers (not automatically parsed by adapter)
-    Version  int    `openapi:"X-User-Version,in=header"`
-}
-```
-
-**Note**: The adapter automatically parses in this order:
-1. **Headers** (for all HTTP methods) with `openapi:"name,in=header"`
-2. **JSON body** (for POST/PUT/PATCH requests)
-3. **Query parameters** (for all HTTP methods) with `in=query` or from `json` tags
-
-This parsing order means:
-- Headers are parsed first and can be overridden by body/query values
-- For POST/PUT/PATCH: body values can be overridden by query parameters
-- Path parameters must still be handled by your router
-
-Example with all parameter types:
 ```go
 // POST /users/123?notify=true
 // Headers: X-User-Version: 2
 // Body: {"name": "John", "email": "john@example.com"}
 
 type UpdateUserRequest struct {
-    UserID  string `openapi:"userID,in=path"`      // From router
-    Version int    `openapi:"X-User-Version,in=header"` // Parsed from headers
-    Name    string `json:"name"`                   // From JSON body
-    Email   string `json:"email"`                  // From JSON body  
-    Notify  bool   `openapi:"notify,in=query"`     // From query string
+    Path struct {
+        // UserID comes from the URL path parameter
+        UserID string `gork:"user_id"`
+    }
+    Query struct {
+        // Notify comes from the query string
+        Notify bool `gork:"notify"`
+    }
+    Headers struct {
+        // Version comes from HTTP headers
+        Version int `gork:"X-User-Version"`
+    }
+    Body struct {
+        // Name comes from the JSON request body
+        Name  string `gork:"name"`
+        // Email comes from the JSON request body
+        Email string `gork:"email"`
+    }
 }
 ```
 
@@ -159,7 +151,7 @@ type UpdateUserRequest struct {
 The adapter passes through the HTTP request context:
 
 ```go
-func GetUser(ctx context.Context, req GetUserRequest) (*User, error) {
+func GetUser(ctx context.Context, req GetUserRequest) (*GetUserResponse, error) {
     // Access request-scoped values
     userID := ctx.Value("userID").(string)
     
@@ -171,16 +163,17 @@ func GetUser(ctx context.Context, req GetUserRequest) (*User, error) {
         // Continue processing
     }
     
-    return fetchUser(ctx, req.ID)
+    return fetchUser(ctx, req.Path.ID)
 }
 ```
 
 ## Features
 
+- **Convention Over Configuration**: No need for parameter location tags
 - **Type Safety**: Compile-time type checking for requests and responses
-- **Automatic Validation**: Built-in request validation using struct tags
+- **Automatic Validation**: Built-in request validation using gork tags
 - **Error Handling**: Consistent error responses with proper HTTP status codes
-- **Multi-Source Parameters**: Automatic parsing from headers, body, and query string
+- **Structured Requests**: Clear separation of parameters by HTTP location
 - **Context Propagation**: Full support for context cancellation and values
 - **Framework Agnostic**: Works with any router that accepts `http.HandlerFunc`
 
@@ -194,13 +187,13 @@ func HandlerName(ctx context.Context, req RequestType) (*ResponseType, error)
 
 Where:
 - `ctx` is the request context
-- `req` is your request type (validated automatically)
-- `ResponseType` is your response type (pointer)
+- `req` is your request type with convention sections (validated automatically)
+- `ResponseType` is your response type with convention sections (pointer)
 - `error` is for error handling
 
 ## OpenAPI Integration
 
-This adapter is designed to work with the openapi-gen tool for automatic API documentation generation. The handler signature and struct tags are automatically parsed to generate OpenAPI specifications.
+This adapter automatically generates OpenAPI specifications from convention-based request/response structures using the gork CLI tool.
 
 ## Examples
 

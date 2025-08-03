@@ -282,23 +282,25 @@ func TestDocsHandlerIntegration(t *testing.T) {
 	app := fiber.New()
 	router := NewRouter(app)
 
-	// Test DocsRoute registration
+	// Test DocsRoute registration - should not panic
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("DocsRoute should not panic: %v", r)
+		}
+	}()
+
 	router.DocsRoute("/docs/*")
 	router.DocsRoute("/api-docs/*", api.DocsConfig{
 		Title: "Custom API Documentation",
 	})
 
-	// Verify routes were registered
+	// DocsRoute should not add routes to the metadata registry
+	// as they are infrastructure routes, not business API routes
 	registry := router.GetRegistry()
 	routes := registry.GetRoutes()
 
-	if len(routes) == 0 {
-		t.Error("Expected routes to be registered by DocsRoute")
-	}
-
-	// DocsRoute delegates to TypedRouter, so we expect some routes to be registered
-	// The exact paths depend on the TypedRouter implementation
-	if len(routes) == 0 {
-		t.Error("Expected some routes to be registered by DocsRoute")
+	// Registry should be empty since we haven't registered any business API routes
+	if len(routes) != 0 {
+		t.Errorf("Expected no routes in registry after DocsRoute calls, got %d", len(routes))
 	}
 }

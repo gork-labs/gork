@@ -22,19 +22,32 @@ import (
     "github.com/gork-labs/gork/pkg/api"
 )
 
-type GetUserRequest struct {
-    UserID string `json:"user_id" path:"userId"`
-}
-
+// User represents the user data structure
 type User struct {
-    ID   string `json:"id"`
-    Name string `json:"name"`
+    // ID is the unique identifier for the user
+    ID   string `gork:"id"`
+    // Name is the user's full name
+    Name string `gork:"name"`
 }
 
-func GetUser(ctx context.Context, req GetUserRequest) (User, error) {
-    return User{
-        ID:   req.UserID,
-        Name: "John Doe",
+// Convention Over Configuration request structure
+type GetUserRequest struct {
+    Path struct {
+        // UserID is the unique identifier for the user
+        UserID string `gork:"userId" validate:"required,uuid"`
+    }
+}
+
+type GetUserResponse struct {
+    Body User
+}
+
+func GetUser(ctx context.Context, req GetUserRequest) (*GetUserResponse, error) {
+    return &GetUserResponse{
+        Body: User{
+            ID:   req.Path.UserID,
+            Name: "John Doe",
+        },
     }, nil
 }
 

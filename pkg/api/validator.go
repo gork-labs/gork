@@ -2,38 +2,47 @@ package api
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
 
-// validate is a globally accessible validator instance configured to use JSON tag names.
-var validate *validator.Validate
+// ValidatorConfig allows for dependency injection of validator behavior.
+type ValidatorConfig struct {
+	TagNameFunc func(reflect.StructField) string
+}
 
-func init() {
-	validate = validator.New()
+// DefaultValidatorConfig returns the default validator configuration.
+func DefaultValidatorConfig() ValidatorConfig {
+	return ValidatorConfig{
+		TagNameFunc: defaultTagNameFunc,
+	}
+}
 
-	// Use JSON tag names in validation errors so that field names match request JSON.
-	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-		// Prefer explicit name from `openapi` tag if provided.
-		if openapiTag := fld.Tag.Get("openapi"); openapiTag != "" {
-			info := parseOpenAPITag(openapiTag)
-			if info.Name != "" {
-				return info.Name
-			}
+// defaultTagNameFunc is the default tag name function.
+func defaultTagNameFunc(fld reflect.StructField) string {
+	// Use gork tag for field naming
+	if gorkTag := fld.Tag.Get("gork"); gorkTag != "" {
+		tagInfo := parseGorkTag(gorkTag)
+		if tagInfo.Name != "" {
+			return tagInfo.Name
 		}
+	}
 
-		// Fall back to JSON tag.
-		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
-		if name == "-" {
-			return ""
-		}
-		return name
-	})
+	// Fall back to field name if no gork tag
+	return fld.Name
+}
+
+// NewValidator creates a new validator instance with the given configuration.
+func NewValidator(config ValidatorConfig) *validator.Validate {
+	v := validator.New()
+	if config.TagNameFunc != nil {
+		v.RegisterTagNameFunc(config.TagNameFunc)
+	}
+	return v
 }
 
 // CheckDiscriminatorErrors inspects v (struct pointer or struct) for fields
-// carrying an `openapi:"discriminator=<value>"` tag and returns a map of
+// carrying a `gork:"field_name,discriminator=<value>"` tag and returns a map of
 // field names -> slice of validation error codes. The returned slice will
 // contain either "required" (when the field is empty) or "discriminator"
 // (when value does not match the expected discriminator constant).
@@ -55,14 +64,17 @@ func CheckDiscriminatorErrors(v interface{}) map[string][]string {
 
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
-		discVal, ok := parseDiscriminator(field.Tag.Get("openapi"))
+		gorkTag := field.Tag.Get("gork")
+		discVal, ok := parseDiscriminator(gorkTag)
 		if !ok {
 			continue
 		}
 
-		jsonName := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
-		if jsonName == "" || jsonName == "-" {
-			jsonName = field.Name
+		// Parse gork tag to get field name
+		tagInfo := parseGorkTag(gorkTag)
+		fieldName := tagInfo.Name
+		if fieldName == "" {
+			fieldName = field.Name
 		}
 
 		fv := rv.Field(i)
@@ -73,9 +85,9 @@ func CheckDiscriminatorErrors(v interface{}) map[string][]string {
 		}
 
 		if fv.String() == "" {
-			errs[jsonName] = append(errs[jsonName], "required")
+			errs[fieldName] = append(errs[fieldName], "required")
 		} else if fv.String() != discVal {
-			errs[jsonName] = append(errs[jsonName], "discriminator")
+			errs[fieldName] = append(errs[fieldName], "discriminator")
 		}
 	}
 
