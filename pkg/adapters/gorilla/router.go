@@ -87,17 +87,21 @@ func (wr *Router) Group(prefix string) *Router {
 		sub.Path(toNativePath(newPrefix + path)).Methods(method).Handler(handler)
 	}
 
+	// Create a defensive copy of middleware slice to prevent aliasing
+	middlewareCopy := make([]api.Option, len(wr.middleware))
+	copy(middlewareCopy, wr.middleware)
+
 	return &Router{
 		router:     sub,
 		registry:   wr.registry,
 		prefix:     newPrefix,
-		middleware: wr.middleware,
+		middleware: middlewareCopy,
 		typedRouter: func() *api.TypedRouter[*muxpkg.Router] {
 			tr2 := api.NewTypedRouter[*muxpkg.Router](
 				sub,
 				wr.registry,
 				newPrefix,
-				wr.middleware,
+				middlewareCopy,
 				gorillaParamAdapter{},
 				registerFn,
 			)

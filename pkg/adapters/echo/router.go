@@ -104,18 +104,22 @@ func (r *Router) Group(prefix string) *Router {
 		g.Add(method, nativePath, echosdk.WrapHandler(handler))
 	}
 
+	// Create a defensive copy of middleware slice to prevent aliasing
+	middlewareCopy := make([]api.Option, len(r.middleware))
+	copy(middlewareCopy, r.middleware)
+
 	return &Router{
 		echo:       r.echo,
 		group:      g,
 		registry:   r.registry,
 		prefix:     newPrefix,
-		middleware: r.middleware,
+		middleware: middlewareCopy,
 		typedRouter: func() *api.TypedRouter[*echosdk.Echo] {
 			tr2 := api.NewTypedRouter[*echosdk.Echo](
 				r.echo,
 				r.registry,
 				newPrefix,
-				r.middleware,
+				middlewareCopy,
 				echoParamAdapter{},
 				registerFn,
 			)

@@ -73,18 +73,22 @@ func (r *Router) Group(prefix string) *Router {
 		g.Handle(method, toNativePath(newPrefix+path), ginpkg.WrapH(handler))
 	}
 
+	// Create a defensive copy of middleware slice to prevent aliasing
+	middlewareCopy := make([]api.Option, len(r.middleware))
+	copy(middlewareCopy, r.middleware)
+
 	return &Router{
 		engine:     r.engine,
 		group:      g,
 		registry:   r.registry,
 		prefix:     newPrefix,
-		middleware: r.middleware,
+		middleware: middlewareCopy,
 		typedRouter: func() *api.TypedRouter[*ginpkg.Engine] {
 			tr2 := api.NewTypedRouter[*ginpkg.Engine](
 				r.engine,
 				r.registry,
 				newPrefix,
-				r.middleware,
+				middlewareCopy,
 				ginParamAdapter{},
 				registerFn,
 			)
