@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -111,7 +112,7 @@ func processRequestParameters(reqPtr reflect.Value, r *http.Request, adapter Gen
 	// Decode JSON body first for methods that typically carry one
 	if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
 		if err := json.NewDecoder(r.Body).Decode(reqPtr.Interface()); err != nil {
-			return errors.New("unable to parse request body")
+			return fmt.Errorf("unable to parse request body: %w", err)
 		}
 	}
 

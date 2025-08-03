@@ -89,17 +89,21 @@ func (r *Router) Group(prefix string) *Router {
 		r.mux.HandleFunc(pattern, handler)
 	}
 
+	// Create a defensive copy of middleware slice to prevent aliasing
+	middlewareCopy := make([]api.Option, len(r.middleware))
+	copy(middlewareCopy, r.middleware)
+
 	return &Router{
 		mux:        r.mux,
 		registry:   r.registry,
 		prefix:     newPrefix,
-		middleware: r.middleware,
+		middleware: middlewareCopy,
 		typedRouter: func() *api.TypedRouter[*http.ServeMux] {
 			tr2 := api.NewTypedRouter[*http.ServeMux](
 				r.mux,
 				r.registry,
 				newPrefix,
-				r.middleware,
+				middlewareCopy,
 				stdlibParamAdapter{},
 				registerFn,
 			)

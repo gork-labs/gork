@@ -82,17 +82,21 @@ func (r *Router) Group(prefix string) *Router {
 		r.mux.Method(method, newPrefix+path, handler)
 	}
 
+	// Create a defensive copy of middleware slice to prevent aliasing
+	middlewareCopy := make([]api.Option, len(r.middleware))
+	copy(middlewareCopy, r.middleware)
+
 	return &Router{
 		mux:        r.mux,
 		registry:   r.registry,
 		prefix:     newPrefix,
-		middleware: r.middleware,
+		middleware: middlewareCopy,
 		typedRouter: func() *api.TypedRouter[*chibase.Mux] {
 			tr2 := api.NewTypedRouter[*chibase.Mux](
 				r.mux,
 				r.registry,
 				newPrefix,
-				r.middleware,
+				middlewareCopy,
 				chiParamAdapter{},
 				registerFn,
 			)

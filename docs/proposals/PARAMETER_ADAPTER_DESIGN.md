@@ -134,7 +134,8 @@ func (r *TypedRouter[T]) register[Req any, Resp any](
     handler func(context.Context, Req) (Resp, error),
     opts ...Option,
 ) {
-    allOpts := append(r.middleware, opts...)
+    allOpts := append([]Option{}, r.middleware...)
+    allOpts = append(allOpts, opts...)
     httpHandler, info := CreateHandler(r.adapterFactory, handler, allOpts...)
     
     info.Method = method

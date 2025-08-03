@@ -177,17 +177,21 @@ func (r *Router) Group(prefix string) *Router {
 	g := r.app.Group(prefix)
 	registerFn := createRegisterFn(g, newPrefix)
 
+	// Create a defensive copy of middleware slice to prevent aliasing
+	middlewareCopy := make([]api.Option, len(r.middleware))
+	copy(middlewareCopy, r.middleware)
+
 	return &Router{
 		app:        r.app,
 		registry:   r.registry,
 		prefix:     newPrefix,
-		middleware: r.middleware,
+		middleware: middlewareCopy,
 		typedRouter: func() *api.TypedRouter[*fiber.App] {
 			tr2 := api.NewTypedRouter[*fiber.App](
 				r.app,
 				r.registry,
 				newPrefix,
-				r.middleware,
+				middlewareCopy,
 				fiberParamAdapter{},
 				registerFn,
 			)
