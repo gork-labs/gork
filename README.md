@@ -243,6 +243,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🚧 Webhook signature verification utilities
 - 🚧 OpenAPI documentation serving middleware
 - 🚧 Enhanced union type discriminator support
+- 🚧 Support event streams (websocket, SSE)
+- 🚧 Build-time parser generation to minimize reflection
+- 🚧 Build-time validation generation for `validate` tags
 
 ## Support
 
