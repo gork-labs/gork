@@ -114,7 +114,7 @@ jobs:
         run: |
           echo "Generating OpenAPI ${{ matrix.format }} spec for ${{ matrix.source.dir }}..."
 
-          ./bin/gork openapi generate --build ${{ matrix.source.dir }}/cmd/openapi_export --source ${{ matrix.source.dir }} --output ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }} --format ${{ matrix.format }}
+          ./bin/gork openapi generate --build ${{ matrix.source.dir }}/cmd/openapi_export --source ${{ matrix.source.dir }} --output ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }}
 
       - name: Validate OpenAPI spec with Swagger validator
         id: swagger-validate

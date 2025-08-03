@@ -10,15 +10,25 @@ import (
 )
 
 type testReq struct {
-	ID string `json:"id" openapi:"name=id,in=path"`
+	Path struct {
+		ID string `gork:"id"`
+	}
 }
 
 type testResp struct {
-	OK bool `json:"ok"`
+	Body struct {
+		OK bool `gork:"ok"`
+	}
 }
 
-func getUser(ctx context.Context, r testReq) (testResp, error) {
-	return testResp{OK: true}, nil
+func getUser(ctx context.Context, r testReq) (*testResp, error) {
+	return &testResp{
+		Body: struct {
+			OK bool `gork:"ok"`
+		}{
+			OK: true,
+		},
+	}, nil
 }
 
 func TestRegistryAndOpenAPI(t *testing.T) {

@@ -22,7 +22,6 @@ func TestGenerateConfig(t *testing.T) {
 		OutputPath: "test-output",
 		Title:      "Test API",
 		Version:    "1.0.0",
-		Format:     "json",
 		ConfigPath: "",
 	}
 
@@ -227,16 +226,14 @@ func TestWriteOutput(t *testing.T) {
 			name: "stdout output",
 			config: &GenerateConfig{
 				OutputPath: "-",
-				Format:     "json",
-			},
+					},
 			wantErr: false,
 		},
 		{
 			name: "nonexistent directory",
 			config: &GenerateConfig{
 				OutputPath: "/nonexistent/dir/output.json",
-				Format:     "json",
-			},
+					},
 			wantErr: true,
 		},
 	}
@@ -264,27 +261,23 @@ func TestWriteOutputToFile(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *GenerateConfig
-		format string
 	}{
 		{
 			name: "json output",
 			config: &GenerateConfig{
 				OutputPath: filepath.Join(tmpDir, "test.json"),
 			},
-			format: "json",
 		},
 		{
 			name: "yaml output",
 			config: &GenerateConfig{
 				OutputPath: filepath.Join(tmpDir, "test.yaml"),
 			},
-			format: "yaml",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.config.Format = tt.format
 			err := writeOutput(spec, tt.config)
 			if err != nil {
 				t.Errorf("writeOutput() error = %v", err)
@@ -464,9 +457,6 @@ func TestNewGenerateCommand(t *testing.T) {
 	if flags.Lookup("version") == nil {
 		t.Error("version flag not registered")
 	}
-	if flags.Lookup("format") == nil {
-		t.Error("format flag not registered")
-	}
 	if flags.Lookup("config") == nil {
 		t.Error("config flag not registered")
 	}
@@ -486,8 +476,7 @@ func TestGenerateSpec(t *testing.T) {
 				OutputPath: "-",
 				Title:      "Test API",
 				Version:    "1.0.0",
-				Format:     "json",
-			},
+					},
 			wantErr: false,
 		},
 		{
@@ -568,8 +557,7 @@ func TestWriteOutputDirectoryHandling(t *testing.T) {
 			name: "file exists where directory expected",
 			config: &GenerateConfig{
 				OutputPath: filepath.Join(tmpDir, "file.txt", "output.json"),
-				Format:     "json",
-			},
+					},
 			wantErr: true,
 		},
 	}
@@ -610,7 +598,6 @@ func main() {}`
 		OutputPath: "-",
 		Title:      "Test API",
 		Version:    "1.0.0",
-		Format:     "json",
 	}
 
 	err := GenerateSpec(config)
@@ -639,7 +626,6 @@ func TestNewGenerateCommandExecution(t *testing.T) {
 		"--output", "-",
 		"--title", "Test API",
 		"--version", "1.0.0",
-		"--format", "json",
 	})
 
 	err := cmd.Execute()
@@ -747,7 +733,6 @@ func TestWriteOutputErrorPaths(t *testing.T) {
 
 	config := &GenerateConfig{
 		OutputPath: filepath.Join(readOnlyDir, "output.json"),
-		Format:     "json",
 	}
 
 	err := writeOutput(spec, config)
@@ -787,7 +772,6 @@ func TestGenerateSpecErrorPaths(t *testing.T) {
 		OutputPath: "-",
 		Title:      "Test API",
 		Version:    "1.0.0",
-		Format:     "json",
 	}
 
 	err := GenerateSpec(config)
@@ -888,8 +872,7 @@ func TestRemainingCoverage(t *testing.T) {
 		// Try to write to a path that doesn't exist
 		config := &GenerateConfig{
 			OutputPath: "/nonexistent/directory/output.json",
-			Format:     "json",
-		}
+			}
 
 		err := writeOutput(spec, config)
 		if err == nil {
@@ -1118,8 +1101,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			OutputPath: "-",
 			Title:      "Test API",
 			Version:    "1.0.0",
-			Format:     "json",
-		}
+			}
 
 		err := GenerateSpec(config)
 		if err == nil {
@@ -1146,8 +1128,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			OutputPath: tmpFile,
 			Title:      "Test API",
 			Version:    "1.0.0",
-			Format:     "json",
-		}
+			}
 
 		err := GenerateSpec(config)
 		if err == nil {
@@ -1231,8 +1212,9 @@ func TestWriteSpecWithWriterErrors(t *testing.T) {
 		mockWriter := &MockSpecWriter{
 			YAMLMarshalError: fmt.Errorf("yaml marshal error"),
 		}
+		mockJSONMarshaler := &mockJSONMarshaler{marshalError: false, unmarshalError: false}
 
-		err := writeSpecWithWriter(f, "yaml", spec, mockWriter)
+		err := writeSpecWithWriter(f, "yaml", spec, mockWriter, mockJSONMarshaler)
 		if err == nil {
 			t.Error("Expected YAML marshal error")
 		}
@@ -1257,8 +1239,7 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 
 		config := &GenerateConfig{
 			OutputPath: "/some/path/output.json",
-			Format:     "json",
-		}
+			}
 
 		err := writeOutputWithFS(spec, config, mockFS)
 		if err == nil {
@@ -1276,8 +1257,7 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 
 		config := &GenerateConfig{
 			OutputPath: "/nonexistent/directory/output.json",
-			Format:     "json",
-		}
+			}
 
 		err := writeOutputWithFS(spec, config, mockFS)
 		if err == nil {
@@ -1288,3 +1268,155 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 		}
 	})
 }
+
+func TestGetFormatFromPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "json extension",
+			path:     "test.json",
+			expected: "json",
+		},
+		{
+			name:     "yaml extension",
+			path:     "test.yaml",
+			expected: "yaml",
+		},
+		{
+			name:     "yml extension",
+			path:     "test.yml",
+			expected: "yaml",
+		},
+		{
+			name:     "no extension defaults to json",
+			path:     "test",
+			expected: "json",
+		},
+		{
+			name:     "unknown extension defaults to json",
+			path:     "test.txt",
+			expected: "json",
+		},
+		{
+			name:     "stdout defaults to json",
+			path:     "-",
+			expected: "json",
+		},
+		{
+			name:     "path with directory",
+			path:     "/path/to/spec.yaml",
+			expected: "yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getFormatFromPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("getFormatFromPath(%s) = %s; want %s", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestWriteSpecWithWriterYAMLJSONErrors(t *testing.T) {
+	tmpFile := createTempFile(t)
+	defer tmpFile.Close()
+
+	spec := &api.OpenAPISpec{
+		OpenAPI:    "3.1.0",
+		Info:       api.Info{Title: "Test", Version: "1.0.0"},
+		Paths:      map[string]*api.PathItem{},
+		Components: &api.Components{Schemas: map[string]*api.Schema{}},
+	}
+
+	// Test normal YAML case to ensure the new code paths are covered
+	mockWriter := &mockSpecWriter{shouldFail: false}
+	mockJSONMarshaler := &mockJSONMarshaler{marshalError: false, unmarshalError: false}
+	err := writeSpecWithWriter(tmpFile, "yaml", spec, mockWriter, mockJSONMarshaler)
+	if err != nil {
+		t.Errorf("Expected no error for normal YAML case, got: %v", err)
+	}
+
+	// Test YAML writer error
+	mockWriter.shouldFail = true
+	err = writeSpecWithWriter(tmpFile, "yaml", spec, mockWriter, mockJSONMarshaler)
+	if err == nil {
+		t.Error("Expected error when YAML writer fails")
+	}
+	if !strings.Contains(err.Error(), "mock yaml marshal error") {
+		t.Errorf("Expected mock yaml marshal error, got: %v", err)
+	}
+
+	// Reset for next tests
+	tmpFile.Seek(0, 0)
+	tmpFile.Truncate(0)
+	mockWriter.shouldFail = false
+
+	// Test JSON marshal error
+	mockJSONMarshaler.marshalError = true
+	err = writeSpecWithWriter(tmpFile, "yaml", spec, mockWriter, mockJSONMarshaler)
+	if err == nil {
+		t.Error("Expected error when JSON marshal fails")
+	}
+	if !strings.Contains(err.Error(), "marshal to json") {
+		t.Errorf("Expected 'marshal to json' error, got: %v", err)
+	}
+
+	// Test JSON unmarshal error
+	mockJSONMarshaler.marshalError = false
+	mockJSONMarshaler.unmarshalError = true
+	err = writeSpecWithWriter(tmpFile, "yaml", spec, mockWriter, mockJSONMarshaler)
+	if err == nil {
+		t.Error("Expected error when JSON unmarshal fails")
+	}
+	if !strings.Contains(err.Error(), "unmarshal json to map") {
+		t.Errorf("Expected 'unmarshal json to map' error, got: %v", err)
+	}
+}
+
+// createTempFile creates a temporary file for testing
+func createTempFile(t *testing.T) *os.File {
+	tmpFile := filepath.Join(t.TempDir(), "test.yaml")
+	f, err := os.Create(tmpFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+// mockSpecWriter for testing error paths
+type mockSpecWriter struct {
+	shouldFail bool
+}
+
+func (w *mockSpecWriter) MarshalYAML(v any) ([]byte, error) {
+	if w.shouldFail {
+		return nil, fmt.Errorf("mock yaml marshal error")
+	}
+	return []byte("test: yaml"), nil
+}
+
+// mockJSONMarshaler for testing JSON error paths
+type mockJSONMarshaler struct {
+	marshalError   bool
+	unmarshalError bool
+}
+
+func (m *mockJSONMarshaler) Marshal(v any) ([]byte, error) {
+	if m.marshalError {
+		return nil, fmt.Errorf("mock json marshal error")
+	}
+	return json.Marshal(v)
+}
+
+func (m *mockJSONMarshaler) Unmarshal(data []byte, v any) error {
+	if m.unmarshalError {
+		return fmt.Errorf("mock json unmarshal error")
+	}
+	return json.Unmarshal(data, v)
+}
+

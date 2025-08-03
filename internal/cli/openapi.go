@@ -40,7 +40,6 @@ func newGenerateCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.OutputPath, "output", "openapi.json", "Path to output file or '-' for stdout")
 	cmd.Flags().StringVar(&config.Title, "title", "API", "API title")
 	cmd.Flags().StringVar(&config.Version, "version", "0.1.0", "API version")
-	cmd.Flags().StringVar(&config.Format, "format", "json", "Output format: json or yaml")
 	cmd.Flags().StringVar(&config.ConfigPath, "config", "", "Path to .gork.yml config file")
 
 	return cmd
@@ -53,7 +52,6 @@ type GenerateConfig struct {
 	OutputPath string
 	Title      string
 	Version    string
-	Format     string
 	ConfigPath string
 }
 
@@ -336,13 +334,32 @@ func (fs *DefaultFileSystem) Create(name string) (*os.File, error) {
 
 var defaultFileSystem FileSystem = &DefaultFileSystem{}
 
+// getFormatFromPath determines the output format based on file extension.
+func getFormatFromPath(path string) string {
+	if path == "-" {
+		return "json" // default for stdout
+	}
+
+	ext := filepath.Ext(path)
+	switch ext {
+	case ".yaml", ".yml":
+		return "yaml"
+	case ".json":
+		return "json"
+	default:
+		return "json" // default fallback
+	}
+}
+
 func writeOutput(spec *api.OpenAPISpec, config *GenerateConfig) error {
 	return writeOutputWithFS(spec, config, defaultFileSystem)
 }
 
 func writeOutputWithFS(spec *api.OpenAPISpec, config *GenerateConfig, fs FileSystem) error {
+	format := getFormatFromPath(config.OutputPath)
+
 	if config.OutputPath == "-" {
-		return writeSpec(os.Stdout, config.Format, spec)
+		return writeSpec(os.Stdout, format, spec)
 	}
 
 	outDir := filepath.Dir(config.OutputPath)
@@ -360,12 +377,18 @@ func writeOutputWithFS(spec *api.OpenAPISpec, config *GenerateConfig, fs FileSys
 		return err
 	}
 	defer func() { _ = f.Close() }()
-	return writeSpec(f, config.Format, spec)
+	return writeSpec(f, format, spec)
 }
 
 // SpecWriter interface for dependency injection.
 type SpecWriter interface {
 	MarshalYAML(v any) ([]byte, error)
+}
+
+// JSONMarshaler interface for dependency injection.
+type JSONMarshaler interface {
+	Marshal(v any) ([]byte, error)
+	Unmarshal(data []byte, v any) error
 }
 
 // DefaultSpecWriter implements SpecWriter.
@@ -376,20 +399,49 @@ func (w *DefaultSpecWriter) MarshalYAML(v any) ([]byte, error) {
 	return yaml.Marshal(v)
 }
 
-var defaultSpecWriter SpecWriter = &DefaultSpecWriter{}
+// DefaultJSONMarshaler implements JSONMarshaler.
+type DefaultJSONMarshaler struct{}
 
-func writeSpec(w *os.File, format string, spec *api.OpenAPISpec) error {
-	return writeSpecWithWriter(w, format, spec, defaultSpecWriter)
+// Marshal marshals a value to JSON.
+func (m *DefaultJSONMarshaler) Marshal(v any) ([]byte, error) {
+	return json.Marshal(v)
 }
 
-func writeSpecWithWriter(w *os.File, format string, spec *api.OpenAPISpec, writer SpecWriter) error {
+// Unmarshal unmarshals JSON data into a value.
+func (m *DefaultJSONMarshaler) Unmarshal(data []byte, v any) error {
+	return json.Unmarshal(data, v)
+}
+
+var (
+	defaultSpecWriter    SpecWriter    = &DefaultSpecWriter{}
+	defaultJSONMarshaler JSONMarshaler = &DefaultJSONMarshaler{}
+)
+
+func writeSpec(w *os.File, format string, spec *api.OpenAPISpec) error {
+	return writeSpecWithWriter(w, format, spec, defaultSpecWriter, defaultJSONMarshaler)
+}
+
+func writeSpecWithWriter(w *os.File, format string, spec *api.OpenAPISpec, writer SpecWriter, jsonMarshaler JSONMarshaler) error {
 	switch format {
 	case "json":
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(spec)
 	case "yaml", "yml":
-		data, err := writer.MarshalYAML(spec)
+		// First marshal to JSON to get clean representation
+		jsonData, err := jsonMarshaler.Marshal(spec)
+		if err != nil {
+			return fmt.Errorf("marshal to json: %w", err)
+		}
+
+		// Unmarshal JSON into a generic map to remove empty fields
+		var genericMap map[string]interface{}
+		if unmarshalErr := jsonMarshaler.Unmarshal(jsonData, &genericMap); unmarshalErr != nil {
+			return fmt.Errorf("unmarshal json to map: %w", unmarshalErr)
+		}
+
+		// Marshal the clean map to YAML
+		data, err := writer.MarshalYAML(genericMap)
 		if err != nil {
 			return err
 		}

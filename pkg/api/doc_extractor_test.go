@@ -107,15 +107,15 @@ func TestStoreFieldDocByJSONTag_WithJSONTag(t *testing.T) {
 	extractor := NewDocExtractor()
 	doc := &Documentation{Fields: make(map[string]FieldDoc)}
 
-	// Create a field with json tag
+	// Create a field with gork tag (the function name is misleading but kept for compatibility)
 	field := &ast.Field{
 		Names: []*ast.Ident{{Name: "TestField"}},
-		Tag:   &ast.BasicLit{Value: "`json:\"test_field,omitempty\"`"},
+		Tag:   &ast.BasicLit{Value: "`gork:\"test_field,omitempty\"`"},
 	}
 
 	extractor.storeFieldDocByJSONTag(field, "test description", doc)
 
-	// Should add entry for the JSON tag name
+	// Should add entry for the gork tag name
 	if len(doc.Fields) != 1 {
 		t.Errorf("Expected 1 field stored, got %d", len(doc.Fields))
 	}
@@ -131,15 +131,15 @@ func TestStoreFieldDocByJSONTag_WithJSONTagNoComma(t *testing.T) {
 	extractor := NewDocExtractor()
 	doc := &Documentation{Fields: make(map[string]FieldDoc)}
 
-	// Create a field with json tag without comma
+	// Create a field with gork tag without comma
 	field := &ast.Field{
 		Names: []*ast.Ident{{Name: "TestField"}},
-		Tag:   &ast.BasicLit{Value: "`json:\"test_field\"`"},
+		Tag:   &ast.BasicLit{Value: "`gork:\"test_field\"`"},
 	}
 
 	extractor.storeFieldDocByJSONTag(field, "test description", doc)
 
-	// Should add entry for the JSON tag name
+	// Should add entry for the gork tag name
 	if len(doc.Fields) != 1 {
 		t.Errorf("Expected 1 field stored, got %d", len(doc.Fields))
 	}
@@ -155,15 +155,15 @@ func TestStoreFieldDocByJSONTag_EmptyJSONName(t *testing.T) {
 	extractor := NewDocExtractor()
 	doc := &Documentation{Fields: make(map[string]FieldDoc)}
 
-	// Create a field with empty json name (just comma)
+	// Create a field with empty gork name (just comma)
 	field := &ast.Field{
 		Names: []*ast.Ident{{Name: "TestField"}},
-		Tag:   &ast.BasicLit{Value: "`json:\",omitempty\"`"},
+		Tag:   &ast.BasicLit{Value: "`gork:\",omitempty\"`"},
 	}
 
 	extractor.storeFieldDocByJSONTag(field, "test description", doc)
 
-	// Should not add any entries since the JSON name is empty
+	// Should not add any entries since the gork name is empty
 	if len(doc.Fields) != 0 {
 		t.Errorf("Expected no fields stored, got %d", len(doc.Fields))
 	}
@@ -276,6 +276,127 @@ func TestProcessStructFields_NoFields(t *testing.T) {
 	}
 }
 
+func TestExtractFieldDescription_WithCommentOnly(t *testing.T) {
+	extractor := NewDocExtractor()
+	field := &ast.Field{
+		Names: []*ast.Ident{{Name: "CommentField"}},
+		Doc:   nil, // Ensure Doc is nil
+		Comment: &ast.CommentGroup{List: []*ast.Comment{{
+			Text: "// This is a line comment.",
+		}}},
+	}
+
+	desc := extractor.extractFieldDescription(field)
+	if desc != "This is a line comment." {
+		t.Errorf("Expected 'This is a line comment.', got %q", desc)
+	}
+}
+
+func TestProcessStructFields_EmptyDescription(t *testing.T) {
+	extractor := NewDocExtractor()
+	doc := &Documentation{Fields: make(map[string]FieldDoc)}
+
+	// Struct with a field that has no doc or comment
+	st := &ast.StructType{
+		Fields: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names:   []*ast.Ident{{Name: "NoDocField"}},
+					Doc:     nil,
+					Comment: nil,
+				},
+			},
+		},
+	}
+
+	extractor.processStructFields(st, doc)
+
+	// No documentation should be stored for NoDocField
+	if len(doc.Fields) != 0 {
+		t.Errorf("Expected no fields stored, got %d", len(doc.Fields))
+	}
+}
+
+func TestProcessDirectoryEntry_ParseFileError(t *testing.T) {
+	extractor := NewDocExtractor()
+	fset := token.NewFileSet()
+
+	// Create a temporary directory
+	dir := t.TempDir()
+
+	// Create a malformed Go file in the temporary directory
+	malformedFilePath := filepath.Join(dir, "malformed.go")
+	if err := os.WriteFile(malformedFilePath, []byte(`package main
+func main { // Syntax error: missing parentheses
+	}
+`), 0o644); err != nil {
+		t.Fatalf("Failed to write malformed file: %v", err)
+	}
+
+	// Create a valid Go file in the same directory
+	validFilePath := filepath.Join(dir, "valid.go")
+	if err := os.WriteFile(validFilePath, []byte(`package main
+
+// MyFunc is a valid function
+func MyFunc() {}
+`), 0o644); err != nil {
+		t.Fatalf("Failed to write valid file: %v", err)
+	}
+
+	// Process the directory entry (which is a directory)
+	err := extractor.processDirectoryEntry(dir, &mockDirEntry{name: filepath.Base(dir), isDir: true}, fset)
+	if err != nil {
+		t.Errorf("Expected no error for directory with malformed file, got %v", err)
+	}
+
+	// Verify that only the valid file's documentation was extracted
+	doc := extractor.ExtractFunctionDoc("MyFunc")
+	if doc.Description != "MyFunc is a valid function" {
+		t.Errorf("Expected 'MyFunc is a valid function', got %q", doc.Description)
+	}
+}
+
+func TestProcessGenDecl_NoDocComment(t *testing.T) {
+	extractor := NewDocExtractor()
+	decl := &ast.GenDecl{
+		Doc: nil, // No doc comment
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: ast.NewIdent("MyType"),
+				Type: &ast.StructType{},
+			},
+		},
+	}
+
+	// Expect no panic or error, and no documentation stored
+	extractor.processGenDecl(decl)
+	if _, ok := extractor.docs["MyType"]; ok {
+		t.Error("Expected no documentation to be stored for a type without a doc comment")
+	}
+}
+
+func TestProcessGenDecl_NonTypeDeclaration(t *testing.T) {
+	extractor := NewDocExtractor()
+	decl := &ast.GenDecl{
+		Doc: &ast.CommentGroup{List: []*ast.Comment{{
+			Text: "// Some var",
+		}}},
+		Tok: token.VAR, // Not token.TYPE
+		Specs: []ast.Spec{
+			&ast.ValueSpec{
+				Names: []*ast.Ident{ast.NewIdent("myVar")},
+			},
+		},
+	}
+
+	// Expect no panic or error, and no documentation stored
+	extractor.processGenDecl(decl)
+	if _, ok := extractor.docs["myVar"]; ok {
+		t.Error("Expected no documentation to be stored for a non-type declaration")
+	}
+}
+
 // Mock dir entry for testing
 type mockDirEntry struct {
 	name  string
@@ -286,3 +407,94 @@ func (m *mockDirEntry) Name() string               { return m.name }
 func (m *mockDirEntry) IsDir() bool                { return m.isDir }
 func (m *mockDirEntry) Type() os.FileMode          { return 0 }
 func (m *mockDirEntry) Info() (os.FileInfo, error) { return nil, nil }
+
+func TestGetAllTypeNames(t *testing.T) {
+	extractor := NewDocExtractor()
+
+	// Add some mock documentation
+	extractor.docs = map[string]Documentation{
+		"TypeWithFields": {
+			Description: "A type with fields",
+			Fields: map[string]FieldDoc{
+				"field1": {Description: "Field 1"},
+				"field2": {Description: "Field 2"},
+			},
+		},
+		"TypeWithoutFields": {
+			Description: "A type without fields",
+			Fields:      map[string]FieldDoc{},
+		},
+		"Function": {
+			Description: "A function",
+			// No Fields map - this should be excluded
+		},
+	}
+
+	names := extractor.GetAllTypeNames()
+
+	// Should only return types that have field documentation
+	expectedNames := []string{"TypeWithFields"}
+	if len(names) != len(expectedNames) {
+		t.Errorf("Expected %d type names, got %d: %v", len(expectedNames), len(names), names)
+	}
+
+	// Check that the returned name is correct
+	found := false
+	for _, name := range names {
+		if name == "TypeWithFields" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected 'TypeWithFields' to be in the result")
+	}
+}
+
+func TestStoreFieldDocByJSONTag_WithGorkTag(t *testing.T) {
+	extractor := NewDocExtractor()
+	doc := &Documentation{Fields: make(map[string]FieldDoc)}
+
+	// Create a field with gork tag
+	field := &ast.Field{
+		Names: []*ast.Ident{{Name: "UserID"}},
+		Tag:   &ast.BasicLit{Value: "`gork:\"userID\"`"},
+	}
+
+	extractor.storeFieldDocByJSONTag(field, "ID of the user", doc)
+
+	// Should add entry for the gork tag name
+	if len(doc.Fields) != 1 {
+		t.Errorf("Expected 1 field stored, got %d", len(doc.Fields))
+	}
+
+	if fieldDoc, exists := doc.Fields["userID"]; !exists {
+		t.Error("Expected field 'userID' to be stored")
+	} else if fieldDoc.Description != "ID of the user" {
+		t.Errorf("Expected description 'ID of the user', got '%s'", fieldDoc.Description)
+	}
+}
+
+func TestStoreFieldDocByJSONTag_WithGorkTagAndOptions(t *testing.T) {
+	extractor := NewDocExtractor()
+	doc := &Documentation{Fields: make(map[string]FieldDoc)}
+
+	// Create a field with gork tag with options
+	field := &ast.Field{
+		Names: []*ast.Ident{{Name: "Username"}},
+		Tag:   &ast.BasicLit{Value: "`gork:\"username,omitempty\"`"},
+	}
+
+	extractor.storeFieldDocByJSONTag(field, "Username of the user", doc)
+
+	// Should add entry for the gork tag name (before comma)
+	if len(doc.Fields) != 1 {
+		t.Errorf("Expected 1 field stored, got %d", len(doc.Fields))
+	}
+
+	if fieldDoc, exists := doc.Fields["username"]; !exists {
+		t.Error("Expected field 'username' to be stored")
+	} else if fieldDoc.Description != "Username of the user" {
+		t.Errorf("Expected description 'Username of the user', got '%s'", fieldDoc.Description)
+	}
+}

@@ -3,13 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"reflect"
-
-	"github.com/go-playground/validator/v10"
 )
 
 // JSONEncoder interface allows dependency injection for testing.
@@ -29,11 +26,9 @@ func (f defaultJSONEncoderFactory) NewEncoder(w io.Writer) JSONEncoder {
 	return json.NewEncoder(w)
 }
 
-var defaultEncoderFactory JSONEncoderFactory = defaultJSONEncoderFactory{}
-
 // createHandlerFromAny validates the provided handler, wraps it in an
 // http.HandlerFunc that performs request deserialization/parameter extraction,
-// and constructs a corresponding RouteInfo structure.
+// and constructs a corresponding RouteInfo structure using Convention Over Configuration.
 func createHandlerFromAny(adapter GenericParameterAdapter[*http.Request], handler interface{}, opts ...Option) (http.HandlerFunc, *RouteInfo) {
 	v := reflect.ValueOf(handler)
 	t := v.Type()
@@ -42,16 +37,20 @@ func createHandlerFromAny(adapter GenericParameterAdapter[*http.Request], handle
 	validateHandlerSignature(t)
 
 	reqType := t.In(1)
-	respType := t.Out(0)
+	var respType reflect.Type
+
+	// Handle cases where ResponseType is nil (error-only handlers)
+	if t.NumOut() == 2 {
+		respType = t.Out(0)
+	}
+	// For error-only handlers, respType remains nil
 
 	// Prepare options and build RouteInfo
 	info := buildRouteInfo(handler, reqType, respType, opts)
 
-	// Build the http.HandlerFunc
-	httpHandler := func(w http.ResponseWriter, r *http.Request) {
-		executeHandler(w, r, v, reqType, adapter)
-	}
-
+	// Use Convention Over Configuration handler factory
+	factory := NewConventionHandlerFactory()
+	httpHandler, _ := factory.CreateHandler(adapter, handler, opts...)
 	return httpHandler, info
 }
 
@@ -65,11 +64,31 @@ func validateHandlerSignature(t reflect.Type) {
 	if !t.In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
 		panic("first handler parameter must be context.Context")
 	}
-	if t.NumOut() != 2 {
-		panic("handler must return (Response, error)")
+
+	// Allow either (ResponseType, error) or (error) returns
+	numOut := t.NumOut()
+	if numOut != 1 && numOut != 2 {
+		panic("handler must return either (error) or (*ResponseType, error)")
 	}
-	if !t.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
-		panic("second handler return value must be error")
+
+	// Last return must be error
+	lastOut := t.Out(numOut - 1)
+	if !lastOut.Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+		panic("last return value must be error")
+	}
+
+	// If two returns, first must be struct or pointer to struct
+	if numOut == 2 {
+		firstOut := t.Out(0)
+		if firstOut.Kind() == reflect.Ptr {
+			// Pointer to struct
+			if firstOut.Elem().Kind() != reflect.Struct {
+				panic("response type must be struct or pointer to struct")
+			}
+		} else if firstOut.Kind() != reflect.Struct {
+			// Value must be struct
+			panic("response type must be struct or pointer to struct")
+		}
 	}
 }
 
@@ -89,165 +108,37 @@ func buildRouteInfo(handler interface{}, reqType, respType reflect.Type, opts []
 	}
 }
 
-func executeHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqType reflect.Type, adapter GenericParameterAdapter[*http.Request]) {
-	// Instantiate request struct
-	reqPtr := reflect.New(reqType)
-
-	// Process request parameters
-	if err := processRequestParameters(reqPtr, r, adapter); err != nil {
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
-		return
+// validateBodyUsageForMethod checks that Body sections are not used with read-only HTTP methods.
+func validateBodyUsageForMethod(method string, reqType reflect.Type) {
+	// Check if this is a read-only HTTP method
+	readOnlyMethods := map[string]bool{
+		"GET":     true,
+		"HEAD":    true,
+		"OPTIONS": true,
 	}
 
-	// Validate request
-	if err := validateRequest(w, reqPtr.Interface()); err != nil {
-		return // Error already written to response
+	if !readOnlyMethods[method] {
+		return // Method allows body, no validation needed
 	}
 
-	// Call handler and process response
-	processHandlerResponse(w, r, handlerValue, reqPtr)
-}
-
-func processRequestParameters(reqPtr reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) error {
-	// Decode JSON body first for methods that typically carry one
-	if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
-		if err := json.NewDecoder(r.Body).Decode(reqPtr.Interface()); err != nil {
-			return fmt.Errorf("unable to parse request body: %w", err)
-		}
+	// For read-only methods, check if the request type has a Body field
+	if reqType == nil {
+		return // No request type, no validation needed
 	}
 
-	// Parse path, query, header, cookie parameters (these override JSON body values)
-	if adapter != nil {
-		parsePathParameters(reqPtr, r, adapter)
-		parseOtherParameters(reqPtr, r, adapter)
+	if reqType.Kind() == reflect.Ptr {
+		reqType = reqType.Elem()
 	}
 
-	return nil
-}
-
-func parsePathParameters(reqPtr reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) {
-	vStruct := reqPtr.Elem()
-	tStruct := vStruct.Type()
-	for i := 0; i < tStruct.NumField(); i++ {
-		field := tStruct.Field(i)
-		openapiTag := field.Tag.Get("openapi")
-		if openapiTag == "" {
-			continue
-		}
-		tagInfo := parseOpenAPITag(openapiTag)
-		if tagInfo.In != "path" {
-			continue
-		}
-		name := getParameterName(tagInfo, field)
-		if val, ok := adapter.Path(r, name); ok {
-			fieldValue := vStruct.Field(i)
-			setFieldValue(fieldValue, field, val, []string{val})
-		}
-	}
-}
-
-func parseOtherParameters(reqPtr reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) {
-	vStruct := reqPtr.Elem()
-	tStruct := vStruct.Type()
-	for i := 0; i < tStruct.NumField(); i++ {
-		field := tStruct.Field(i)
-		openapiTag := field.Tag.Get("openapi")
-		if openapiTag == "" {
-			continue
-		}
-		tagInfo := parseOpenAPITag(openapiTag)
-		name := getParameterName(tagInfo, field)
-
-		var val string
-		var ok bool
-		switch tagInfo.In {
-		case "query":
-			val, ok = adapter.Query(r, name)
-		case "header":
-			val, ok = adapter.Header(r, name)
-		case "cookie":
-			val, ok = adapter.Cookie(r, name)
-		}
-		if ok {
-			setFieldValue(vStruct.Field(i), field, val, []string{val})
-		}
-	}
-}
-
-func getParameterName(tagInfo struct{ Name, In string }, field reflect.StructField) string {
-	name := tagInfo.Name
-	if name == "" {
-		name = field.Tag.Get("json")
-		if name == "" || name == "-" {
-			name = field.Name
-		}
-	}
-	return name
-}
-
-func validateRequest(w http.ResponseWriter, req interface{}) error {
-	// Custom discriminator validation
-	discErrs := CheckDiscriminatorErrors(req)
-	if len(discErrs) > 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(ValidationErrorResponse{
-			Error:   "Validation failed",
-			Details: discErrs,
-		})
-		return errors.New("discriminator validation failed")
+	if reqType.Kind() != reflect.Struct {
+		return // Not a struct, no Body field possible
 	}
 
-	// Standard validation
-	if err := validate.Struct(req); err != nil {
-		validationErrors := make(map[string][]string)
-		var verrs validator.ValidationErrors
-		if errors.As(err, &verrs) {
-			for _, ve := range verrs {
-				field := ve.Field()
-				validationErrors[field] = append(validationErrors[field], ve.Tag())
-			}
+	// Check for Body field
+	for i := 0; i < reqType.NumField(); i++ {
+		field := reqType.Field(i)
+		if field.Name == "Body" {
+			panic(fmt.Sprintf("Handler for %s method cannot have a Body section. Read-only HTTP methods (GET, HEAD, OPTIONS) should use Path, Query, or Headers sections instead.", method))
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(ValidationErrorResponse{
-			Error:   "Validation failed",
-			Details: validationErrors,
-		})
-		return errors.New("validation failed")
-	}
-
-	return nil
-}
-
-func processHandlerResponse(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value) {
-	processHandlerResponseWithFactory(w, r, handlerValue, reqPtr, defaultEncoderFactory)
-}
-
-func processHandlerResponseWithFactory(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value, factory JSONEncoderFactory) {
-	// Call the handler via reflection
-	results := handlerValue.Call([]reflect.Value{
-		reflect.ValueOf(r.Context()),
-		reqPtr.Elem(),
-	})
-
-	// Extract response and error
-	respVal := results[0]
-	errInterface := results[1].Interface()
-
-	if errInterface != nil {
-		if errVal, ok := errInterface.(error); ok {
-			writeError(w, http.StatusInternalServerError, errVal.Error())
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "unknown error")
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	encoder := factory.NewEncoder(w)
-	if err := encoder.Encode(respVal.Interface()); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to encode response")
 	}
 }

@@ -9,19 +9,51 @@ import (
 
 // Test types for TypedRouter testing
 type TestRouterRequest struct {
-	ID   string `json:"id" openapi:"name=id,in=path"`
-	Name string `json:"name" validate:"required"`
+	Path struct {
+		ID string `gork:"id"`
+	}
+	Body struct {
+		Name string `gork:"name" validate:"required"`
+	}
+}
+
+type TestRouterGetRequest struct {
+	Path struct {
+		ID string `gork:"id"`
+	}
+	Query struct {
+		Filter string `gork:"filter"`
+	}
 }
 
 type TestRouterResponse struct {
-	Message string `json:"message"`
-	Success bool   `json:"success"`
+	Body struct {
+		Message string `gork:"message"`
+		Success bool   `gork:"success"`
+	}
 }
 
-func testRouterHandler(ctx context.Context, req TestRouterRequest) (TestRouterResponse, error) {
-	return TestRouterResponse{
-		Message: "Hello " + req.Name,
-		Success: true,
+func testRouterHandler(ctx context.Context, req TestRouterRequest) (*TestRouterResponse, error) {
+	return &TestRouterResponse{
+		Body: struct {
+			Message string `gork:"message"`
+			Success bool   `gork:"success"`
+		}{
+			Message: "Hello " + req.Body.Name,
+			Success: true,
+		},
+	}, nil
+}
+
+func testRouterGetHandler(ctx context.Context, req TestRouterGetRequest) (*TestRouterResponse, error) {
+	return &TestRouterResponse{
+		Body: struct {
+			Message string `gork:"message"`
+			Success bool   `gork:"success"`
+		}{
+			Message: "Hello " + req.Path.ID,
+			Success: true,
+		},
 	}, nil
 }
 
@@ -155,18 +187,19 @@ func TestTypedRouter_HTTPMethods(t *testing.T) {
 		name     string
 		method   string
 		register func(string, interface{}, ...Option)
+		handler  interface{}
 	}{
-		{"GET", "GET", router.Get},
-		{"POST", "POST", router.Post},
-		{"PUT", "PUT", router.Put},
-		{"DELETE", "DELETE", router.Delete},
-		{"PATCH", "PATCH", router.Patch},
+		{"GET", "GET", router.Get, testRouterGetHandler},
+		{"POST", "POST", router.Post, testRouterHandler},
+		{"PUT", "PUT", router.Put, testRouterHandler},
+		{"DELETE", "DELETE", router.Delete, testRouterHandler},
+		{"PATCH", "PATCH", router.Patch, testRouterHandler},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initialCalls := len(mockRegister.calls)
-			tt.register("/test", testRouterHandler)
+			tt.register("/test", tt.handler)
 
 			if len(mockRegister.calls) != initialCalls+1 {
 				t.Errorf("Expected %d registration calls, got %d", initialCalls+1, len(mockRegister.calls))
@@ -201,7 +234,7 @@ func TestTypedRouter_HTTPMethodsWithOptions(t *testing.T) {
 	)
 
 	// Test with options
-	router.Get("/test", testRouterHandler, WithTags("api", "test"), WithBasicAuth())
+	router.Get("/test", testRouterGetHandler, WithTags("api", "test"), WithBasicAuth())
 
 	if len(mockRegister.calls) != 1 {
 		t.Fatalf("Expected 1 registration call, got %d", len(mockRegister.calls))
@@ -274,7 +307,7 @@ func TestTypedRouter_RegistrationWithPrefix(t *testing.T) {
 		mockRegister.register,
 	)
 
-	router.Get("/users", testRouterHandler)
+	router.Get("/users", testRouterGetHandler)
 
 	if len(mockRegister.calls) != 1 {
 		t.Fatalf("Expected 1 registration call, got %d", len(mockRegister.calls))
@@ -304,7 +337,7 @@ func TestTypedRouter_MiddlewarePropagation(t *testing.T) {
 		mockRegister.register,
 	)
 
-	router.Get("/test", testRouterHandler, WithTags("local"))
+	router.Get("/test", testRouterGetHandler, WithTags("local"))
 
 	if len(mockRegister.calls) != 1 {
 		t.Fatalf("Expected 1 registration call, got %d", len(mockRegister.calls))
@@ -362,7 +395,7 @@ func TestTypedRouter_EmptyPath(t *testing.T) {
 		mockRegister.register,
 	)
 
-	router.Get("", testRouterHandler)
+	router.Get("", testRouterGetHandler)
 
 	if len(mockRegister.calls) != 1 {
 		t.Fatalf("Expected 1 registration call, got %d", len(mockRegister.calls))
@@ -408,8 +441,8 @@ func TestTypedRouter_RouteInfoGeneration(t *testing.T) {
 		t.Errorf("RequestType = %v, want %v", info.RequestType, reflect.TypeOf(TestRouterRequest{}))
 	}
 
-	if info.ResponseType != reflect.TypeOf(TestRouterResponse{}) {
-		t.Errorf("ResponseType = %v, want %v", info.ResponseType, reflect.TypeOf(TestRouterResponse{}))
+	if info.ResponseType != reflect.TypeOf((*TestRouterResponse)(nil)) {
+		t.Errorf("ResponseType = %v, want %v", info.ResponseType, reflect.TypeOf((*TestRouterResponse)(nil)))
 	}
 }
 
@@ -427,6 +460,6 @@ func BenchmarkTypedRouter_Registration(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		router.Get("/test", testRouterHandler)
+		router.Get("/test", testRouterGetHandler)
 	}
 }

@@ -2,6 +2,7 @@
 
 # Coverage enforcement script for CI/CD pipelines
 # Usage: ./scripts/check-coverage.sh [module_path] [threshold] [--html]
+# HTML coverage reports are always generated automatically
 
 set -e
 
@@ -112,11 +113,9 @@ if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
         fi
     fi
 
-    # Generate HTML report if requested
-    if [ "$GENERATE_HTML" = true ]; then
-        go tool cover -html="coverage.out" -o coverage.html
-        echo -e "${GREEN}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
-    fi
+    # Always generate HTML report
+    go tool cover -html="coverage.out" -o coverage.html
+    echo -e "${GREEN}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
 
     exit 0
 else
@@ -135,15 +134,13 @@ else
         echo -e "   2. Test all error paths and edge cases"
         echo -e "   3. Test all conditional branches (if/else/switch)"
         echo -e "   4. Add integration tests for complex workflows"
-        echo -e "   5. Generate HTML report: go tool cover -html=coverage.out -o coverage.html"
+        echo -e "   5. View detailed HTML report at ${MODULE_PATH}/coverage.html"
         echo -e "${BLUE}🎯 Goal: Every line of code should be tested!${NC}"
     fi
 
-    # Generate HTML report even on failure if requested
-    if [ "$GENERATE_HTML" = true ]; then
-        go tool cover -html="coverage.out" -o coverage.html
-        echo -e "${YELLOW}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
-    fi
+    # Always generate HTML report even on failure
+    go tool cover -html="coverage.out" -o coverage.html
+    echo -e "${YELLOW}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
 
     exit 1
 fi

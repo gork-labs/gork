@@ -45,3 +45,4 @@ coverage.out
 .gorka/storage/thinking/*.json
 !.gorka/storage/thinking/.gitkeep
 !.gorka/storage/thinking/.gitignore
+/gork

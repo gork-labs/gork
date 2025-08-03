@@ -12,16 +12,6 @@
         "tags": [
           "auth"
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Success",
@@ -55,6 +45,26 @@
         "security": [
           {
             "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Limit is the maximum number of users to return",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Offset is the number of users to skip",
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -95,6 +105,7 @@
             "name": "return-to",
             "in": "query",
             "required": false,
+            "description": "ReturnTo specifies where to redirect after user creation",
             "schema": {
               "type": "string"
             }
@@ -105,7 +116,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateUserRequest"
+                "$ref": "#/components/schemas/CreateUserBody"
               }
             }
           }
@@ -116,7 +127,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+                  "$ref": "#/components/schemas/UserType"
                 }
               }
             }
@@ -150,6 +161,7 @@
             "name": "userId",
             "in": "path",
             "required": true,
+            "description": "UserID is the ID of the user to retrieve",
             "schema": {
               "type": "string"
             }
@@ -161,7 +173,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+                  "$ref": "#/components/schemas/UserType"
                 }
               }
             }
@@ -190,19 +202,21 @@
         ],
         "parameters": [
           {
-            "name": "X-User-Version",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
             "name": "userId",
             "in": "path",
             "required": true,
+            "description": "UserID is the ID of the user to update",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-User-Version",
+            "in": "header",
+            "required": false,
+            "description": "Version specifies the user version for concurrency control",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -211,7 +225,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateUserRequest"
+                "$ref": "#/components/schemas/UpdateUserBody"
               }
             }
           }
@@ -222,7 +236,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+                  "$ref": "#/components/schemas/UserType"
                 }
               }
             }
@@ -246,32 +260,37 @@
         ],
         "parameters": [
           {
-            "name": "force",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
             "name": "userId",
             "in": "path",
             "required": true,
+            "description": "UserID is the ID of the user to delete",
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "description": "Force specifies whether to force deletion",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NoContentResponse"
-                }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteUserBody"
               }
             }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -312,21 +331,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentMethodRequest"
+                "$ref": "#/components/schemas/BankOrCreditBody"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NoContentResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -357,6 +369,7 @@
             "name": "userId",
             "in": "path",
             "required": true,
+            "description": "UserID is the ID of the user whose preferences are being updated",
             "schema": {
               "type": "string"
             }
@@ -367,21 +380,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateUserPreferencesRequest"
+                "$ref": "#/components/schemas/UpdateUserPreferencesBody"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NoContentResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -398,37 +404,48 @@
   },
   "components": {
     "schemas": {
-      "AdminUserResponse": {
+      "AdminUserType": {
         "type": "object",
-        "title": "AdminUserResponse",
+        "title": "AdminUserType",
         "properties": {
           "createdAt": {
-            "type": "string"
+            "type": "string",
+            "description": "CreatedAt is when the user was created"
           },
           "updatedAt": {
-            "type": "string"
+            "type": "string",
+            "description": "UpdatedAt is when the user was last updated"
           },
           "userID": {
-            "type": "string"
+            "type": "string",
+            "description": "UserID is the ID of the user"
           },
           "username": {
-            "type": "string"
+            "type": "string",
+            "description": "Username is the username of the user"
           }
         },
-        "description": "AdminUserResponse represents an admin user with additional fields."
+        "description": "AdminUserType represents admin user data structure."
+      },
+      "BankOrCreditBody": {
+        "type": "object",
+        "title": "BankOrCreditBody"
       },
       "BankPaymentMethod": {
         "type": "object",
         "title": "BankPaymentMethod",
         "properties": {
           "accountNumber": {
-            "type": "string"
+            "type": "string",
+            "description": "AccountNumber is the bank account number"
           },
           "routingNumber": {
-            "type": "string"
+            "type": "string",
+            "description": "RoutingNumber is the bank routing number"
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "Type is the payment method type discriminator"
           }
         },
         "required": [
@@ -436,11 +453,11 @@
           "accountNumber",
           "routingNumber"
         ],
-        "description": "BankPaymentMethod returns the BankPaymentMethod value if present, nil otherwise."
+        "description": "BankPaymentMethod represents a bank account payment method."
       },
-      "CreateUserRequest": {
+      "CreateUserBody": {
         "type": "object",
-        "title": "CreateUserRequest",
+        "title": "CreateUserBody",
         "properties": {
           "username": {
             "type": "string",
@@ -449,79 +466,79 @@
         },
         "required": [
           "username"
-        ],
-        "description": "CreateUserRequest represents the request body for creating a user."
+        ]
       },
       "CreditCardPaymentMethod": {
         "type": "object",
         "title": "CreditCardPaymentMethod",
         "properties": {
           "cardNumber": {
-            "type": "string"
+            "type": "string",
+            "description": "CardNumber is the credit card number"
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "Type is the payment method type discriminator"
           }
         },
         "required": [
           "type",
           "cardNumber"
         ],
-        "description": "CreditCardPaymentMethod returns the CreditCardPaymentMethod value if present, nil otherwise."
+        "description": "CreditCardPaymentMethod represents a credit card payment method."
+      },
+      "DeleteUserBody": {
+        "type": "object",
+        "title": "DeleteUserBody",
+        "properties": {
+          "userID": {
+            "type": "string",
+            "description": "UserID is the ID of the user to delete"
+          }
+        },
+        "required": [
+          "userID"
+        ]
       },
       "ErrorResponse": {
         "type": "object",
+        "title": "ErrorResponse",
         "properties": {
           "details": {
-            "type": "object"
+            "type": "object",
+            "description": "Additional error details"
           },
           "error": {
-            "type": "string"
+            "type": "string",
+            "description": "Error message"
           }
         },
         "required": [
           "error"
-        ]
+        ],
+        "description": "Generic error response structure"
       },
       "ListUsersResponse": {
+        "title": "ListUsersResponse",
         "oneOf": [
           {
             "type": "array",
-            "title": "[]AdminUserResponse",
-            "description": "Array of AdminUserResponse",
+            "title": "[]AdminUserType",
+            "description": "Array of AdminUserType",
             "items": {
-              "$ref": "#/components/schemas/AdminUserResponse"
+              "$ref": "#/components/schemas/AdminUserType"
             }
           },
           {
             "type": "array",
-            "title": "[]UserResponse",
-            "description": "Array of UserResponse",
+            "title": "[]UserType",
+            "description": "Array of UserType",
             "items": {
-              "$ref": "#/components/schemas/UserResponse"
+              "$ref": "#/components/schemas/UserType"
             }
           }
         ],
         "description": "ListUsersResponse represents the response for listing users."
-      },
-      "LoginRequest": {
-        "type": "object",
-        "title": "LoginRequest",
-        "properties": {
-          "password": {
-            "type": "string",
-            "description": "Password is the user's password"
-          },
-          "username": {
-            "type": "string",
-            "description": "Username is the user's username"
-          }
-        },
-        "required": [
-          "username",
-          "password"
-        ],
-        "description": "LoginRequest represents the request body for the login endpoint."
       },
       "LoginResponse": {
         "type": "object",
@@ -534,38 +551,38 @@
         },
         "description": "LoginResponse represents the response body for the login endpoint."
       },
-      "NoContentResponse": {
+      "UpdateUserBody": {
         "type": "object",
-        "title": "NoContentResponse"
-      },
-      "PaymentMethodRequest": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/BankPaymentMethod"
+        "title": "UpdateUserBody",
+        "properties": {
+          "userID": {
+            "type": "string",
+            "description": "UserID is the ID of the user to update"
           },
-          {
-            "$ref": "#/components/schemas/CreditCardPaymentMethod"
+          "username": {
+            "type": "string",
+            "description": "Username is the new username for the user"
           }
-        ],
-        "description": "PaymentMethodRequest is the request body which is a union of payment methods."
-      },
-      "Union2_BankPaymentMethod_CreditCardPaymentMethod": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/BankPaymentMethod"
-          },
-          {
-            "$ref": "#/components/schemas/CreditCardPaymentMethod"
-          }
+        },
+        "required": [
+          "userID",
+          "username"
         ]
       },
-      "UpdateUserPreferencesRequest": {
+      "UpdateUserPreferencesBody": {
         "type": "object",
-        "title": "UpdateUserPreferencesRequest",
+        "title": "UpdateUserPreferencesBody",
         "properties": {
           "paymentMethod": {
-            "$ref": "#/components/schemas/Union2_BankPaymentMethod_CreditCardPaymentMethod",
-            "description": "Preferences contains the user's updated preferences Payment methods are set in the \"paymentMethods\" field PaymentMethod contains the user's payment method"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BankPaymentMethod"
+              },
+              {
+                "$ref": "#/components/schemas/CreditCardPaymentMethod"
+              }
+            ],
+            "description": "PaymentMethod contains the user's payment method"
           },
           "primaryNotificationChannel": {
             "type": "string",
@@ -580,31 +597,11 @@
         "required": [
           "paymentMethod",
           "primaryNotificationChannel"
-        ],
-        "description": "UpdateUserPreferencesRequest represents the request for updating user preferences."
+        ]
       },
-      "UpdateUserRequest": {
+      "UserType": {
         "type": "object",
-        "title": "UpdateUserRequest",
-        "properties": {
-          "userID": {
-            "type": "string",
-            "description": "UserID is the ID of the user to update"
-          },
-          "username": {
-            "type": "string",
-            "description": "Username is the new username for the user"
-          }
-        },
-        "required": [
-          "userID",
-          "username"
-        ],
-        "description": "UpdateUserRequest represents the request body for updating a user."
-      },
-      "UserResponse": {
-        "type": "object",
-        "title": "UserResponse",
+        "title": "UserType",
         "properties": {
           "userID": {
             "type": "string",
@@ -615,21 +612,25 @@
             "description": "Username is the username of the user"
           }
         },
-        "description": "UserResponse represents the response for user operations."
+        "description": "UserType represents user data structure."
       },
       "ValidationErrorResponse": {
         "type": "object",
+        "title": "ValidationErrorResponse",
         "properties": {
           "details": {
-            "type": "object"
+            "type": "object",
+            "description": "Field-level validation errors (maps field names to arrays of error messages)"
           },
           "error": {
-            "type": "string"
+            "type": "string",
+            "description": "Error message"
           }
         },
         "required": [
           "error"
-        ]
+        ],
+        "description": "Validation error response with field-level details"
       }
     },
     "securitySchemes": {

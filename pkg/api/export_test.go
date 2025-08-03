@@ -46,16 +46,26 @@ func TestSetExportConfig(t *testing.T) {
 }
 
 func TestExportOpenAPISpec(t *testing.T) {
-	// Simple test types local to this function
+	// Convention Over Configuration test types
 	type ExportReq struct {
-		Name string `json:"name"`
+		Body struct {
+			Name string `gork:"name"`
+		}
 	}
 	type ExportResp struct {
-		Message string `json:"message"`
+		Body struct {
+			Message string `gork:"message"`
+		}
 	}
 
-	handler := func(ctx context.Context, req ExportReq) (ExportResp, error) {
-		return ExportResp{Message: "Hello " + req.Name}, nil
+	handler := func(ctx context.Context, req ExportReq) (*ExportResp, error) {
+		return &ExportResp{
+			Body: struct {
+				Message string `gork:"message"`
+			}{
+				Message: "Hello " + req.Body.Name,
+			},
+		}, nil
 	}
 
 	// Create test registry with proper RouteInfo
@@ -66,7 +76,7 @@ func TestExportOpenAPISpec(t *testing.T) {
 		Handler:      handler,
 		HandlerName:  "handler",
 		RequestType:  reflect.TypeOf(ExportReq{}),
-		ResponseType: reflect.TypeOf(ExportResp{}),
+		ResponseType: reflect.TypeOf((*ExportResp)(nil)),
 		Options:      &HandlerOption{},
 	})
 

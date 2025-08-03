@@ -27,7 +27,18 @@
       "WebFetch(domain:golangci-lint.run)",
       "Bash(./scripts/coverage-all.sh:*)",
       "Bash(./scripts/check-coverage.sh:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(./cmd/gork/gork openapi generate:*)",
+      "Bash(../gork openapi generate:*)",
+      "Bash(rg:*)",
+      "Bash(./bin/gork openapi generate:*)",
+      "Bash(./scripts/lint-module.sh:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(./scripts/coverage-module.sh:*)",
+      "Bash(./gork openapi generate:*)",
+      "Bash(diff:*)",
+      "Bash(GORK_EXPORT=1 go run -tags openapi ./cmd/openapi_export)",
+      "WebFetch(domain:spec.openapis.org)"
     ],
     "deny": []
   }

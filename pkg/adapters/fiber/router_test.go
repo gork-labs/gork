@@ -78,8 +78,20 @@ func TestRouterHTTPMethods(t *testing.T) {
 	app := fiber.New()
 	router := NewRouter(app)
 
-	handler := func(ctx context.Context, req struct{}) (string, error) {
-		return "test response", nil
+	type TestMethodResponse struct {
+		Body struct {
+			Message string `gork:"message"`
+		}
+	}
+
+	handler := func(ctx context.Context, req struct{}) (*TestMethodResponse, error) {
+		return &TestMethodResponse{
+			Body: struct {
+				Message string `gork:"message"`
+			}{
+				Message: "test response",
+			},
+		}, nil
 	}
 
 	// Test all HTTP methods
@@ -569,7 +581,13 @@ func TestDocsRoute(t *testing.T) {
 	app := fiber.New()
 	router := NewRouter(app)
 
-	// Test basic DocsRoute
+	// Test basic DocsRoute - should not panic
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("DocsRoute should not panic: %v", r)
+		}
+	}()
+
 	router.DocsRoute("/docs/*")
 
 	// Test DocsRoute with config
@@ -577,12 +595,14 @@ func TestDocsRoute(t *testing.T) {
 		Title: "Custom API Docs",
 	})
 
-	// Verify routes were registered
+	// DocsRoute should not add routes to the metadata registry
+	// as they are infrastructure routes, not business API routes
 	registry := router.GetRegistry()
 	routes := registry.GetRoutes()
 
-	if len(routes) == 0 {
-		t.Error("Expected routes to be registered by DocsRoute")
+	// Registry should be empty since we haven't registered any business API routes
+	if len(routes) != 0 {
+		t.Errorf("Expected no routes in registry after DocsRoute calls, got %d", len(routes))
 	}
 }
 
@@ -609,8 +629,20 @@ func TestRegisterFnCoverage(t *testing.T) {
 	router := NewRouter(app)
 
 	// Register a simple handler to trigger registerFn execution
-	handler := func(ctx context.Context, req struct{}) (string, error) {
-		return "test", nil
+	type SimpleResponse struct {
+		Body struct {
+			Message string `gork:"message"`
+		}
+	}
+
+	handler := func(ctx context.Context, req struct{}) (*SimpleResponse, error) {
+		return &SimpleResponse{
+			Body: struct {
+				Message string `gork:"message"`
+			}{
+				Message: "test",
+			},
+		}, nil
 	}
 
 	router.Get("/coverage-test", handler)

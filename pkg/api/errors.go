@@ -8,6 +8,11 @@ type ErrorResponse struct {
 
 // ValidationErrorResponse represents validation error responses with field-level details.
 type ValidationErrorResponse struct {
-	Error   string              `json:"error"`
+	Message string              `json:"error"`
 	Details map[string][]string `json:"details,omitempty"`
+}
+
+// Error implements the error interface for ValidationErrorResponse.
+func (v *ValidationErrorResponse) Error() string {
+	return v.Message
 }

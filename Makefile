@@ -118,7 +118,7 @@ openapi-gen: openapi-build
 	@if [ -d "examples/cmd/openapi_export" ]; then \
 		echo "Generating OpenAPI specs for examples..."; \
 		./bin/gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output ./examples/openapi.json --title "API" --version "1.0.0"; \
-		./bin/gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output ./examples/openapi.yaml --format yaml --title "API" --version "1.0.0"; \
+		./bin/gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output ./examples/openapi.yaml --title "API" --version "1.0.0"; \
 	fi
 
 # Validate OpenAPI specs with Swagger validator API

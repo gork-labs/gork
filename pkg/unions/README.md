@@ -38,9 +38,9 @@ type PhoneLogin struct {
 type LoginRequest unions.Union2[EmailLogin, PhoneLogin]
 
 func main() {
-    // Create with email
+    // Create with email login
     req := LoginRequest{
-        Value: EmailLogin{
+        A: &EmailLogin{
             Email:    "user@example.com",
             Password: "secret",
         },
@@ -56,11 +56,11 @@ func main() {
     json.Unmarshal(data, &decoded)
     
     // Type-safe access
-    switch v := decoded.Value.(type) {
-    case EmailLogin:
-        fmt.Printf("Email login: %s\n", v.Email)
-    case PhoneLogin:
-        fmt.Printf("Phone login: %s\n", v.Phone)
+    switch {
+    case decoded.A != nil:
+        fmt.Printf("Email login: %s\n", decoded.A.Email)
+    case decoded.B != nil:
+        fmt.Printf("Phone login: %s\n", decoded.B.Phone)
     }
 }
 ```
@@ -102,12 +102,12 @@ type ValidatedRequest unions.Union2[
 
 ### Discriminators
 
-For OpenAPI generation, you can add discriminator information:
+For OpenAPI generation, you can add discriminator information using gork tags:
 
 ```go
 type PaymentMethod struct {
-    Type string `json:"type" openapi:"discriminator"`
-    Data unions.Union3[CreditCard, BankAccount, PayPal] `json:"data"`
+    Type string `gork:"type,discriminator=payment"`
+    Data unions.Union3[CreditCard, BankAccount, PayPal] `gork:"data"`
 }
 ```
 
@@ -118,27 +118,30 @@ type PaymentMethod struct {
 All union types provide:
 
 - `MarshalJSON() ([]byte, error)` - JSON marshaling
-- `UnmarshalJSON([]byte) error` - JSON unmarshaling
-- `Value` field - Contains the actual value
+- `UnmarshalJSON([]byte) error` - JSON unmarshaling  
+- `A`, `B` (and `C`, `D` for larger unions) - Pointer fields for each variant
+- `Validate(*validator.Validate) error` - Built-in validation
 
 ### Type Checking
 
-Use type switches or type assertions to work with union values:
+Use nil checks to determine which variant is active:
 
 ```go
-union := Union2[string, int]{Value: "hello"}
-
-// Type switch
-switch v := union.Value.(type) {
-case string:
-    fmt.Println("String:", v)
-case int:
-    fmt.Println("Int:", v)
+union := Union2[string, int]{
+    A: &"hello",  // Set first variant
 }
 
-// Type assertion
-if str, ok := union.Value.(string); ok {
-    fmt.Println("It's a string:", str)
+// Check which variant is active
+switch {
+case union.A != nil:
+    fmt.Println("String:", *union.A)
+case union.B != nil:
+    fmt.Println("Int:", *union.B)
+}
+
+// Direct access (with nil check)
+if union.A != nil {
+    fmt.Println("It's a string:", *union.A)
 }
 ```
 

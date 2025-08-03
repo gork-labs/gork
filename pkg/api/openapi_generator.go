@@ -54,7 +54,8 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		if spec.Paths[path] == nil {
 			spec.Paths[path] = &PathItem{}
 		}
-		op := buildOperation(route, spec.Components)
+		generator := NewConventionOpenAPIGenerator(spec, NewDocExtractor())
+		op := generator.buildConventionOperation(route, spec.Components)
 
 		// Security mapping
 		applySecurityToOperation(route, spec, op)
@@ -116,88 +117,6 @@ func attachOperation(item *PathItem, method string, op *Operation) {
 	}
 }
 
-func buildOperation(route *RouteInfo, comps *Components) *Operation {
-	operation := &Operation{
-		OperationID: route.HandlerName,
-	}
-	if route.Options != nil {
-		operation.Tags = route.Options.Tags
-	}
-
-	// Parameters
-	operation.Parameters = extractParameters(route.RequestType, comps.Schemas)
-
-	// Auto-add path params not declared in struct
-	existing := map[string]struct{}{}
-	for _, p := range operation.Parameters {
-		if p.In == "path" {
-			existing[p.Name] = struct{}{}
-		}
-	}
-	for _, v := range extractPathVars(route.Path) {
-		if _, ok := existing[v]; !ok {
-			operation.Parameters = append(operation.Parameters, Parameter{
-				Name:     v,
-				In:       "path",
-				Required: true,
-				Schema:   &Schema{Type: "string"},
-			})
-		}
-	}
-
-	// Request body
-	if route.Method == "POST" || route.Method == "PUT" || route.Method == "PATCH" {
-		schema := reflectTypeToSchema(route.RequestType, comps.Schemas)
-		operation.RequestBody = &RequestBody{
-			Required: true,
-			Content: map[string]MediaType{
-				"application/json": {Schema: schema},
-			},
-		}
-	}
-
-	// 200 response
-	respSchema := reflectTypeToSchema(route.ResponseType, comps.Schemas)
-	operation.Responses = map[string]*Response{
-		"200": {
-			Description: "Success",
-			Content: map[string]MediaType{
-				"application/json": {Schema: respSchema},
-			},
-		},
-		"400": {Ref: "#/components/responses/BadRequest"},
-		"422": {Ref: "#/components/responses/UnprocessableEntity"},
-		"500": {Ref: "#/components/responses/InternalServerError"},
-	}
-
-	// Ensure standard component responses exist
-	ensureStdResponses(comps)
-
-	// Ensure error schemas are registered once
-	if _, ok := comps.Schemas["ErrorResponse"]; !ok {
-		comps.Schemas["ErrorResponse"] = &Schema{
-			Type: "object",
-			Properties: map[string]*Schema{
-				"error":   {Type: "string"},
-				"details": {Type: "object"},
-			},
-			Required: []string{"error"},
-		}
-	}
-	if _, ok := comps.Schemas["ValidationErrorResponse"]; !ok {
-		comps.Schemas["ValidationErrorResponse"] = &Schema{
-			Type: "object",
-			Properties: map[string]*Schema{
-				"error":   {Type: "string"},
-				"details": {Type: "object"},
-			},
-			Required: []string{"error"},
-		}
-	}
-
-	return operation
-}
-
 // ensureStdResponses populates common error responses in components.
 func ensureStdResponses(comps *Components) {
 	if comps.Responses == nil {
@@ -230,35 +149,9 @@ func reflectTypeToSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 // reflectTypeToSchemaInternal is the internal implementation that allows us to control
 // whether pointer types should be treated as nullable.
 func reflectTypeToSchemaInternal(t reflect.Type, registry map[string]*Schema, makePointerNullable bool) *Schema {
-	// Handle pointer types - these are nullable in OpenAPI 3.1 only if makePointerNullable is true
-	if t.Kind() == reflect.Ptr {
-		if makePointerNullable {
-			underlyingSchema := reflectTypeToSchemaInternal(t.Elem(), registry, true)
-			return makeNullableSchema(underlyingSchema)
-		}
-		// For top-level types, just unwrap the pointer without making it nullable
-		return reflectTypeToSchemaInternal(t.Elem(), registry, true)
-	}
-
-	// Check for built-in or user-defined union types
-	if isUnionType(t) || isUnionStruct(t) {
-		return handleUnionType(t, registry)
-	}
-
-	// Check if this type is already registered
-	if schema := checkExistingType(t, registry); schema != nil {
-		return schema
-	}
-
-	//nolint:exhaustive // Only handle specific types, default case covers the rest
-	switch t.Kind() {
-	case reflect.Struct:
-		return buildStructSchema(t, registry)
-	case reflect.Slice, reflect.Array:
-		return buildArraySchema(t, registry)
-	default:
-		return buildBasicTypeSchemaWithRegistry(t, registry)
-	}
+	// Use the new refactored schema generator for better testability
+	generator := NewSchemaGenerator()
+	return generator.GenerateSchema(t, registry, makePointerNullable)
 }
 
 // makeNullableSchema creates a nullable version of the given schema according to OpenAPI 3.1 spec.
@@ -305,7 +198,13 @@ func makeNullableSchema(originalSchema *Schema) *Schema {
 }
 
 func handleUnionType(t reflect.Type, registry map[string]*Schema) *Schema {
-	u := generateUnionSchema(t, registry)
+	// Create a simple conversion from registry map to Components
+	components := &Components{Schemas: registry}
+
+	// Use the convention generator for union schema generation
+	generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
+	u := generator.generateUnionSchema(t, components)
+
 	rawName := t.Name()
 	typeName := sanitizeSchemaName(rawName)
 	if typeName != "" {
@@ -327,41 +226,9 @@ func checkExistingType(t reflect.Type, registry map[string]*Schema) *Schema {
 }
 
 func buildStructSchema(t reflect.Type, registry map[string]*Schema) *Schema {
-	s := &Schema{
-		Type:       "object",
-		Properties: map[string]*Schema{},
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		if f.PkgPath != "" { // unexported
-			continue
-		}
-
-		// Skip parameter-only fields
-		if isOpenAPIParam(f) {
-			continue
-		}
-
-		// Handle embedded structs
-		if f.Anonymous && f.Type.Kind() == reflect.Struct && f.Tag.Get("json") == "" {
-			processEmbeddedStruct(f, s, registry)
-			continue
-		}
-
-		// Process regular field
-		processStructField(f, s, registry)
-	}
-
-	// Register named types
-	rawName := t.Name()
-	typeName := sanitizeSchemaName(rawName)
-	if typeName != "" {
-		s.Title = typeName
-		registry[typeName] = s
-		return &Schema{Ref: "#/components/schemas/" + typeName}
-	}
-	return s
+	// Use the refactored builder for better testability
+	builder := NewStructSchemaBuilder()
+	return builder.BuildSchema(t, registry)
 }
 
 func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string]*Schema) {
@@ -389,7 +256,7 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 	fieldSchema := reflectTypeToSchemaInternal(f.Type, registry, true)
 
 	// Handle discriminator values
-	if discVal, ok := parseDiscriminator(f.Tag.Get("openapi")); ok {
+	if discVal, ok := parseDiscriminator(f.Tag.Get("gork")); ok {
 		fieldSchema.Enum = []string{discVal}
 	}
 
@@ -399,8 +266,16 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 		applyValidationConstraints(fieldSchema, validateTag, f.Type, s, f)
 	}
 
-	jsonName := getFieldJSONName(f)
-	s.Properties[jsonName] = fieldSchema
+	// Try gork tag first, then fall back to field name
+	gorkTag := f.Tag.Get("gork")
+	var fieldName string
+	if gorkTag != "" {
+		fieldName = parseGorkTag(gorkTag).Name
+	}
+	if fieldName == "" {
+		fieldName = f.Name
+	}
+	s.Properties[fieldName] = fieldSchema
 }
 
 func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
@@ -414,35 +289,81 @@ func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
 	return &Schema{Title: title, Description: desc, Type: "array", Items: itemSchema}
 }
 
-func buildBasicTypeSchema(t reflect.Type) *Schema {
-	//nolint:exhaustive // All relevant cases are handled, exhaustive check is incorrect
-	switch t.Kind() {
-	case reflect.String:
-		return &Schema{Type: "string"}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return &Schema{Type: "integer"}
-	case reflect.Float32, reflect.Float64:
-		return &Schema{Type: "number"}
-	case reflect.Bool:
-		return &Schema{Type: "boolean"}
-	case reflect.Uintptr:
-		return &Schema{Type: "integer", Description: "Pointer-sized integer"}
-	case reflect.Complex64, reflect.Complex128:
-		return &Schema{Type: "object", Description: "Complex number"}
-	case reflect.Chan:
-		return &Schema{Type: "object", Description: "Channel"}
-	case reflect.Func:
-		return &Schema{Type: "object", Description: "Function"}
-	case reflect.Interface:
-		return &Schema{Type: "object", Description: "Interface"}
-	case reflect.Map:
-		return &Schema{Type: "object", Description: "Map with dynamic keys"}
-	case reflect.UnsafePointer:
-		return &Schema{Type: "object", Description: "Unsafe pointer"}
-	default:
-		return &Schema{Type: "object"}
+// BasicTypeMapper defines the interface for mapping Go types to OpenAPI schemas.
+type BasicTypeMapper interface {
+	MapType(reflect.Kind) *Schema
+}
+
+// defaultBasicTypeMapper implements the default type mapping.
+type defaultBasicTypeMapper struct{}
+
+func (m defaultBasicTypeMapper) MapType(kind reflect.Kind) *Schema {
+	return mapBasicKind(kind)
+}
+
+// mapBasicKind maps Go kinds to OpenAPI schema information.
+func mapBasicKind(kind reflect.Kind) *Schema {
+	if schema := mapBasicKindDirect(kind); schema != nil {
+		return schema
 	}
+	return mapAdvancedKind(kind)
+}
+
+// mapBasicKindDirect handles basic Go types directly.
+func mapBasicKindDirect(kind reflect.Kind) *Schema {
+	if kind == reflect.String {
+		return &Schema{Type: "string"}
+	}
+	if kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 ||
+		kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 {
+		return &Schema{Type: "integer"}
+	}
+	if kind == reflect.Float32 || kind == reflect.Float64 {
+		return &Schema{Type: "number"}
+	}
+	if kind == reflect.Bool {
+		return &Schema{Type: "boolean"}
+	}
+	return nil
+}
+
+// mapAdvancedKind handles more complex Go types.
+func mapAdvancedKind(kind reflect.Kind) *Schema {
+	if schema := mapAdvancedKindDirect(kind); schema != nil {
+		return schema
+	}
+	return &Schema{Type: "object"}
+}
+
+// mapAdvancedKindDirect handles advanced Go types that need special mapping.
+func mapAdvancedKindDirect(kind reflect.Kind) *Schema {
+	if kind == reflect.Uintptr {
+		return &Schema{Type: "integer", Description: "Pointer-sized integer"}
+	}
+	if kind == reflect.Complex64 || kind == reflect.Complex128 {
+		return &Schema{Type: "object", Description: "Complex number"}
+	}
+	if kind == reflect.Chan {
+		return &Schema{Type: "object", Description: "Channel"}
+	}
+	if kind == reflect.Func {
+		return &Schema{Type: "object", Description: "Function"}
+	}
+	if kind == reflect.Interface {
+		return &Schema{Type: "object", Description: "Interface"}
+	}
+	if kind == reflect.Map {
+		return &Schema{Type: "object", Description: "Map with dynamic keys"}
+	}
+	if kind == reflect.UnsafePointer {
+		return &Schema{Type: "object", Description: "Unsafe pointer"}
+	}
+	return nil
+}
+
+func buildBasicTypeSchema(t reflect.Type) *Schema {
+	mapper := defaultBasicTypeMapper{}
+	return mapper.MapType(t.Kind())
 }
 
 func buildBasicTypeSchemaWithRegistry(t reflect.Type, registry map[string]*Schema) *Schema {
@@ -452,97 +373,33 @@ func buildBasicTypeSchemaWithRegistry(t reflect.Type, registry map[string]*Schem
 	return buildBasicTypeSchema(t)
 }
 
-// generateUnionSchema builds a oneOf schema for unions.UnionX types.
-func generateUnionSchema(t reflect.Type, registry map[string]*Schema) *Schema {
-	variants, discInfo := extractUnionVariantsAndDiscriminator(t, registry)
-
-	schema := &Schema{OneOf: variants}
-	if discInfo.isValid && discInfo.propertyName != "" {
-		schema.Discriminator = &Discriminator{
-			PropertyName: discInfo.propertyName,
-			Mapping:      discInfo.mapping,
-		}
-	}
-
-	return schema
-}
-
-type discriminatorInfo struct {
-	propertyName string
-	mapping      map[string]string
-	isValid      bool
-}
-
-func extractUnionVariantsAndDiscriminator(t reflect.Type, registry map[string]*Schema) ([]*Schema, discriminatorInfo) {
-	var variants []*Schema
-	discInfo := discriminatorInfo{
-		mapping: make(map[string]string),
-		isValid: true,
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		if f.Type.Kind() != reflect.Ptr {
-			continue
-		}
-
-		vt := f.Type.Elem()
-		variants = append(variants, reflectTypeToSchema(vt, registry))
-
-		// Only struct variants can have discriminators
-		if discInfo.isValid && vt.Kind() == reflect.Struct {
-			processVariantDiscriminator(vt, &discInfo)
-		} else {
-			discInfo.isValid = false
-		}
-	}
-
-	return variants, discInfo
-}
-
-func processVariantDiscriminator(vt reflect.Type, discInfo *discriminatorInfo) {
-	found := false
-	for j := 0; j < vt.NumField(); j++ {
-		vf := vt.Field(j)
-		if tag, ok := vf.Tag.Lookup("openapi"); ok && strings.HasPrefix(tag, "discriminator=") {
-			value := strings.TrimPrefix(tag, "discriminator=")
-			jsonName := getFieldJSONName(vf)
-
-			if discInfo.propertyName == "" {
-				discInfo.propertyName = jsonName
-			} else if discInfo.propertyName != jsonName {
-				discInfo.isValid = false
-				return
-			}
-
-			discInfo.mapping[value] = "#/components/schemas/" + vt.Name()
-			found = true
-			break
-		}
-	}
-	if !found {
-		discInfo.isValid = false
-	}
-}
-
-func getFieldJSONName(f reflect.StructField) string {
-	jsonName := f.Tag.Get("json")
-	if jsonName == "" {
-		jsonName = f.Name
-	}
-	if comma := strings.Index(jsonName, ","); comma != -1 {
-		jsonName = jsonName[:comma]
-	}
-	return jsonName
-}
-
 // isUnionType checks if the provided type is one of the generic union wrappers
 // defined in pkg/unions.
 func isUnionType(t reflect.Type) bool {
 	if t == nil {
 		return false
 	}
-	return t.PkgPath() == "github.com/gork-labs/gork/pkg/unions" && (t.Name() == "Union2" || t.Name() == "Union3" || t.Name() == "Union4")
+
+	// Dereference pointer types
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	// Must be a struct
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+
+	// Check if it's from the unions package
+	pkgPath := t.PkgPath()
+	if !strings.HasSuffix(pkgPath, "/unions") {
+		return false
+	}
+
+	// Check if type name matches Union\d+ pattern (including generics like Union2[T,U])
+	typeName := t.Name()
+	matched, _ := regexp.MatchString(`^Union\d+(\[.*\])?$`, typeName)
+	return matched
 }
 
 // isUnionStruct checks if the provided type is a user-defined union struct.
@@ -591,15 +448,23 @@ func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldTy
 }
 
 func addRequiredField(parent *Schema, sf reflect.StructField) {
-	jsonName := getFieldJSONName(sf)
+	// Try gork tag first, then fall back to field name
+	gorkTag := sf.Tag.Get("gork")
+	var fieldName string
+	if gorkTag != "" {
+		fieldName = parseGorkTag(gorkTag).Name
+	}
+	if fieldName == "" {
+		fieldName = sf.Name
+	}
 
 	// Append if not already present
 	for _, r := range parent.Required {
-		if r == jsonName {
+		if r == fieldName {
 			return
 		}
 	}
-	parent.Required = append(parent.Required, jsonName)
+	parent.Required = append(parent.Required, fieldName)
 }
 
 func parseValidationRule(p string) (key, val string) {
@@ -669,30 +534,6 @@ func isStringKind(t reflect.Type) bool {
 	return t.Kind() == reflect.String
 }
 
-// parseOpenAPIParam expects a struct tag value of the form "<name>,in=<loc>".
-// It returns the extracted name and location (query|path|header) or ok=false if
-// the tag does not match this pattern.
-func parseOpenAPIParam(tag string) (name, loc string, ok bool) {
-	if tag == "" {
-		return "", "", false
-	}
-	parts := strings.Split(tag, ",")
-	if len(parts) < 2 {
-		return "", "", false
-	}
-	name = strings.TrimSpace(parts[0])
-	for _, p := range parts[1:] {
-		p = strings.TrimSpace(p)
-		if strings.HasPrefix(p, "in=") {
-			loc = strings.TrimPrefix(p, "in=")
-		}
-	}
-	if name == "" || loc == "" {
-		return "", "", false
-	}
-	return name, loc, true
-}
-
 // parseDiscriminator returns the value after "discriminator=" if present.
 func parseDiscriminator(tag string) (value string, ok bool) {
 	if tag == "" {
@@ -707,114 +548,67 @@ func parseDiscriminator(tag string) (value string, ok bool) {
 	return "", false
 }
 
-// extractParameters revised to use parseOpenAPIParam.
-func extractParameters(t reflect.Type, registry map[string]*Schema) []Parameter {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	if t.Kind() != reflect.Struct {
-		return nil
-	}
-	var params []Parameter
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		if f.PkgPath != "" {
-			continue
-		}
-		name, loc, ok := parseOpenAPIParam(f.Tag.Get("openapi"))
-		if !ok {
-			continue
-		}
-
-		param := buildParameterFromField(f, name, loc, registry)
-		params = append(params, param)
-	}
-	return params
-}
-
-func buildParameterFromField(f reflect.StructField, name, loc string, registry map[string]*Schema) Parameter {
-	schema := reflectTypeToSchema(f.Type, registry)
-
-	// apply enum from oneof validation
-	validateTag := f.Tag.Get("validate")
-	applyOneOfValidationToSchema(schema, validateTag)
-
-	required := loc == "path" || strings.Contains(validateTag, "required")
-
-	return Parameter{
-		Name:     name,
-		In:       loc,
-		Required: required,
-		Schema:   schema,
-	}
-}
-
-func applyOneOfValidationToSchema(schema *Schema, validateTag string) {
-	if strings.HasPrefix(validateTag, "oneof=") || strings.Contains(validateTag, " oneof=") {
-		parts := strings.Split(validateTag, "oneof=")
-		if len(parts) > 1 {
-			enums := strings.Fields(parts[1])
-			if len(enums) > 0 {
-				schema.Enum = enums
-			}
-		}
-	}
-}
-
-// helper to decide if field is parameter.
-func isOpenAPIParam(f reflect.StructField) bool {
-	_, _, ok := parseOpenAPIParam(f.Tag.Get("openapi"))
-	return ok
-}
-
-var pathVarRegexp = regexp.MustCompile(`\{([^{}]+)\}`)
-
-func extractPathVars(path string) []string {
-	matches := pathVarRegexp.FindAllStringSubmatch(path, -1)
-	var vars []string
-	for _, m := range matches {
-		if len(m) > 1 {
-			vars = append(vars, m[1])
-		}
-	}
-	return vars
-}
-
 // sanitizeSchemaName converts Go type names containing characters not allowed
 // in OpenAPI component keys (e.g. brackets, commas, slashes) into a
 // conservative snake-ish representation.
+// sanitizeGenericTypeName handles generic type names like "Union2[A,B]".
+func sanitizeGenericTypeName(name string) string {
+	open := strings.Index(name, "[")
+	if open == -1 || !strings.HasSuffix(name, "]") {
+		return name
+	}
+
+	base := name[:open]
+	args := name[open+1 : len(name)-1]
+	parts := strings.Split(args, ",")
+
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+		p = stripPackagePath(p)
+		parts[i] = p
+	}
+
+	// Reassemble in a stable, readable form
+	return base + "_" + strings.Join(parts, "_")
+}
+
+// stripPackagePath removes package path from type name.
+func stripPackagePath(typeName string) string {
+	if idx := strings.LastIndex(typeName, "."); idx != -1 {
+		return typeName[idx+1:]
+	}
+	return typeName
+}
+
+// sanitizeCharacters replaces disallowed characters with underscores.
+func sanitizeCharacters(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if isAllowedSchemaChar(r) {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
+}
+
+// isAllowedSchemaChar checks if a character is allowed in schema names.
+func isAllowedSchemaChar(r rune) bool {
+	return (r >= 'a' && r <= 'z') ||
+		(r >= 'A' && r <= 'Z') ||
+		(r >= '0' && r <= '9') ||
+		r == '.' || r == '-' || r == '_'
+}
+
 func sanitizeSchemaName(n string) string {
 	if n == "" {
 		return ""
 	}
 
-	// Special handling for instantiated generic types, e.g.
-	//   "Union2[github.com/foo.Bar,github.com/foo.Baz]"
-	// We want something concise like "Union2_Bar_Baz" without package paths.
-	if open := strings.Index(n, "["); open != -1 && strings.HasSuffix(n, "]") {
-		base := n[:open]
-		args := n[open+1 : len(n)-1]
-		parts := strings.Split(args, ",")
-		for i, p := range parts {
-			p = strings.TrimSpace(p)
-			if idx := strings.LastIndex(p, "."); idx != -1 {
-				p = p[idx+1:]
-			}
-			parts[i] = p
-		}
-		// Reassemble in a stable, readable form.
-		n = base + "_" + strings.Join(parts, "_")
-	}
+	// Handle generic types first
+	n = sanitizeGenericTypeName(n)
 
-	// Replace any remaining disallowed characters with underscores.
-	var b strings.Builder
-	for _, r := range n {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
-			b.WriteRune(r)
-		default:
-			b.WriteRune('_')
-		}
-	}
-	return b.String()
+	// Replace disallowed characters
+	return sanitizeCharacters(n)
 }

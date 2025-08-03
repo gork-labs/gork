@@ -1,11 +1,90 @@
-# Gork - Go API Development Toolkit
+# Gork - Opinionated Convention Over Configuration OpenAPI Framework
 
 [![CI](https://github.com/gork-labs/gork/workflows/CI/badge.svg)](https://github.com/gork-labs/gork/actions)
 [![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg)](https://codecov.io/gh/gork-labs/gork)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gork-labs/gork)](https://goreportcard.com/report/github.com/gork-labs/gork)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Gork is a Go API development toolkit that provides type-safe HTTP handlers, automatic OpenAPI 3.1.0 generation, and union types. The toolkit includes multiple framework adapters and automatic API documentation generation from Go source code using go-playground/validator tags.
+**Gork** is an opinionated convention over configuration OpenAPI framework for Go that provides type-safe HTTP handlers, automatic OpenAPI 3.1.0 generation, and union types. Built for developer productivity and business development efficiency.
+
+## 🚀 Quick Start
+
+Here's a simple example showing how to create a type-safe API with automatic OpenAPI generation:
+
+```go
+package main
+
+import (
+    "context"
+    "net/http"
+    
+    "github.com/gork-labs/gork/pkg/adapters/stdlib"
+    "github.com/gork-labs/gork/pkg/api"
+)
+
+// Request follows convention: Query, Body, Path, Headers, Cookies sections
+type GetUserRequest struct {
+    Path struct {
+        // UserID is the unique identifier for the user
+        UserID string `gork:"userId" validate:"required,uuid"`
+    }
+    Query struct {
+        // IncludeProfile determines if user profile data should be included
+        IncludeProfile bool `gork:"include_profile"`
+    }
+}
+
+// User represents the user data structure
+type User struct {
+    // ID is the unique identifier for the user
+    ID       string `gork:"id"`
+    // Username is the user's chosen display name
+    Username string `gork:"username"`
+    // Email is the user's email address
+    Email    string `gork:"email"`
+}
+
+// Response with typed body
+type GetUserResponse struct {
+    Body User
+}
+
+// Type-safe handler with strict signature
+func GetUser(ctx context.Context, req GetUserRequest) (*GetUserResponse, error) {
+    return &GetUserResponse{
+        Body: User{
+            ID:       req.Path.UserID,
+            Username: "john_doe",
+            Email:    "john@example.com",
+        },
+    }, nil
+}
+
+func main() {
+    mux := http.NewServeMux()
+    router := stdlib.NewRouter(mux)
+    
+    // Register route with automatic OpenAPI metadata extraction
+    router.Get("/users/{userId}", GetUser, api.WithTags("users"))
+    
+    // Serve interactive API documentation
+    router.DocsRoute("/docs/*")
+    
+    http.ListenAndServe(":8080", mux)
+    // Now available:
+    // - Interactive docs: http://localhost:8080/docs/
+    // - OpenAPI spec: http://localhost:8080/openapi.json
+}
+```
+
+**That's it!** Your API now has:
+- ✅ Type-safe request/response handling
+- ✅ Automatic validation using `validate` tags  
+- ✅ OpenAPI 3.1.0 spec generation at `/openapi.json`
+- ✅ Interactive docs at `/docs/`
+- ✅ No boilerplate, just business logic
+
+> **💡 Documentation Magic**: Notice how the Go comments above struct fields automatically become field descriptions in your OpenAPI documentation! No need to maintain separate documentation - your code comments become live API docs.
 
 ## Repository Structure
 
@@ -35,115 +114,76 @@ gork/
 └── Makefile           # Build and test automation
 ```
 
-## CLI Tools
+## 🛠️ Core Features
 
-### gork
+### Convention Over Configuration
+- **Structured Requests**: Use standard sections `Query`, `Body`, `Path`, `Headers`, `Cookies`
+- **Type Safety**: Strict handler signatures with compile-time validation
+- **Self-Documenting**: Request structs serve as live API documentation
+- **Consistent Naming**: `gork` tags replace framework-specific tags
 
-[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=cmd%2Fgork)](https://codecov.io/gh/gork-labs/gork/tree/main/cmd/gork)
+### Automatic OpenAPI Generation
+- **OpenAPI 3.1.0**: Full specification generation from Go source code
+- **Validator Integration**: `go-playground/validator` tags become OpenAPI constraints
+- **Union Types**: Type-safe variants with `oneOf` schemas and discriminators
+- **Multi-Framework**: Works with Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib
 
-A CLI tool for OpenAPI 3.1.0 specification generation that extracts API documentation from Go source code using struct tags and type information.
+### Developer Experience
+- **Zero Boilerplate**: Focus on business logic, not API plumbing
+- **Interactive Docs**: Built-in documentation server
+- **Static Analysis**: Custom linter ensures convention compliance
+- **100% Coverage**: Quality-first development with strict testing
 
-**Installation:**
+## 📦 CLI Tools
+
+### gork - OpenAPI Generator
+
 ```bash
 go install github.com/gork-labs/gork/cmd/gork@latest
+
+# Generate OpenAPI spec from your handlers
+gork openapi generate --build ./cmd/server --source ./handlers --output openapi.json
+
+# With custom metadata and YAML output  
+gork openapi generate --source ./api --output spec.yaml --format yaml \
+  --title "My API" --version "2.0.0"
 ```
 
-**Features:**
-- Automatic OpenAPI spec generation from Go code
-- Support for go-playground/validator tags
-- Union type support with discriminators  
-- Multiple web framework support (Gin, Echo, Chi, Gorilla Mux, Fiber, standard library)
-- JSON and YAML output formats
-- Build-time and runtime spec generation
-- Custom validator support
+### lintgork - Convention Linter
 
-**Usage:**
-```bash
-# Basic usage with build-time generation
-gork openapi generate --build ./examples/cmd/openapi_export --source ./examples --output openapi.json
-
-# Runtime generation from source only
-gork openapi generate --source ./handlers --output openapi.json
-
-# YAML output with custom metadata
-gork openapi generate --source ./pkg --output spec.yaml --format yaml --title "My API" --version "2.0.0"
-
-# Using config file
-gork openapi generate --config .gork.yml
-```
-
-### lintgork
-
-A custom linter for struct validation and OpenAPI compliance that ensures your Go structs follow best practices for API generation.
-
-**Installation:**
 ```bash
 go install github.com/gork-labs/gork/cmd/lintgork@latest
+
+# Validate convention compliance
+lintgork ./...
+
+# Integrates with golangci-lint
 ```
 
-**Features:**
-- Validates struct tags for OpenAPI compliance
-- Checks path parameter consistency
-- Ensures proper discriminator usage
-- Integrates with golangci-lint
+## 📚 Libraries
 
-### pkg/unions
-
-[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Funions)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/unions)
-
-Type-safe union types for Go with JSON marshaling/unmarshaling support.
-
-**Installation:**
-```bash
-go get github.com/gork-labs/gork/pkg/unions
-```
-
-**Features:**
-- Union2, Union3, and Union4 types
-- Type-safe access methods
-- JSON serialization with discriminators
-- Validation support
-
-[Read more →](./pkg/unions/README.md)
-
-## Libraries
-
-### pkg/api
-
-[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fapi)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
-
-HTTP handler adapter for building type-safe APIs with automatic OpenAPI metadata extraction.
-
-**Installation:**
+### Core API Library
 ```bash
 go get github.com/gork-labs/gork/pkg/api
 ```
+Framework-agnostic API handlers with automatic OpenAPI metadata extraction and type-safe request/response handling.
 
-**Features:**
-- Type-safe request/response handling
-- Automatic error responses
-- OpenAPI metadata extraction
-- Context propagation
-- Framework-agnostic design
+### Union Types
+```bash  
+go get github.com/gork-labs/gork/pkg/unions
+```
+Type-safe union types (`Union2`, `Union3`, `Union4`) with JSON marshaling and validation support for modeling API variants.
 
-[Read more →](./pkg/api/README.md)
-
-### pkg/adapters
-
-Framework-specific adapters that integrate the core API functionality with popular Go web frameworks:
-
-- **stdlib** - Standard library (`http.ServeMux`) adapter
-- **gin** - Gin framework adapter
-- **echo** - Echo framework adapter  
-- **chi** - Chi router adapter
-- **fiber** - Fiber framework adapter
-- **gorilla** - Gorilla Mux adapter
-
-Each adapter provides:
-- Seamless integration with framework routing
-- Parameter extraction from framework contexts
-- Path parameter conversion
-- Middleware support
+### Framework Adapters
+Choose your web framework:
+```bash
+go get github.com/gork-labs/gork/pkg/adapters/gin      # Gin
+go get github.com/gork-labs/gork/pkg/adapters/echo     # Echo  
+go get github.com/gork-labs/gork/pkg/adapters/chi      # Chi
+go get github.com/gork-labs/gork/pkg/adapters/fiber    # Fiber
+go get github.com/gork-labs/gork/pkg/adapters/gorilla  # Gorilla Mux
+go get github.com/gork-labs/gork/pkg/adapters/stdlib   # Standard library
+```
 
 ## Development
 
@@ -225,33 +265,43 @@ This monorepo uses independent versioning for each module:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Roadmap
+## 🗺️ Roadmap
 
-### Current (Implemented)
-- ✅ OpenAPI 3.1.0 generator with full validator tag support
-- ✅ Type-safe union types (Union2, Union3, Union4)
-- ✅ HTTP API adapter with metadata extraction
-- ✅ Multi-framework route detection (Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib)
-- ✅ Build-time and runtime spec generation
-- ✅ JSON/YAML output formats
-- ✅ Custom linter for struct validation and OpenAPI compliance
-- ✅ 100% test coverage enforcement
-- ✅ Defensive slice copying to prevent aliasing issues
-- ✅ Comprehensive error wrapping for better debugging
+### ✅ Current Features
+- **Convention Over Configuration**: Standardized request/response structure
+- **Type-Safe Handlers**: Compile-time validation with strict signatures  
+- **OpenAPI 3.1.0 Generation**: Automatic spec generation from Go source
+- **Multi-Framework Support**: 6 popular Go web framework adapters
+- **Union Types**: Type-safe variants with JSON marshaling
+- **Static Analysis**: Custom linter for convention compliance
+- **100% Test Coverage**: Quality-first development approach
+- **Interactive Documentation**: Built-in docs serving
 
-### Planned
-- 🚧 Webhook signature verification utilities
-- 🚧 OpenAPI documentation serving middleware
-- 🚧 Enhanced union type discriminator support
-- 🚧 Support event streams (websocket, SSE)
-- 🚧 Build-time parser generation to minimize reflection
-- 🚧 Build-time validation generation for `validate` tags
+### 🚀 Coming Soon
+- **⚡ Ahead-of-Time Compilation**: Eliminate runtime reflection for better performance
+- **📝 Enhanced Documentation**: Improved OpenAPI spec generation
+- **🔒 Webhook Utilities**: Signature verification and event handling
+- **🌊 Event Streams**: WebSocket and SSE support  
+- **🎯 Advanced Validation**: Build-time validation generation
+- **📏 Simple Rule Engine**: Input validation with business rules (e.g., `rule:owned_by($current_user)`)
+- **🔗 Variable-Length Unions**: User-defined union types with custom properties
+  ```go
+  type Events struct {
+      Paid      *Paid
+      Collected *Collected
+      Cancelled *Cancelled
+  }
+  ```
 
 ## Support
 
 - **Documentation**: See individual module READMEs
 - **Issues**: [GitHub Issues](https://github.com/gork-labs/gork/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/gork-labs/gork/discussions)
+
+## ⚡ Performance Note
+
+Gork currently relies on reflection for type introspection and OpenAPI generation, prioritizing developer experience and rapid business development over raw performance. While this makes it one of the most business-development friendly frameworks available, we're working on **ahead-of-time compilation** for all reflection-dependent features to significantly improve baseline performance in future releases.
 
 ## Sponsors
 

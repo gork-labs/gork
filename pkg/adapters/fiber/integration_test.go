@@ -36,6 +36,46 @@ type ErrorResponse struct {
 	Details string `json:"details,omitempty"`
 }
 
+type ListUsersResponse struct {
+	Body []*UserResponse
+}
+
+type StatsResponse struct {
+	Body struct {
+		TotalUsers  int `gork:"totalUsers"`
+		ActiveUsers int `gork:"activeUsers"`
+	}
+}
+
+type VersionResponse struct {
+	Body struct {
+		Version string `gork:"version"`
+	}
+}
+
+type HealthResponse struct {
+	Body struct {
+		Status string `gork:"status"`
+	}
+}
+
+type SimpleTestResponse struct {
+	Body struct {
+		Message string `gork:"message"`
+	}
+}
+
+type ComplexResponse struct {
+	Body struct {
+		UserID    string `gork:"userId"`
+		PostID    string `gork:"postId"`
+		Format    string `gork:"format"`
+		Page      string `gork:"page"`
+		AuthToken string `gork:"authToken"`
+		SessionID string `gork:"sessionId"`
+	}
+}
+
 // TestCompleteAPIScenario tests a complete API scenario with multiple endpoints
 func TestCompleteAPIScenario(t *testing.T) {
 	app := fiber.New()
@@ -63,10 +103,12 @@ func TestCompleteAPIScenario(t *testing.T) {
 		}, nil
 	}
 
-	listUsersHandler := func(ctx context.Context, req struct{}) ([]*UserResponse, error) {
-		return []*UserResponse{
-			{ID: 1, Name: "User 1", Email: "user1@example.com", Age: 25},
-			{ID: 2, Name: "User 2", Email: "user2@example.com", Age: 30},
+	listUsersHandler := func(ctx context.Context, req struct{}) (*ListUsersResponse, error) {
+		return &ListUsersResponse{
+			Body: []*UserResponse{
+				{ID: 1, Name: "User 1", Email: "user1@example.com", Age: 25},
+				{ID: 2, Name: "User 2", Email: "user2@example.com", Age: 30},
+			},
 		}, nil
 	}
 
@@ -129,21 +171,43 @@ func TestNestedGroupsScenario(t *testing.T) {
 	users := admin.Group("/users")
 
 	// Register handlers at different levels
-	api.Get("/health", func(ctx context.Context, req struct{}) (map[string]string, error) {
-		return map[string]string{"status": "healthy"}, nil
+	api.Get("/health", func(ctx context.Context, req struct{}) (*HealthResponse, error) {
+		return &HealthResponse{
+			Body: struct {
+				Status string `gork:"status"`
+			}{
+				Status: "healthy",
+			},
+		}, nil
 	})
 
-	v1.Get("/version", func(ctx context.Context, req struct{}) (map[string]string, error) {
-		return map[string]string{"version": "1.0.0"}, nil
+	v1.Get("/version", func(ctx context.Context, req struct{}) (*VersionResponse, error) {
+		return &VersionResponse{
+			Body: struct {
+				Version string `gork:"version"`
+			}{
+				Version: "1.0.0",
+			},
+		}, nil
 	})
 
-	admin.Get("/stats", func(ctx context.Context, req struct{}) (map[string]interface{}, error) {
-		return map[string]interface{}{"totalUsers": 100, "activeUsers": 85}, nil
+	admin.Get("/stats", func(ctx context.Context, req struct{}) (*StatsResponse, error) {
+		return &StatsResponse{
+			Body: struct {
+				TotalUsers  int `gork:"totalUsers"`
+				ActiveUsers int `gork:"activeUsers"`
+			}{
+				TotalUsers:  100,
+				ActiveUsers: 85,
+			},
+		}, nil
 	})
 
-	users.Get("/list", func(ctx context.Context, req struct{}) ([]*UserResponse, error) {
-		return []*UserResponse{
-			{ID: 1, Name: "Admin User", Email: "admin@example.com", Age: 35},
+	users.Get("/list", func(ctx context.Context, req struct{}) (*ListUsersResponse, error) {
+		return &ListUsersResponse{
+			Body: []*UserResponse{
+				{ID: 1, Name: "Admin User", Email: "admin@example.com", Age: 35},
+			},
 		}, nil
 	})
 
@@ -213,8 +277,14 @@ func TestMiddlewareAndOptionsScenario(t *testing.T) {
 	}
 
 	// Register handlers with additional options
-	handler := func(ctx context.Context, req struct{}) (string, error) {
-		return "success", nil
+	handler := func(ctx context.Context, req struct{}) (*SimpleTestResponse, error) {
+		return &SimpleTestResponse{
+			Body: struct {
+				Message string `gork:"message"`
+			}{
+				Message: "success",
+			},
+		}, nil
 	}
 
 	router.Get("/test", handler, api.WithTags("endpoint"))
@@ -244,14 +314,23 @@ func TestParameterExtractionScenario(t *testing.T) {
 		SessionID string `cookie:"session_id"`
 	}
 
-	handler := func(ctx context.Context, req ComplexRequest) (map[string]string, error) {
-		return map[string]string{
-			"userId":    req.UserID,
-			"postId":    req.PostID,
-			"format":    req.Format,
-			"page":      req.Page,
-			"authToken": req.AuthToken,
-			"sessionId": req.SessionID,
+	handler := func(ctx context.Context, req ComplexRequest) (*ComplexResponse, error) {
+		return &ComplexResponse{
+			Body: struct {
+				UserID    string `gork:"userId"`
+				PostID    string `gork:"postId"`
+				Format    string `gork:"format"`
+				Page      string `gork:"page"`
+				AuthToken string `gork:"authToken"`
+				SessionID string `gork:"sessionId"`
+			}{
+				UserID:    req.UserID,
+				PostID:    req.PostID,
+				Format:    req.Format,
+				Page:      req.Page,
+				AuthToken: req.AuthToken,
+				SessionID: req.SessionID,
+			},
 		}, nil
 	}
 
@@ -326,8 +405,10 @@ func TestDocumentationIntegration(t *testing.T) {
 	router := NewRouter(app)
 
 	// Register some API routes
-	router.Get("/users", func(ctx context.Context, req struct{}) ([]*UserResponse, error) {
-		return []*UserResponse{}, nil
+	router.Get("/users", func(ctx context.Context, req struct{}) (*ListUsersResponse, error) {
+		return &ListUsersResponse{
+			Body: []*UserResponse{},
+		}, nil
 	})
 
 	router.Post("/users", func(ctx context.Context, req UserRequest) (*UserResponse, error) {

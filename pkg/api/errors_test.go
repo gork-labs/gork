@@ -43,7 +43,7 @@ func TestErrorResponse(t *testing.T) {
 func TestValidationErrorResponse(t *testing.T) {
 	// Test ValidationErrorResponse structure
 	err := ValidationErrorResponse{
-		Error: "Validation failed",
+		Message: "Validation failed",
 		Details: map[string][]string{
 			"name":  {"required", "min"},
 			"email": {"email"},
@@ -60,8 +60,8 @@ func TestValidationErrorResponse(t *testing.T) {
 		t.Fatalf("Failed to unmarshal ValidationErrorResponse: %v", jsonErr)
 	}
 
-	if unmarshaled.Error != "Validation failed" {
-		t.Errorf("Error = %q, want 'Validation failed'", unmarshaled.Error)
+	if unmarshaled.Message != "Validation failed" {
+		t.Errorf("Message = %q, want 'Validation failed'", unmarshaled.Message)
 	}
 
 	if len(unmarshaled.Details) != 2 {
@@ -242,7 +242,7 @@ func TestErrorResponseOmitEmptyDetails(t *testing.T) {
 func TestValidationErrorResponseOmitEmptyDetails(t *testing.T) {
 	// Test that empty Details are omitted from JSON
 	err := ValidationErrorResponse{
-		Error: "Validation error without details",
+		Message: "Validation error without details",
 		// Details is nil/empty
 	}
 
