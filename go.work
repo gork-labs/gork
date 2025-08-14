@@ -15,4 +15,5 @@ use (
 	./pkg/api
 	./pkg/gorkson
 	./pkg/unions
+ 	./pkg/webhooks/stripe
 )

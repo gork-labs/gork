@@ -26,7 +26,12 @@ func TestDocsRoute_WithStaticSpecFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		tmpFile.Close()
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			t.Logf("Warning: failed to clean up temp file %s: %v", tmpFile.Name(), err)
+		}
+	}()
 
 	if _, err := tmpFile.WriteString(specContent); err != nil {
 		t.Fatal(err)
@@ -43,23 +48,18 @@ func TestDocsRoute_WithStaticSpecFile(t *testing.T) {
 		OpenAPIPath: "/openapi.json",
 	})
 
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	// Issue request directly against the mux to avoid binding a port
+	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
 
-	// Request the OpenAPI spec - this should trigger the static spec return path
-	resp, err := http.Get(srv.URL + "/openapi.json")
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
 	// Verify we got the static spec
 	var spec map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+	if err := json.NewDecoder(rec.Body).Decode(&spec); err != nil {
 		t.Fatalf("failed to decode spec: %v", err)
 	}
 

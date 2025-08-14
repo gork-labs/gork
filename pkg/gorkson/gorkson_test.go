@@ -14,9 +14,9 @@ type SimpleStruct struct {
 }
 
 type NestedStruct struct {
-	User    SimpleStruct `gork:"user"`
-	Active  bool         `gork:"active"`
-	Score   float64      `gork:"score"`
+	User   SimpleStruct `gork:"user"`
+	Active bool         `gork:"active"`
+	Score  float64      `gork:"score"`
 }
 
 type MixedTagStruct struct {
@@ -31,7 +31,7 @@ type PointerStruct struct {
 }
 
 type SliceStruct struct {
-	Items []string `gork:"items"`
+	Items []string       `gork:"items"`
 	Users []SimpleStruct `gork:"users"`
 }
 
@@ -56,9 +56,9 @@ func (c *CustomMarshaler) UnmarshalJSON(data []byte) error {
 // Test Marshal function
 func TestMarshal(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      interface{}
-		checkFunc  func(t *testing.T, result []byte)
+		name      string
+		input     interface{}
+		checkFunc func(t *testing.T, result []byte)
 	}{
 		{
 			name: "simple struct with gork tags",
@@ -253,8 +253,8 @@ func TestUnmarshal(t *testing.T) {
 			},
 		},
 		{
-			name:  "nested struct",
-			input: `{"user":{"name":"Alice","age":25,"email":"alice@example.com"},"active":true,"score":98.5}`,
+			name:   "nested struct",
+			input:  `{"user":{"name":"Alice","age":25,"email":"alice@example.com"},"active":true,"score":98.5}`,
 			target: &NestedStruct{},
 			expected: &NestedStruct{
 				User: SimpleStruct{
@@ -323,7 +323,7 @@ func TestUnmarshal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := Unmarshal([]byte(tt.input), tt.target)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -457,7 +457,7 @@ func TestMarshaler_convertToGorkSON(t *testing.T) {
 			},
 		},
 		{
-			name:  "slice of structs",
+			name: "slice of structs",
 			input: []SimpleStruct{
 				{Name: "User1", Age: 20, Email: "user1@example.com"},
 				{Name: "User2", Age: 25, Email: "user2@example.com"},
@@ -745,9 +745,9 @@ func TestMarshaler_setFieldValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a new value of the field type
 			fieldValue := reflect.New(tt.fieldType).Elem()
-			
+
 			err := m.setFieldValue(fieldValue, tt.value)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("setFieldValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -770,18 +770,18 @@ func TestMarshaler_setFieldValue_Complex(t *testing.T) {
 	t.Run("struct field", func(t *testing.T) {
 		structType := reflect.TypeOf(SimpleStruct{})
 		fieldValue := reflect.New(structType).Elem()
-		
+
 		value := map[string]interface{}{
 			"name":  "John",
 			"age":   float64(30),
 			"email": "john@example.com",
 		}
-		
+
 		err := m.setFieldValue(fieldValue, value)
 		if err != nil {
 			t.Fatalf("setFieldValue() error = %v", err)
 		}
-		
+
 		result := fieldValue.Interface().(SimpleStruct)
 		expected := SimpleStruct{Name: "John", Age: 30, Email: "john@example.com"}
 		if !reflect.DeepEqual(result, expected) {
@@ -792,18 +792,18 @@ func TestMarshaler_setFieldValue_Complex(t *testing.T) {
 	t.Run("pointer to struct field", func(t *testing.T) {
 		ptrType := reflect.TypeOf((*SimpleStruct)(nil))
 		fieldValue := reflect.New(ptrType).Elem()
-		
+
 		value := map[string]interface{}{
 			"name":  "Jane",
 			"age":   float64(25),
 			"email": "jane@example.com",
 		}
-		
+
 		err := m.setFieldValue(fieldValue, value)
 		if err != nil {
 			t.Fatalf("setFieldValue() error = %v", err)
 		}
-		
+
 		result := fieldValue.Interface().(*SimpleStruct)
 		expected := &SimpleStruct{Name: "Jane", Age: 25, Email: "jane@example.com"}
 		if !reflect.DeepEqual(result, expected) {
@@ -814,14 +814,14 @@ func TestMarshaler_setFieldValue_Complex(t *testing.T) {
 	t.Run("default case with slice", func(t *testing.T) {
 		sliceType := reflect.TypeOf([]string{})
 		fieldValue := reflect.New(sliceType).Elem()
-		
+
 		value := []interface{}{"item1", "item2", "item3"}
-		
+
 		err := m.setFieldValue(fieldValue, value)
 		if err != nil {
 			t.Fatalf("setFieldValue() error = %v", err)
 		}
-		
+
 		result := fieldValue.Interface().([]string)
 		expected := []string{"item1", "item2", "item3"}
 		if !reflect.DeepEqual(result, expected) {
@@ -849,14 +849,14 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 				PkgPath: "testpkg", // This makes it unexported
 			},
 		})
-		
+
 		structVal := reflect.New(structType).Elem()
 		structVal.Field(0).SetString("exported_value")
 		// Cannot set unexported field
-		
+
 		result := m.convertToGorkSON(structVal.Interface())
 		resultMap := result.(map[string]interface{})
-		
+
 		// Should only contain the exported field
 		if len(resultMap) != 1 || resultMap["exported"] != "exported_value" {
 			t.Errorf("convertToGorkSON() with unexported field = %v, want map with only exported field", resultMap)
@@ -880,21 +880,21 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 		type TestStructWithChannel struct {
 			Channel chan int `gork:"channel"`
 		}
-		
+
 		jsonMap := map[string]interface{}{
 			"channel": make(chan int), // This will cause an error in setFieldValue
 		}
 		var result TestStructWithChannel
-		
+
 		// This should not fail because setFieldValue handles channels gracefully
 		// Let's try a different approach - create an invalid conversion scenario
 		jsonMap = map[string]interface{}{
 			"channel": map[string]interface{}{"nested": make(chan int)},
 		}
-		
+
 		err := m.convertFromGorkSON(jsonMap, &result)
 		// This might succeed due to how setFieldValue handles the default case
-		// The error paths in setFieldValue are actually hard to trigger 
+		// The error paths in setFieldValue are actually hard to trigger
 		// because json.Marshal/Unmarshal handle most cases gracefully
 		if err != nil {
 			// This is fine - we're testing error paths
@@ -906,12 +906,12 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 		// Test struct marshaling error
 		structType := reflect.TypeOf(SimpleStruct{})
 		fieldValue := reflect.New(structType).Elem()
-		
+
 		// Create a value that cannot be marshaled
 		invalidValue := map[string]interface{}{
 			"invalid": make(chan int),
 		}
-		
+
 		err := m.setFieldValue(fieldValue, invalidValue)
 		if err == nil {
 			t.Error("setFieldValue() expected error for struct with non-marshallable value")
@@ -921,11 +921,11 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 	t.Run("setFieldValue unmarshal errors for struct", func(t *testing.T) {
 		structType := reflect.TypeOf(SimpleStruct{})
 		fieldValue := reflect.New(structType).Elem()
-		
+
 		// Create a scenario where UnmarshalJSON fails
 		// We'll use a custom marshaler that will create invalid JSON when marshaled
 		type InvalidMarshaler struct{}
-		
+
 		err := m.setFieldValue(fieldValue, InvalidMarshaler{})
 		// This will go through the default case and use standard JSON marshaling
 		if err != nil {
@@ -936,12 +936,12 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 	t.Run("setFieldValue pointer marshal error", func(t *testing.T) {
 		ptrType := reflect.TypeOf((*SimpleStruct)(nil))
 		fieldValue := reflect.New(ptrType).Elem()
-		
+
 		// Create a value that will cause marshaling to fail
 		invalidValue := map[string]interface{}{
 			"invalid": make(chan int),
 		}
-		
+
 		err := m.setFieldValue(fieldValue, invalidValue)
 		if err == nil {
 			t.Error("setFieldValue() expected error for pointer with non-marshallable value")
@@ -951,10 +951,10 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 	t.Run("setFieldValue default case marshal error", func(t *testing.T) {
 		sliceType := reflect.TypeOf([]string{})
 		fieldValue := reflect.New(sliceType).Elem()
-		
+
 		// Create a value that cannot be marshaled
 		invalidValue := make(chan int)
-		
+
 		err := m.setFieldValue(fieldValue, invalidValue)
 		if err == nil {
 			t.Error("setFieldValue() expected error for non-marshallable value in default case")
@@ -967,16 +967,16 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 		type FailingUnmarshaler struct {
 			Value string `gork:"value"`
 		}
-		
+
 		// Define a custom UnmarshalJSON that always fails
 		var failingUnmarshaler FailingUnmarshaler
-		
+
 		structType := reflect.TypeOf(failingUnmarshaler)
 		fieldValue := reflect.New(structType).Elem()
-		
+
 		// Create a scenario where the JSON structure is incompatible
 		invalidValue := []string{"not", "a", "struct"} // This will marshal to JSON array but can't unmarshal to struct
-		
+
 		err := m.setFieldValue(fieldValue, invalidValue)
 		if err == nil {
 			t.Error("setFieldValue() expected error for struct unmarshal failure")
@@ -984,14 +984,14 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("setFieldValue pointer UnmarshalJSON error", func(t *testing.T) {
-		// Create a pointer to struct type  
+		// Create a pointer to struct type
 		ptrType := reflect.TypeOf((*SimpleStruct)(nil))
 		fieldValue := reflect.New(ptrType).Elem()
-		
+
 		// Create a value that will marshal successfully but cause unmarshal to fail
 		// Use an array that will marshal to JSON but can't unmarshal to SimpleStruct
 		invalidValue := []string{"not", "a", "struct"} // This will marshal to JSON array but can't unmarshal to struct
-		
+
 		err := m.setFieldValue(fieldValue, invalidValue)
 		if err == nil {
 			t.Error("setFieldValue() expected error for pointer unmarshal failure")
@@ -1003,11 +1003,11 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 		// Let's test with a channel type that would go through the default path
 		chanType := reflect.TypeOf(make(chan int))
 		fieldValue := reflect.New(chanType).Elem()
-		
+
 		// Create a value that will marshal to valid JSON but cannot unmarshal to channel type
 		// Use a simple value that will marshal successfully but fail to unmarshal to a channel
 		invalidValue := "cannot unmarshal string to channel"
-		
+
 		err := m.setFieldValue(fieldValue, invalidValue)
 		if err == nil {
 			t.Error("setFieldValue() expected error for default case unmarshal failure - channel type should fail")

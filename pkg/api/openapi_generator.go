@@ -127,7 +127,7 @@ func ensureStdResponses(comps *Components) {
 		if _, ok := comps.Responses[name]; !ok {
 			comps.Responses[name] = &Response{
 				Description: desc,
-				Content: map[string]MediaType{
+				Content: map[string]*MediaType{
 					"application/json": {Schema: &Schema{Ref: schemaRef}},
 				},
 			}

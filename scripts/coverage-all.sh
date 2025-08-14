@@ -19,5 +19,5 @@ if [ $failures -ne 0 ]; then
     echo "Coverage check completed with $failures failures."
     exit 1
 else
-    echo "Coverage check completed successfully."
+    echo "Coverage check completed successfully." >&2
 fi

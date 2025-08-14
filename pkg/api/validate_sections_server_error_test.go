@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -47,7 +48,7 @@ func TestValidateSectionsServerError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		// Should return the server error directly from validateSections
 		if err == nil {
@@ -73,7 +74,7 @@ func TestValidateSectionsServerError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 		if err != nil {
 			t.Errorf("Expected normal validation to succeed, got: %v", err)
 		}
@@ -95,7 +96,7 @@ func TestValidateSectionsServerError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		// Should return ValidationErrorResponse, not server error
 		if err == nil {

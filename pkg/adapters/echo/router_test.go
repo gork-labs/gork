@@ -13,9 +13,9 @@ import (
 func TestRouter(t *testing.T) {
 	t.Run("initialization", func(t *testing.T) {
 		tests := []struct {
-			name        string
+			name         string
 			echoInstance *echo.Echo
-			options     []api.Option
+			options      []api.Option
 		}{
 			{
 				name:         "with_provided_echo_instance",
@@ -224,10 +224,10 @@ func TestParameterAdapter(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test?name=john&age=30", nil)
 
 		tests := []struct {
-			name     string
-			key      string
-			wantVal  string
-			wantOk   bool
+			name    string
+			key     string
+			wantVal string
+			wantOk  bool
 		}{
 			{
 				name:    "existing_parameter",
@@ -262,10 +262,10 @@ func TestParameterAdapter(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		tests := []struct {
-			name     string
-			key      string
-			wantVal  string
-			wantOk   bool
+			name    string
+			key     string
+			wantVal string
+			wantOk  bool
 		}{
 			{
 				name:    "existing_header",
@@ -300,10 +300,10 @@ func TestParameterAdapter(t *testing.T) {
 		req.AddCookie(&http.Cookie{Name: "theme", Value: "dark"})
 
 		tests := []struct {
-			name     string
-			key      string
-			wantVal  string
-			wantOk   bool
+			name    string
+			key     string
+			wantVal string
+			wantOk  bool
 		}{
 			{
 				name:    "existing_cookie",
