@@ -78,6 +78,10 @@ func (a *ArrayTypeHandler) CanHandle(t reflect.Type) bool {
 
 // GenerateSchema generates a schema for array and slice types.
 func (a *ArrayTypeHandler) GenerateSchema(t reflect.Type, registry map[string]*Schema, _ bool) *Schema {
+	// Special-case []byte -> string (format: byte)
+	if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8 {
+		return &Schema{Type: "string", Format: "byte"}
+	}
 	return buildArraySchema(t, registry)
 }
 

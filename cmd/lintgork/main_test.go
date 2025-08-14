@@ -39,9 +39,9 @@ func TestMain(t *testing.T) {
 			if len(tt.args) > 0 {
 				cmd.Args = append([]string{os.Args[0]}, tt.args...)
 			}
-			
+
 			err := cmd.Run()
-			
+
 			if tt.wantExit == 0 && err != nil {
 				// For lintgork -help, it might still exit with error code
 				// but we just want to test that it doesn't panic
@@ -52,7 +52,7 @@ func TestMain(t *testing.T) {
 					}
 				}
 			}
-			
+
 			if tt.wantExit == 1 && err == nil {
 				t.Error("Expected error but command succeeded")
 			}
@@ -64,11 +64,11 @@ func TestMainExecution(t *testing.T) {
 	// Test that main function exists and is accessible
 	// We can't call main() directly in tests because singlechecker.Main()
 	// expects command line arguments and would interfere with test execution
-	
+
 	// The existence of main function is tested by the compiler
 	// If this test file compiles, main function exists
 	// The actual functionality testing is done via subprocess in TestMain
-	
+
 	// This is a placeholder test to ensure we have coverage of the main function concept
 	// The real testing happens through the subprocess execution above
 	t.Log("main function exists and is testable via subprocess")

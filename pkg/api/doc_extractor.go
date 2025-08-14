@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -235,6 +236,8 @@ func (d *DocExtractor) GetAllTypeNames() []string {
 			names = append(names, name)
 		}
 	}
+	// Ensure deterministic order for enrichment to avoid nondeterministic docs
+	sort.Strings(names)
 	return names
 }
 

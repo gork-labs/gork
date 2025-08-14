@@ -2,6 +2,12 @@ package api
 
 import "encoding/json"
 
+// testable JSON helpers (can be stubbed in tests).
+var (
+	jsonMarshal   = json.Marshal
+	jsonUnmarshal = json.Unmarshal
+)
+
 // NOTE: These definitions intentionally keep only the fields we actively
 // populate for now. Additional fields can be added without breaking existing
 // users as we expand the generator.
@@ -51,14 +57,46 @@ type PathItem struct {
 
 // Operation represents an OpenAPI operation object describing a single API operation.
 type Operation struct {
-	OperationID string                `json:"operationId,omitempty"`
-	Description string                `json:"description,omitempty"`
-	Tags        []string              `json:"tags,omitempty"`
-	Security    []map[string][]string `json:"security,omitempty"`
-	Parameters  []Parameter           `json:"parameters,omitempty"`
-	RequestBody *RequestBody          `json:"requestBody,omitempty"`
-	Responses   map[string]*Response  `json:"responses,omitempty"`
-	Deprecated  bool                  `json:"deprecated,omitempty"`
+	OperationID string                 `json:"operationId,omitempty"`
+	Summary     string                 `json:"summary,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Security    []map[string][]string  `json:"security,omitempty"`
+	Parameters  []Parameter            `json:"parameters,omitempty"`
+	RequestBody *RequestBody           `json:"requestBody,omitempty"`
+	Responses   map[string]*Response   `json:"responses,omitempty"`
+	Deprecated  bool                   `json:"deprecated,omitempty"`
+	Extensions  map[string]interface{} `json:"-"` // Custom extensions like x-webhook-provider
+	// Explicit vendor extension fields to ensure emission
+	XWebhookProvider map[string]string        `json:"x-webhook-provider,omitempty"`
+	XWebhookEvents   []map[string]interface{} `json:"x-webhook-events,omitempty"`
+}
+
+// MarshalJSON ensures Operation.Extensions are emitted as top-level x-* fields.
+func (o *Operation) MarshalJSON() ([]byte, error) {
+	type Alias Operation
+	base := map[string]interface{}{}
+
+	// Marshal the alias first
+	a := (*Alias)(o)
+	// Use a secondary marshal/unmarshal to a map to merge cleanly
+	b, err := jsonMarshal(a)
+	if err != nil {
+		return nil, err
+	}
+	if err := jsonUnmarshal(b, &base); err != nil {
+		return nil, err
+	}
+
+	// Merge extensions as x-* keys
+	for k, v := range o.Extensions {
+		if k == "" {
+			continue
+		}
+		base[k] = v
+	}
+
+	return json.Marshal(base)
 }
 
 // Parameter represents an OpenAPI parameter object describing a single operation parameter.
@@ -72,8 +110,9 @@ type Parameter struct {
 
 // RequestBody represents an OpenAPI request body object.
 type RequestBody struct {
-	Required bool                 `json:"required,omitempty"`
-	Content  map[string]MediaType `json:"content,omitempty"`
+	Required    bool                  `json:"required,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Content     map[string]*MediaType `json:"content,omitempty"`
 }
 
 // MediaType represents an OpenAPI media type object containing schema information.
@@ -83,10 +122,10 @@ type MediaType struct {
 
 // Response represents an OpenAPI response object describing a single response from an API operation.
 type Response struct {
-	Ref         string               `json:"$ref,omitempty"`
-	Description string               `json:"description,omitempty"`
-	Content     map[string]MediaType `json:"content,omitempty"`
-	Headers     map[string]*Header   `json:"headers,omitempty"`
+	Ref         string                `json:"$ref,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Content     map[string]*MediaType `json:"content,omitempty"`
+	Headers     map[string]*Header    `json:"headers,omitempty"`
 }
 
 // Header represents an OpenAPI header object.
@@ -119,6 +158,7 @@ type Schema struct {
 	Pattern       string             `json:"pattern,omitempty"`
 	Enum          []string           `json:"enum,omitempty"`
 	Items         *Schema            `json:"items,omitempty"`
+	Format        string             `json:"format,omitempty"`
 }
 
 // MarshalJSON implements custom JSON marshaling for Schema to handle the type field correctly.

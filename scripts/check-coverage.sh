@@ -85,13 +85,13 @@ echo -e "${BLUE}📈 Current coverage: ${COVERAGE}%${NC}"
 # Check coverage against threshold
 if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
     if (( $(echo "$COVERAGE == 100" | bc -l) )); then
-        echo -e "${GREEN}🎉 Perfect coverage! ${COVERAGE}% - All code is tested!${NC}"
+        echo -e "${GREEN}🎉 Perfect coverage! ${COVERAGE}% - All code is tested!${NC}" >&2
     elif (( $(echo "$COVERAGE >= 95" | bc -l) )); then
-        echo -e "${GREEN}� Excellent coverage! ${COVERAGE}% (≥${THRESHOLD}%)${NC}"
+        echo -e "${GREEN}✅ Excellent coverage! ${COVERAGE}% (≥${THRESHOLD}%)${NC}" >&2
     elif (( $(echo "$COVERAGE >= 90" | bc -l) )); then
-        echo -e "${GREEN}✅ Great coverage! ${COVERAGE}% (≥${THRESHOLD}%)${NC}"
+        echo -e "${GREEN}✅ Great coverage! ${COVERAGE}% (≥${THRESHOLD}%)${NC}" >&2
     else
-        echo -e "${GREEN}✅ Good coverage! ${COVERAGE}% (≥${THRESHOLD}%)${NC}"
+        echo -e "${GREEN}✅ Good coverage! ${COVERAGE}% (≥${THRESHOLD}%)${NC}" >&2
     fi
 
     # Generate coverage badge data
@@ -115,7 +115,7 @@ if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
 
     # Always generate HTML report
     go tool cover -html="coverage.out" -o coverage.html
-    echo -e "${GREEN}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}"
+    echo -e "${GREEN}📄 Coverage report generated: ${MODULE_PATH}/coverage.html${NC}" >&2
 
     exit 0
 else

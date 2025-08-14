@@ -7,6 +7,8 @@ import (
 	"github.com/gork-labs/gork/examples/handlers"
 	stdlib "github.com/gork-labs/gork/pkg/adapters/stdlib"
 	"github.com/gork-labs/gork/pkg/api"
+	stripepkg "github.com/gork-labs/gork/pkg/webhooks/stripe"
+	"github.com/stripe/stripe-go/v76"
 )
 
 // RegisterRoutes registers all API routes.
@@ -27,5 +29,31 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	r.Put("/api/v1/users/{userId}/payment-method", handlers.UpdateUserPaymentMethod, api.WithTags("users"), api.WithBearerTokenAuth("write:payment"))
 	r.Put("/api/v1/users/{userId}/preferences", handlers.UpdateUserPreferences, api.WithTags("users"), api.WithBearerTokenAuth("write:preferences"))
 
+	// Webhooks (Stripe) — served alongside regular API
+	r.Post(
+		"/webhooks/stripe",
+		api.WebhookHandlerFunc(
+			stripepkg.NewHandler(getStripeSecret()),
+			api.WithEventHandler[stripe.PaymentIntent, handlers.PaymentMetadata](
+				"payment_intent.succeeded", handlers.HandlePaymentIntentSucceeded,
+			),
+			api.WithEventHandler[stripe.PaymentIntent, handlers.PaymentMetadata](
+				"payment_intent.payment_failed", handlers.HandlePaymentIntentFailed,
+			),
+			api.WithEventHandler[stripe.Customer, handlers.CustomerMetadata](
+				"customer.created", handlers.HandleCustomerCreated,
+			),
+			api.WithEventHandler[stripe.Invoice, handlers.InvoiceMetadata](
+				"invoice.paid", handlers.HandleInvoicePaid,
+			),
+		),
+		api.WithTags("webhooks", "stripe"),
+	)
+
 	return r
+}
+
+func getStripeSecret() string {
+	// example placeholder; in real apps use env/config
+	return "whsec_example"
 }

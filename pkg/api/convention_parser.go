@@ -46,6 +46,59 @@ func NewConventionParser() *ConventionParser {
 	}
 }
 
+// ParseRequest provides a public API for parsing HTTP requests using convention over configuration.
+// This is the main entry point for webhook handlers and other use cases that need request parsing.
+func ParseRequest(r *http.Request, reqPtr interface{}) error {
+	parser := NewConventionParser()
+
+	// Create a default parameter adapter that extracts from standard HTTP request
+	adapter := NewDefaultParameterAdapter()
+
+	reqValue := reflect.ValueOf(reqPtr)
+	if reqValue.Kind() != reflect.Ptr {
+		return fmt.Errorf("request must be a pointer")
+	}
+
+	return parser.ParseRequest(r.Context(), r, reqValue, adapter)
+}
+
+// DefaultParameterAdapter provides basic parameter extraction from http.Request
+// without framework-specific functionality. Used by the public ParseRequest API.
+type DefaultParameterAdapter struct{}
+
+// NewDefaultParameterAdapter creates a new default parameter adapter.
+func NewDefaultParameterAdapter() *DefaultParameterAdapter {
+	return &DefaultParameterAdapter{}
+}
+
+// Path extracts path parameters - limited without framework router.
+func (d *DefaultParameterAdapter) Path(_ *http.Request, _ string) (string, bool) {
+	// Without a framework router, we cannot extract path parameters
+	// This would need to be implemented by framework-specific adapters
+	return "", false
+}
+
+// Query extracts query parameters from the URL.
+func (d *DefaultParameterAdapter) Query(r *http.Request, key string) (string, bool) {
+	value := r.URL.Query().Get(key)
+	return value, value != ""
+}
+
+// Header extracts headers from the request.
+func (d *DefaultParameterAdapter) Header(r *http.Request, key string) (string, bool) {
+	value := r.Header.Get(key)
+	return value, value != ""
+}
+
+// Cookie extracts cookies from the request.
+func (d *DefaultParameterAdapter) Cookie(r *http.Request, key string) (string, bool) {
+	cookie, err := r.Cookie(key)
+	if err != nil {
+		return "", false
+	}
+	return cookie.Value, true
+}
+
 // RegisterTypeParser registers a type parser function.
 func (p *ConventionParser) RegisterTypeParser(parserFunc interface{}) error {
 	return p.typeRegistry.Register(parserFunc)
@@ -89,6 +142,12 @@ func (p *ConventionParser) findSection(reqType reflect.Type, reqStruct reflect.V
 
 // parseSection parses a specific section of the request.
 func (p *ConventionParser) parseSection(ctx context.Context, sectionName string, sectionValue reflect.Value, r *http.Request, adapter GenericParameterAdapter[*http.Request]) error {
+	// Special case for Body field - allow []byte for raw body parsing (webhook support)
+	if sectionName == SectionBody {
+		return p.parseBodySection(sectionValue, r)
+	}
+
+	// All other sections must be structs
 	if sectionValue.Kind() != reflect.Struct {
 		return fmt.Errorf("section %s must be a struct", sectionName)
 	}
@@ -96,8 +155,6 @@ func (p *ConventionParser) parseSection(ctx context.Context, sectionName string,
 	sectionType := sectionValue.Type()
 
 	switch sectionName {
-	case SectionBody:
-		return p.parseBodySection(sectionValue, r)
 	case SectionPath:
 		return p.parsePathSection(ctx, sectionValue, sectionType, r, adapter)
 	case SectionQuery:
@@ -111,9 +168,14 @@ func (p *ConventionParser) parseSection(ctx context.Context, sectionName string,
 	return nil
 }
 
-// parseBodySection parses the request body using gork JSON.
+// parseBodySection parses the request body using gork JSON or raw bytes.
 func (p *ConventionParser) parseBodySection(sectionValue reflect.Value, r *http.Request) error {
-	// Only parse body for methods that typically carry one
+	// Check if this is a direct []byte field instead of a struct
+	if sectionValue.Kind() == reflect.Slice && sectionValue.Type().Elem().Kind() == reflect.Uint8 {
+		return p.parseRawBodyField(sectionValue, r)
+	}
+
+	// Only parse body for methods that typically carry one for struct sections
 	if r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch {
 		return nil
 	}
@@ -139,6 +201,25 @@ func (p *ConventionParser) parseBodySection(sectionValue reflect.Value, r *http.
 		// Copy the decoded values back to the original struct
 		sectionValue.Set(sectionPtr.Elem())
 	}
+	return nil
+}
+
+// parseRawBodyField handles direct []byte Body fields for webhook support.
+func (p *ConventionParser) parseRawBodyField(sectionValue reflect.Value, r *http.Request) error {
+	if r.Body == nil {
+		// Set empty slice for nil body
+		sectionValue.Set(reflect.ValueOf([]byte{}))
+		return nil
+	}
+
+	// Read the raw body bytes
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read raw request body: %w", err)
+	}
+
+	// Set the raw bytes directly
+	sectionValue.Set(reflect.ValueOf(bodyBytes))
 	return nil
 }
 

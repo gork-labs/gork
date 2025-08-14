@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestValidateSectionFieldsWithStruct(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		// This might trigger the non-ValidationError path
-		err := validator.validateSection(field, fieldValue, validationErrors)
+		err := validator.validateSection(context.Background(), field, fieldValue, validationErrors)
 
 		// The validator.Struct() method expects a struct, passing a string might cause an error
 		// This tests the error propagation path from validateSectionFields to validateSection
@@ -54,7 +55,7 @@ func TestValidateSectionFieldsWithStruct(t *testing.T) {
 		})
 		validationErrors := make(map[string][]string)
 
-		err := validator.validateSection(field, fieldValue, validationErrors)
+		err := validator.validateSection(context.Background(), field, fieldValue, validationErrors)
 
 		// This tests various code paths
 		if err != nil {

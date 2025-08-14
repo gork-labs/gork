@@ -1,5 +1,5 @@
 # Root Makefile for gork monorepo
-.PHONY: all test build clean lint list-modules coverage coverage-html deps verify fmt vuln openapi-build openapi-gen openapi-validate openapi-swagger-validate
+.PHONY: all test build clean lint list-modules coverage coverage-html deps verify fmt vuln openapi-build openapi-gen openapi-validate openapi-swagger-validate openapi-lint
 
 # Dynamically read modules from go.work (used only by list-modules and some remaining inline targets)
 MODULES := $(shell go work edit -json | jq -r '.Use[].DiskPath' | sed 's|^\./||')
@@ -138,6 +138,13 @@ openapi-swagger-validate:
 		exit 1; \
 	fi; \
 	echo "All OpenAPI specs passed Swagger validation!"
+
+# Lint OpenAPI specs locally with Redocly CLI (via npx)
+# Lints only examples/openapi.json and examples/openapi.yaml
+openapi-lint: openapi-gen
+	@echo "Linting OpenAPI specs with Redocly...";
+	npx -y @redocly/cli lint --config .redocly.yaml examples/openapi.json
+	npx -y @redocly/cli lint --config .redocly.yaml examples/openapi.yaml
 
 # Validate that generated OpenAPI specs match committed ones and pass Swagger validation
 openapi-validate: openapi-gen openapi-swagger-validate

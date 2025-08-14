@@ -75,7 +75,7 @@ func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWrite
 	}
 
 	// Validate request using Convention Over Configuration
-	if err := f.validator.ValidateRequest(reqPtr.Interface()); err != nil {
+	if err := f.validator.ValidateRequest(r.Context(), reqPtr.Interface()); err != nil {
 		f.handleValidationError(w, err)
 		return
 	}

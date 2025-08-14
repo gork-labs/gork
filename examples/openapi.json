@@ -7,21 +7,18 @@
   "paths": {
     "/api/v1/auth/login": {
       "post": {
-        "operationId": "Login",
         "description": "Login handles user login requests.",
-        "tags": [
-          "auth"
-        ],
+        "operationId": "Login",
         "responses": {
           "200": {
-            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LoginResponse"
                 }
               }
-            }
+            },
+            "description": "Success"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -32,36 +29,31 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/api/v1/users": {
       "get": {
-        "operationId": "ListUsers",
         "description": "ListUsers handles listing all users.",
-        "tags": [
-          "users"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
+        "operationId": "ListUsers",
         "parameters": [
           {
-            "name": "limit",
-            "in": "query",
-            "required": false,
             "description": "Limit is the maximum number of users to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
             "schema": {
               "type": "integer"
             }
           },
           {
-            "name": "offset",
-            "in": "query",
-            "required": false,
             "description": "Offset is the number of users to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
             "schema": {
               "type": "integer"
             }
@@ -69,14 +61,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListUsersResponse"
                 }
               }
-            }
+            },
+            "description": "Success"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -87,50 +79,50 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
-      },
-      "post": {
-        "operationId": "CreateUser",
-        "description": "CreateUser handles user creation requests.",
-        "tags": [
-          "users"
-        ],
+        },
         "security": [
           {
-            "BasicAuth": []
+            "BearerAuth": []
           }
         ],
+        "tags": [
+          "users"
+        ]
+      },
+      "post": {
+        "description": "CreateUser handles user creation requests.",
+        "operationId": "CreateUser",
         "parameters": [
           {
-            "name": "return-to",
-            "in": "query",
-            "required": false,
             "description": "ReturnTo specifies where to redirect after user creation",
+            "in": "query",
+            "name": "return-to",
+            "required": false,
             "schema": {
               "type": "string"
             }
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateUserBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserType"
                 }
               }
-            }
+            },
+            "description": "Success"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -141,105 +133,105 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
       }
     },
     "/api/v1/users/{userId}": {
       "get": {
-        "operationId": "GetUser",
         "description": "GetUser handles user retrieval requests.",
-        "tags": [
-          "users"
+        "operationId": "GetUser",
+        "parameters": [
+          {
+            "description": "UserID is the ID of the user to retrieve",
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserType"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
         "security": [
           {
             "ApiKeyAuth": []
           }
         ],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "description": "UserID is the ID of the user to retrieve",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserType"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "422": {
-            "$ref": "#/components/responses/UnprocessableEntity"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "put": {
-        "operationId": "UpdateUser",
-        "description": "UpdateUser handles user update requests.",
         "tags": [
           "users"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
+        ]
+      },
+      "put": {
+        "description": "UpdateUser handles user update requests.",
+        "operationId": "UpdateUser",
         "parameters": [
           {
-            "name": "userId",
-            "in": "path",
-            "required": true,
             "description": "UserID is the ID of the user to update",
+            "in": "path",
+            "name": "userId",
+            "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "X-User-Version",
-            "in": "header",
-            "required": false,
             "description": "Version specifies the user version for concurrency control",
+            "in": "header",
+            "name": "X-User-Version",
+            "required": false,
             "schema": {
               "type": "integer"
             }
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUserBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserType"
                 }
               }
-            }
+            },
+            "description": "Success"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -250,43 +242,48 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
-      },
-      "delete": {
-        "operationId": "DeleteUser",
-        "description": "DeleteUser handles user deletion requests.",
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "tags": [
           "users"
-        ],
+        ]
+      },
+      "delete": {
+        "description": "DeleteUser handles user deletion requests.",
+        "operationId": "DeleteUser",
         "parameters": [
           {
-            "name": "userId",
-            "in": "path",
-            "required": true,
             "description": "UserID is the ID of the user to delete",
+            "in": "path",
+            "name": "userId",
+            "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "force",
-            "in": "query",
-            "required": false,
             "description": "Force specifies whether to force deletion",
+            "in": "query",
+            "name": "force",
+            "required": false,
             "schema": {
               "type": "boolean"
             }
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DeleteUserBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "204": {
@@ -301,25 +298,20 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       }
     },
     "/api/v1/users/{userId}/payment-method": {
       "put": {
-        "operationId": "UpdateUserPaymentMethod",
         "description": "UpdateUserPaymentMethod handles user payment method update requests.",
-        "tags": [
-          "users"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
+        "operationId": "UpdateUserPaymentMethod",
         "parameters": [
           {
-            "name": "userId",
             "in": "path",
+            "name": "userId",
             "required": true,
             "schema": {
               "type": "string"
@@ -327,14 +319,14 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BankOrCreditBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "204": {
@@ -349,41 +341,41 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
-      }
-    },
-    "/api/v1/users/{userId}/preferences": {
-      "put": {
-        "operationId": "UpdateUserPreferences",
-        "description": "UpdateUserPreferences handles user preferences update requests.",
-        "tags": [
-          "users"
-        ],
+        },
         "security": [
           {
             "BearerAuth": []
           }
         ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/preferences": {
+      "put": {
+        "description": "UpdateUserPreferences handles user preferences update requests.",
+        "operationId": "UpdateUserPreferences",
         "parameters": [
           {
-            "name": "userId",
-            "in": "path",
-            "required": true,
             "description": "UserID is the ID of the user whose preferences are being updated",
+            "in": "path",
+            "name": "userId",
+            "required": true,
             "schema": {
               "type": "string"
             }
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUserPreferencesBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "204": {
@@ -398,6 +390,99 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/webhooks/stripe": {
+      "post": {
+        "description": "Webhook endpoint that receives events from external services",
+        "operationId": "StripeWebhook",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StripeWebhookRequest"
+              }
+            }
+          },
+          "description": "Webhook event payload",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeWebhookErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid webhook payload or signature"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "summary": "Webhook endpoint for StripeWebhook",
+        "tags": [
+          "webhooks",
+          "stripe"
+        ],
+        "x-webhook-events": [
+          {
+            "event": "customer.created",
+            "operationId": "HandleCustomerCreated",
+            "userPayloadSchema": {
+              "$ref": "#/components/schemas/CustomerMetadata"
+            }
+          },
+          {
+            "event": "invoice.paid",
+            "operationId": "HandleInvoicePaid",
+            "userPayloadSchema": {
+              "$ref": "#/components/schemas/InvoiceMetadata"
+            }
+          },
+          {
+            "event": "payment_intent.payment_failed",
+            "operationId": "HandlePaymentIntentFailed",
+            "userPayloadSchema": {
+              "$ref": "#/components/schemas/PaymentMetadata"
+            }
+          },
+          {
+            "event": "payment_intent.succeeded",
+            "operationId": "HandlePaymentIntentSucceeded",
+            "userPayloadSchema": {
+              "$ref": "#/components/schemas/PaymentMetadata"
+            }
+          }
+        ],
+        "x-webhook-provider": {
+          "docs": "https://stripe.com/docs/webhooks",
+          "name": "Stripe",
+          "website": "https://stripe.com"
         }
       }
     }
@@ -487,6 +572,23 @@
         ],
         "description": "CreditCardPaymentMethod represents a credit card payment method."
       },
+      "CustomerMetadata": {
+        "type": "object",
+        "title": "CustomerMetadata",
+        "properties": {
+          "PlanType": {
+            "type": "string"
+          },
+          "UserID": {
+            "type": "string",
+            "description": "UserID is the ID of the user"
+          }
+        },
+        "required": [
+          "UserID"
+        ],
+        "description": "CustomerMetadata represents customer-specific metadata for webhook events."
+      },
       "DeleteUserBody": {
         "type": "object",
         "title": "DeleteUserBody",
@@ -517,6 +619,27 @@
           "error"
         ],
         "description": "Generic error response structure"
+      },
+      "InvoiceMetadata": {
+        "type": "object",
+        "title": "InvoiceMetadata",
+        "properties": {
+          "BillingPeriod": {
+            "type": "string"
+          },
+          "SubscriptionID": {
+            "type": "string"
+          },
+          "UserID": {
+            "type": "string",
+            "description": "UserID is the ID of the user"
+          }
+        },
+        "required": [
+          "UserID",
+          "SubscriptionID"
+        ],
+        "description": "InvoiceMetadata represents invoice-specific metadata for webhook events."
       },
       "ListUsersResponse": {
         "title": "ListUsersResponse",
@@ -550,6 +673,78 @@
           }
         },
         "description": "LoginResponse represents the response body for the login endpoint."
+      },
+      "PaymentMetadata": {
+        "type": "object",
+        "title": "PaymentMetadata",
+        "properties": {
+          "ProjectID": {
+            "type": "string"
+          },
+          "UserID": {
+            "type": "string",
+            "description": "UserID is the ID of the user"
+          }
+        },
+        "required": [
+          "UserID"
+        ],
+        "description": "PaymentMetadata represents example user-defined metadata types validated by the webhook dispatcher."
+      },
+      "StripeWebhookErrorResponse": {
+        "type": "object",
+        "title": "StripeWebhookErrorResponse",
+        "properties": {
+          "Body": {
+            "type": "object",
+            "properties": {
+              "Error": {
+                "type": "string"
+              },
+              "Received": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "StripeWebhookRequest": {
+        "type": "object",
+        "title": "StripeWebhookRequest",
+        "properties": {
+          "Body": {
+            "type": "string",
+            "format": "byte"
+          },
+          "Headers": {
+            "type": "object",
+            "properties": {
+              "Content-Type": {
+                "type": "string"
+              },
+              "Stripe-Signature": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Stripe-Signature"
+            ]
+          }
+        }
+      },
+      "StripeWebhookResponse": {
+        "type": "object",
+        "title": "StripeWebhookResponse",
+        "properties": {
+          "Body": {
+            "type": "object",
+            "properties": {
+              "Received": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
       },
       "UpdateUserBody": {
         "type": "object",

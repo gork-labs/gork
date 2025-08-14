@@ -101,9 +101,11 @@ func (r *defaultTypeRegistrar) RegisterType(t reflect.Type, schema *Schema, regi
 	rawName := t.Name()
 	typeName := sanitizeSchemaName(rawName)
 	if typeName != "" {
-		schema.Title = typeName
-		registry[typeName] = schema
-		return &Schema{Ref: "#/components/schemas/" + typeName}
+		// Pick a human-friendly unique name to avoid collisions
+		unique := uniqueSchemaNameForType(t, registry)
+		schema.Title = unique
+		registry[unique] = schema
+		return &Schema{Ref: "#/components/schemas/" + unique}
 	}
 	return schema
 }

@@ -38,6 +38,7 @@ func TestTypeParserRegistry_Register(t *testing.T) {
 		{
 			name: "valid time parser",
 			parserFunc: func(ctx context.Context, value string) (*time.Time, error) {
+				// Use deterministic time parsing for reliable tests
 				t, err := time.Parse(time.RFC3339, value)
 				return &t, err
 			},
@@ -233,8 +234,9 @@ func TestTypeParserRegistry_ListRegisteredTypes(t *testing.T) {
 	}
 
 	err = registry.Register(func(ctx context.Context, value string) (*time.Time, error) {
-		t := time.Now()
-		return &t, nil
+		// Use a fixed time for deterministic testing
+		fixedTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+		return &fixedTime, nil
 	})
 	if err != nil {
 		t.Fatalf("Failed to register time.Time parser: %v", err)
