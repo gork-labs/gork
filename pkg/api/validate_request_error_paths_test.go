@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -33,7 +34,7 @@ func TestValidateRequestUncoveredLines(t *testing.T) {
 			}{Name: "test"},
 		}
 
-		err := validator.ValidateRequest(req) // Not a pointer
+		err := validator.ValidateRequest(context.Background(), req) // Not a pointer
 
 		if err == nil {
 			t.Error("Expected error for non-pointer request")
@@ -46,7 +47,7 @@ func TestValidateRequestUncoveredLines(t *testing.T) {
 		// Test case 2: Pass a pointer to non-struct (covers lines 112-114)
 		req := "this is a string, not a struct"
 
-		err := validator.ValidateRequest(&req) // Pointer to string, not struct
+		err := validator.ValidateRequest(context.Background(), &req) // Pointer to string, not struct
 
 		if err == nil {
 			t.Error("Expected error for pointer to non-struct")
@@ -63,7 +64,7 @@ func TestValidateRequestUncoveredLines(t *testing.T) {
 			}{Name: "test"},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		// Should return the server error directly
 		if err == nil {
@@ -75,7 +76,7 @@ func TestValidateRequestUncoveredLines(t *testing.T) {
 
 	t.Run("nil request", func(t *testing.T) {
 		// Test edge case: nil request
-		err := validator.ValidateRequest(nil)
+		err := validator.ValidateRequest(context.Background(), nil)
 
 		if err == nil {
 			t.Error("Expected error for nil request")
@@ -101,7 +102,7 @@ func TestValidateRequestUncoveredLines(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := validator.ValidateRequest(tc.req)
+				err := validator.ValidateRequest(context.Background(), tc.req)
 
 				if err == nil {
 					t.Errorf("Expected error for %s", tc.name)
@@ -140,7 +141,7 @@ func TestValidateRequestServerErrorFromSections(t *testing.T) {
 		}
 
 		// This might not cause a server error, but it tests the robustness
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		// We mainly want to ensure this doesn't panic and handles the case gracefully
 		if err != nil {
@@ -172,7 +173,7 @@ func TestMockValidateSectionsServerError(t *testing.T) {
 			}{Name: "test"},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 		if err != nil {
 			t.Errorf("Expected normal request to succeed, got: %v", err)
 		}

@@ -72,7 +72,7 @@ type (
 
 // Implement Discriminator interface for testing
 func (d DiscriminatedStringType) DiscriminatorValue() string { return "string" }
-func (d DiscriminatedIntType) DiscriminatorValue() string   { return "int" }
+func (d DiscriminatedIntType) DiscriminatorValue() string    { return "int" }
 
 // Helper type that implements DiscriminatorField
 type CustomDiscriminatorField struct {
@@ -96,11 +96,11 @@ func TestUnionUnmarshalJSON(t *testing.T) {
 		{"int value", `{"value": 1}`, "B", false},
 		{"bool value", `{"value": true}`, "C", false},
 		{"float value", `{"value": 3.14}`, "D", false},
-		
+
 		// Invalid cases
 		{"invalid json", `{invalid}`, "error", true},
 		{"empty object", `{}`, "error", true}, // fails validation due to required fields
-		{"null", `null`, "error", true}, // null fails validation
+		{"null", `null`, "error", true},       // null fails validation
 		{"array", `[]`, "error", true},
 		{"raw string", `"hello"`, "error", true},
 		{"raw number", `42`, "error", true},
@@ -210,20 +210,19 @@ func TestUnionUnmarshalJSON(t *testing.T) {
 	})
 }
 
-
 // TestUnionValidation tests validation for all union types with complex validation scenarios
 func TestUnionValidation(t *testing.T) {
 	tests := []struct {
-		name    string
-		json    string
-		wantErr bool
+		name        string
+		json        string
+		wantErr     bool
 		validOption string // which union option should succeed
 	}{
 		{"valid email", `{"type": "email", "email": "test@example.com"}`, false, "A"},
 		{"valid phone", `{"type": "phone", "phone": "+1234567890"}`, false, "B"},
 		{"valid token", `{"type": "token", "token": "550e8400-e29b-41d4-a716-446655440000"}`, false, "C"},
 		{"valid username", `{"type": "username", "username": "user123"}`, false, "D"},
-		
+
 		// Invalid cases
 		{"invalid email format", `{"type": "email", "email": "not-an-email"}`, true, ""},
 		{"invalid token format", `{"type": "token", "token": "not-a-uuid"}`, true, ""},
@@ -344,8 +343,6 @@ func TestUnionMarshalJSON(t *testing.T) {
 	})
 }
 
-
-
 // TestUnionValue tests the Value method for all union types
 func TestUnionValue(t *testing.T) {
 	t.Run("Union2", func(t *testing.T) {
@@ -420,8 +417,6 @@ func TestUnionValue(t *testing.T) {
 		}
 	})
 }
-
-
 
 // TestUnionValidateMethod tests the Validate method for all union types
 func TestUnionValidateMethod(t *testing.T) {
@@ -513,8 +508,6 @@ func TestUnionValidateMethod(t *testing.T) {
 		}
 	})
 }
-
-
 
 // TestUnionComplexTypes tests union types with complex nested structures
 func TestUnionComplexTypes(t *testing.T) {
@@ -793,7 +786,7 @@ func TestUnionComplexPayloads(t *testing.T) {
 				t.Error("Expected array payload with 3 elements")
 			}
 		}},
-		
+
 		// Error cases
 		{"type mismatch", `{"type": "string", "value": 123}`, -1, true, nil},
 		{"missing required field", `{"type": "number"}`, -1, true, nil},

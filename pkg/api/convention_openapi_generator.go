@@ -33,7 +33,15 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 		operation.Tags = route.Options.Tags
 	}
 
-	// Process request sections
+	// Check if this is a webhook handler
+	isWebhook := g.isWebhookHandler(route)
+
+	if isWebhook {
+		// Special handling for webhook operations
+		return g.buildWebhookOperation(route, components, operation)
+	}
+
+	// Process request sections for regular handlers
 	if route.RequestType.Kind() == reflect.Struct {
 		g.processRequestSections(route.RequestType, operation, components)
 	}
@@ -195,7 +203,7 @@ func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type
 
 	operation.RequestBody = &RequestBody{
 		Required: true,
-		Content: map[string]MediaType{
+		Content: map[string]*MediaType{
 			"application/json": {
 				Schema: schema,
 			},
@@ -275,7 +283,7 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 
 	// Add body content for 200 response
 	if bodySchema != nil {
-		response.Content = map[string]MediaType{
+		response.Content = map[string]*MediaType{
 			"application/json": {
 				Schema: bodySchema,
 			},
@@ -337,12 +345,14 @@ func (g *ConventionOpenAPIGenerator) generateResponseComponentSchema(respType re
 		}
 	}
 
-	// Store the component schema
-	components.Schemas[typeName] = componentSchema
+	// Store the component schema with a collision-safe name
+	unique := uniqueSchemaNameForType(respType, components.Schemas)
+	componentSchema.Title = unique
+	components.Schemas[unique] = componentSchema
 
 	// Return a reference to the component
 	return &Schema{
-		Ref: "#/components/schemas/" + typeName,
+		Ref: "#/components/schemas/" + unique,
 	}
 }
 
@@ -932,4 +942,539 @@ func (g *ConventionOpenAPIGenerator) createBinaryUnionName(members []string) str
 
 	// For longer names, use abbreviated form
 	return a[:min(4, len(a))] + "Or" + b[:min(4, len(b))]
+}
+
+// isWebhookHandler determines webhook handlers by presence of an original webhook handler instance.
+// Routes created via api.WebhookHandlerFunc populate RouteInfo.WebhookHandler.
+func (g *ConventionOpenAPIGenerator) isWebhookHandler(route *RouteInfo) bool {
+	return route != nil && route.WebhookHandler != nil
+}
+
+// buildWebhookOperation builds an OpenAPI operation specifically for webhook handlers.
+func (g *ConventionOpenAPIGenerator) buildWebhookOperation(route *RouteInfo, components *Components, operation *Operation) *Operation {
+	// Webhooks typically have a more generic request body structure
+	// Set summary and description for webhook operations
+	operation.Summary = fmt.Sprintf("Webhook endpoint for %s", route.HandlerName)
+	operation.Description = "Webhook endpoint that receives events from external services"
+
+	// Add webhook-specific extensions
+	if operation.Extensions == nil {
+		operation.Extensions = make(map[string]interface{})
+	}
+
+	// Attach provider metadata (route-provided or reflected from handler)
+	if p := g.getWebhookProviderInfo(route); p != nil {
+		provider := map[string]string{"name": p.Name, "website": p.Website, "docs": p.DocsURL}
+		operation.Extensions["x-webhook-provider"] = provider
+		operation.XWebhookProvider = provider
+	}
+	// Always emit x-webhook-events as an array of objects with at least {"event": string}
+	eventEntries := g.buildWebhookEventEntries(route, components)
+	if len(eventEntries) > 0 {
+		operation.Extensions["x-webhook-events"] = eventEntries
+		operation.XWebhookEvents = eventEntries
+	}
+
+	// Process webhook request body
+	g.processWebhookRequestBody(route.RequestType, operation, components)
+
+	// Add webhook-specific responses using reflection on the actual webhook handler
+	g.addWebhookResponses(operation, components, route)
+
+	// Add standard error responses (but skip 400 since we have a webhook-specific one)
+	g.addStandardErrorResponsesForWebhook(operation, components)
+
+	return operation
+}
+
+// getWebhookProvider determines the webhook provider from the request type.
+// Note: Provider detection is intentionally omitted. Configuration is user-driven.
+func (g *ConventionOpenAPIGenerator) getWebhookProviderInfo(route *RouteInfo) *WebhookProviderInfo {
+	if route.WebhookProviderInfo != nil {
+		return route.WebhookProviderInfo
+	}
+	if route.WebhookHandler == nil {
+		return nil
+	}
+	hv := reflect.ValueOf(route.WebhookHandler)
+	m := hv.MethodByName("ProviderInfo")
+	if !m.IsValid() {
+		return nil
+	}
+	res := m.Call(nil)
+	if len(res) == 0 {
+		return nil
+	}
+	if pi, ok := res[0].Interface().(WebhookProviderInfo); ok {
+		return &pi
+	}
+	return nil
+}
+
+// getWebhookEventTypes extracts supported event types from the route using reflection.
+func (g *ConventionOpenAPIGenerator) getWebhookEventTypes(route *RouteInfo) []string {
+	if route.WebhookHandler == nil {
+		return nil
+	}
+
+	return g.extractEventTypesFromHandler(route.WebhookHandler)
+}
+
+// extractEventTypesFromHandler extracts event types from a webhook handler using reflection.
+func (g *ConventionOpenAPIGenerator) extractEventTypesFromHandler(handler interface{}) []string {
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+
+	method, exists := handlerType.MethodByName("GetValidEventTypes")
+	if !exists {
+		return nil
+	}
+
+	if !g.isValidEventTypesMethod(method.Type) {
+		return nil
+	}
+
+	return g.callEventTypesMethod(handlerValue)
+}
+
+// isValidEventTypesMethod checks if the method has the correct signature.
+func (g *ConventionOpenAPIGenerator) isValidEventTypesMethod(methodType reflect.Type) bool {
+	return methodType.NumIn() == 1 && methodType.NumOut() == 1
+}
+
+// callEventTypesMethod calls the GetValidEventTypes method and returns the result.
+func (g *ConventionOpenAPIGenerator) callEventTypesMethod(handlerValue reflect.Value) []string {
+	results := handlerValue.MethodByName("GetValidEventTypes").Call(nil)
+	if len(results) == 0 {
+		return nil
+	}
+
+	eventTypes, ok := results[0].Interface().([]string)
+	if !ok {
+		return nil
+	}
+
+	return eventTypes
+}
+
+// processWebhookRequestBody processes the request body for webhook operations.
+func (g *ConventionOpenAPIGenerator) processWebhookRequestBody(reqType reflect.Type, operation *Operation, components *Components) {
+	if reqType == nil {
+		return
+	}
+
+	// Create request body schema
+	requestBodySchema := g.buildWebhookRequestBodySchema(reqType, components)
+
+	operation.RequestBody = &RequestBody{
+		Required: true,
+		Content: map[string]*MediaType{
+			"application/json": {
+				Schema: requestBodySchema,
+			},
+		},
+		Description: "Webhook event payload",
+	}
+}
+
+// buildWebhookRequestBodySchema builds a schema for webhook request bodies.
+func (g *ConventionOpenAPIGenerator) buildWebhookRequestBodySchema(reqType reflect.Type, components *Components) *Schema {
+	if reqType.Kind() == reflect.Interface {
+		return &Schema{Type: "object", Description: "Generic webhook payload"}
+	}
+	schema := g.generateSchemaFromType(reqType, "", components)
+	return g.renameGenericWebhookRequestIfNeeded(reqType, schema, components)
+}
+
+// renameGenericWebhookRequestIfNeeded converts provider-generic WebhookRequest into ProviderWebhookRequest component.
+func (g *ConventionOpenAPIGenerator) renameGenericWebhookRequestIfNeeded(reqType reflect.Type, schema *Schema, components *Components) *Schema {
+	if reqType.Kind() != reflect.Struct || reqType.Name() != "WebhookRequest" || schema == nil {
+		return schema
+	}
+	provider := g.providerFromPkgPath(reqType.PkgPath())
+	compName := toPascalCase(provider) + "WebhookRequest"
+	if components.Schemas == nil {
+		components.Schemas = map[string]*Schema{}
+	}
+	var toStore Schema
+	if schema.Ref != "" {
+		refName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		if resolved, ok := components.Schemas[refName]; ok && resolved != nil {
+			toStore = *resolved
+		} else {
+			toStore = *schema
+		}
+	} else {
+		toStore = *schema
+	}
+	toStore.Title = compName
+	components.Schemas[compName] = &toStore
+	delete(components.Schemas, "WebhookRequest")
+	return &Schema{Ref: "#/components/schemas/" + compName}
+}
+
+// providerFromPkgPath extracts the provider name from a package path ending with "/webhooks/<provider>".
+func (g *ConventionOpenAPIGenerator) providerFromPkgPath(pkgPath string) string {
+	if pkgPath == "" {
+		return ""
+	}
+	// Split path and get last segment
+	parts := strings.Split(pkgPath, "/")
+	last := parts[len(parts)-1]
+	// If the last segment is "webhooks", try the previous one
+	if last == "webhooks" && len(parts) >= 2 {
+		return parts[len(parts)-2]
+	}
+	return last
+}
+
+// toPascalCase converts a string like "stripe" or "stripe_webhook" to "StripeWebhook".
+func toPascalCase(s string) string {
+	if s == "" {
+		return s
+	}
+	// Split by non-alphanumeric boundaries
+	sep := func(r rune) bool { return r == '_' || r == '-' || r == ' ' || r == '.' }
+	parts := strings.FieldsFunc(s, sep)
+	out := ""
+	for _, p := range parts {
+		out += strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
+	}
+	return out
+}
+
+// addWebhookResponses adds webhook-specific response schemas using reflection on the actual handler instance.
+// This method uses reflection to call SuccessResponse() and ErrorResponse() methods on the webhook handler
+// to generate accurate OpenAPI response schemas instead of hardcoded placeholders.
+func (g *ConventionOpenAPIGenerator) addWebhookResponses(operation *Operation, components *Components, route *RouteInfo) {
+	// Extract the original webhook handler instance from the route
+	webhookHandler := route.WebhookHandler
+	if webhookHandler == nil {
+		// Fallback to basic responses if no webhook handler is available
+		g.addFallbackWebhookResponses(operation, components)
+		return
+	}
+
+	// Use reflection to get the success response type
+	successResponseType := g.getWebhookResponseType(webhookHandler, "SuccessResponse")
+	if successResponseType != nil {
+		successSchema := g.generateSchemaFromType(successResponseType, "", components)
+		// Rename generic WebhookResponse to provider-specific name if needed
+		if successResponseType.Kind() == reflect.Struct && successResponseType.Name() == "WebhookResponse" {
+			successSchema = g.providerSpecificWebhookTypeRef(successResponseType, successSchema, components, "WebhookResponse")
+		}
+		operation.Responses["200"] = &Response{
+			Description: "Webhook processed successfully",
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema: successSchema,
+				},
+			},
+		}
+	} else {
+		// Fallback if SuccessResponse method is not available
+		operation.Responses["200"] = g.createFallbackSuccessResponse()
+	}
+
+	// Use reflection to get the error response type
+	errorResponseType := g.getWebhookResponseType(webhookHandler, "ErrorResponse")
+	if errorResponseType != nil {
+		errorSchema := g.generateSchemaFromType(errorResponseType, "", components)
+		// Rename generic WebhookErrorResponse to provider-specific name if needed
+		if errorResponseType.Kind() == reflect.Struct && errorResponseType.Name() == "WebhookErrorResponse" {
+			errorSchema = g.providerSpecificWebhookTypeRef(errorResponseType, errorSchema, components, "WebhookErrorResponse")
+		}
+		operation.Responses["400"] = &Response{
+			Description: "Invalid webhook payload or signature",
+			Content: map[string]*MediaType{
+				"application/json": {
+					Schema: errorSchema,
+				},
+			},
+		}
+	} else {
+		// Fallback if ErrorResponse method is not available
+		operation.Responses["400"] = g.createFallbackErrorResponse()
+	}
+}
+
+// providerSpecificWebhookTypeRef ensures provider-prefixed component names for generic webhook types.
+func (g *ConventionOpenAPIGenerator) providerSpecificWebhookTypeRef(t reflect.Type, schema *Schema, components *Components, suffix string) *Schema {
+	pkgPath := t.PkgPath()
+	provider := g.providerFromPkgPath(pkgPath)
+	if provider == "" {
+		return schema
+	}
+	compName := toPascalCase(provider) + suffix
+	if components.Schemas == nil {
+		components.Schemas = map[string]*Schema{}
+	}
+	var toStore Schema
+	if schema != nil {
+		if schema.Ref != "" {
+			refName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+			if resolved, ok := components.Schemas[refName]; ok && resolved != nil {
+				toStore = *resolved
+			} else {
+				toStore = *schema
+			}
+		} else {
+			toStore = *schema
+		}
+		toStore.Title = compName
+		components.Schemas[compName] = &toStore
+		// Remove generic component counterpart if present
+		delete(components.Schemas, suffix)
+		return &Schema{Ref: "#/components/schemas/" + compName}
+	}
+	return schema
+}
+
+// buildWebhookEventsMetadata constructs an array of objects describing each registered event handler.
+// For each event we include:
+// - event: string
+// - description: pulled from function doc (if available)
+// - operationId: function name
+// - userPayloadSchema: JSON schema for the user metadata parameter (if any).
+func (g *ConventionOpenAPIGenerator) buildWebhookEventsMetadata(route *RouteInfo, components *Components) []map[string]interface{} {
+	metas := route.WebhookHandlersMeta
+	if len(metas) == 0 {
+		return nil
+	}
+
+	out := make([]map[string]interface{}, 0, len(metas))
+	for _, m := range metas {
+		entry := g.buildSingleEventMetadata(m, components)
+		out = append(out, entry)
+	}
+	return out
+}
+
+// buildSingleEventMetadata builds metadata for a single webhook event.
+func (g *ConventionOpenAPIGenerator) buildSingleEventMetadata(meta RegisteredEventHandler, components *Components) map[string]interface{} {
+	entry := map[string]interface{}{
+		"event": meta.EventType,
+		// operationId: name of the registered handler function (closest stable identifier)
+		"operationId": meta.HandlerName,
+	}
+
+	g.addDescriptionToEntry(entry, meta.HandlerName)
+	g.addUserMetadataSchemaToEntry(entry, meta.UserMetadataType, components)
+
+	return entry
+}
+
+// addDescriptionToEntry adds description from function docs if available.
+func (g *ConventionOpenAPIGenerator) addDescriptionToEntry(entry map[string]interface{}, handlerName string) {
+	if g.extractor == nil || handlerName == "" {
+		return
+	}
+
+	fd := g.extractor.ExtractFunctionDoc(handlerName)
+	if fd.Description != "" {
+		entry["description"] = fd.Description
+	}
+}
+
+// addUserMetadataSchemaToEntry adds user metadata schema if present.
+func (g *ConventionOpenAPIGenerator) addUserMetadataSchemaToEntry(entry map[string]interface{}, userMetadataType reflect.Type, components *Components) {
+	if userMetadataType == nil {
+		return
+	}
+
+	userT := userMetadataType
+	if userT.Kind() == reflect.Ptr {
+		userT = userT.Elem()
+	}
+
+	if userT.Kind() != reflect.Invalid {
+		schema := g.generateSchemaFromType(userT, "", components)
+		entry["userPayloadSchema"] = schema
+	}
+}
+
+// getWebhookResponseType uses reflection to get the return type of a webhook handler method.
+func (g *ConventionOpenAPIGenerator) getWebhookResponseType(handler interface{}, methodName string) reflect.Type {
+	handlerValue := reflect.ValueOf(handler)
+	if !handlerValue.IsValid() {
+		return nil
+	}
+
+	method := handlerValue.MethodByName(methodName)
+	if !method.IsValid() {
+		return nil
+	}
+
+	methodType := method.Type()
+	if methodType.NumOut() == 0 {
+		return nil
+	}
+
+	returnType := methodType.Out(0)
+	return g.resolveConcreteType(method, methodType, returnType, methodName)
+}
+
+// resolveConcreteType resolves the concrete type from an interface{} return type.
+func (g *ConventionOpenAPIGenerator) resolveConcreteType(method reflect.Value, methodType reflect.Type, returnType reflect.Type, methodName string) reflect.Type {
+	if returnType.Kind() != reflect.Interface || returnType.String() != "interface {}" {
+		return returnType
+	}
+
+	switch methodName {
+	case "SuccessResponse":
+		return g.getSuccessResponseType(method, methodType)
+	case "ErrorResponse":
+		return g.getErrorResponseType(method, methodType)
+	default:
+		return returnType
+	}
+}
+
+// getSuccessResponseType gets the concrete type for SuccessResponse method.
+func (g *ConventionOpenAPIGenerator) getSuccessResponseType(method reflect.Value, methodType reflect.Type) reflect.Type {
+	if methodType.NumIn() != 0 {
+		// Return the static return type even with wrong signature
+		return methodType.Out(0)
+	}
+
+	results := method.Call(nil)
+	return g.extractTypeFromResults(results)
+}
+
+// getErrorResponseType gets the concrete type for ErrorResponse method.
+func (g *ConventionOpenAPIGenerator) getErrorResponseType(method reflect.Value, methodType reflect.Type) reflect.Type {
+	if methodType.NumIn() != 1 {
+		// Return the static return type even with wrong signature
+		return methodType.Out(0)
+	}
+
+	errorArg := reflect.ValueOf(fmt.Errorf("sample error"))
+	results := method.Call([]reflect.Value{errorArg})
+	return g.extractTypeFromResults(results)
+}
+
+// extractTypeFromResults extracts the concrete type from method call results.
+func (g *ConventionOpenAPIGenerator) extractTypeFromResults(results []reflect.Value) reflect.Type {
+	if len(results) == 0 || !results[0].IsValid() {
+		return nil
+	}
+
+	result := results[0]
+	if result.Kind() == reflect.Interface && !result.IsNil() {
+		return result.Elem().Type()
+	}
+
+	return result.Type()
+}
+
+// buildWebhookEventEntries builds webhook event entries based on available metadata.
+func (g *ConventionOpenAPIGenerator) buildWebhookEventEntries(route *RouteInfo, components *Components) []map[string]interface{} {
+	switch {
+	case len(route.WebhookHandlersMeta) > 0:
+		return g.buildWebhookEventsMetadata(route, components)
+	case len(route.WebhookHandledEvents) > 0:
+		return g.buildEventEntriesFromHandledEvents(route.WebhookHandledEvents)
+	default:
+		return g.buildEventEntriesFromProvider(route)
+	}
+}
+
+// buildEventEntriesFromHandledEvents builds event entries from handled events list.
+func (g *ConventionOpenAPIGenerator) buildEventEntriesFromHandledEvents(handledEvents []string) []map[string]interface{} {
+	eventEntries := make([]map[string]interface{}, 0, len(handledEvents))
+	for _, evt := range handledEvents {
+		eventEntries = append(eventEntries, map[string]interface{}{"event": evt})
+	}
+	return eventEntries
+}
+
+// buildEventEntriesFromProvider builds event entries from provider-advertised list.
+func (g *ConventionOpenAPIGenerator) buildEventEntriesFromProvider(route *RouteInfo) []map[string]interface{} {
+	eventTypes := g.getWebhookEventTypes(route)
+	if len(eventTypes) == 0 {
+		return nil
+	}
+
+	eventEntries := make([]map[string]interface{}, 0, len(eventTypes))
+	for _, evt := range eventTypes {
+		eventEntries = append(eventEntries, map[string]interface{}{"event": evt})
+	}
+	return eventEntries
+}
+
+// addFallbackWebhookResponses adds basic webhook responses when reflection fails.
+func (g *ConventionOpenAPIGenerator) addFallbackWebhookResponses(operation *Operation, _ *Components) {
+	operation.Responses["200"] = g.createFallbackSuccessResponse()
+	operation.Responses["400"] = g.createFallbackErrorResponse()
+}
+
+// createFallbackSuccessResponse creates a basic success response for webhooks.
+func (g *ConventionOpenAPIGenerator) createFallbackSuccessResponse() *Response {
+	return &Response{
+		Description: "Webhook processed successfully",
+		Content: map[string]*MediaType{
+			"application/json": {
+				Schema: &Schema{
+					Type: "object",
+					Properties: map[string]*Schema{
+						"received": {
+							Type:        "boolean",
+							Description: "Whether the webhook was received successfully",
+						},
+					},
+					Required: []string{"received"},
+				},
+			},
+		},
+	}
+}
+
+// createFallbackErrorResponse creates a basic error response for webhooks.
+func (g *ConventionOpenAPIGenerator) createFallbackErrorResponse() *Response {
+	return &Response{
+		Description: "Invalid webhook payload or signature",
+		Content: map[string]*MediaType{
+			"application/json": {
+				Schema: &Schema{
+					Type: "object",
+					Properties: map[string]*Schema{
+						"received": {
+							Type:        "boolean",
+							Description: "Whether the webhook was received (false for errors)",
+						},
+						"error": {
+							Type:        "string",
+							Description: "Error message describing what went wrong",
+						},
+					},
+					Required: []string{"received", "error"},
+				},
+			},
+		},
+	}
+}
+
+// addStandardErrorResponsesForWebhook adds standard error responses for webhooks, excluding 400 which has webhook-specific handling.
+func (g *ConventionOpenAPIGenerator) addStandardErrorResponsesForWebhook(operation *Operation, components *Components) {
+	// Ensure standard error response components exist
+	ensureStdResponses(components)
+
+	// Ensure error response schemas exist in components
+	g.ensureErrorSchemas(components)
+
+	// Add standard error responses to the operation
+	if operation.Responses == nil {
+		operation.Responses = map[string]*Response{}
+	}
+
+	// Skip 400 since webhooks have custom 400 handling
+	// 422 Unprocessable Entity - Request body could not be parsed
+	operation.Responses["422"] = &Response{
+		Ref: "#/components/responses/UnprocessableEntity",
+	}
+
+	// 500 Internal Server Error - Server error
+	operation.Responses["500"] = &Response{
+		Ref: "#/components/responses/InternalServerError",
+	}
 }

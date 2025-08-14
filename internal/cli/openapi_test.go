@@ -226,14 +226,14 @@ func TestWriteOutput(t *testing.T) {
 			name: "stdout output",
 			config: &GenerateConfig{
 				OutputPath: "-",
-					},
+			},
 			wantErr: false,
 		},
 		{
 			name: "nonexistent directory",
 			config: &GenerateConfig{
 				OutputPath: "/nonexistent/dir/output.json",
-					},
+			},
 			wantErr: true,
 		},
 	}
@@ -476,7 +476,7 @@ func TestGenerateSpec(t *testing.T) {
 				OutputPath: "-",
 				Title:      "Test API",
 				Version:    "1.0.0",
-					},
+			},
 			wantErr: false,
 		},
 		{
@@ -557,7 +557,7 @@ func TestWriteOutputDirectoryHandling(t *testing.T) {
 			name: "file exists where directory expected",
 			config: &GenerateConfig{
 				OutputPath: filepath.Join(tmpDir, "file.txt", "output.json"),
-					},
+			},
 			wantErr: true,
 		},
 	}
@@ -872,7 +872,7 @@ func TestRemainingCoverage(t *testing.T) {
 		// Try to write to a path that doesn't exist
 		config := &GenerateConfig{
 			OutputPath: "/nonexistent/directory/output.json",
-			}
+		}
 
 		err := writeOutput(spec, config)
 		if err == nil {
@@ -1101,7 +1101,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			OutputPath: "-",
 			Title:      "Test API",
 			Version:    "1.0.0",
-			}
+		}
 
 		err := GenerateSpec(config)
 		if err == nil {
@@ -1128,7 +1128,7 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 			OutputPath: tmpFile,
 			Title:      "Test API",
 			Version:    "1.0.0",
-			}
+		}
 
 		err := GenerateSpec(config)
 		if err == nil {
@@ -1239,7 +1239,7 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 
 		config := &GenerateConfig{
 			OutputPath: "/some/path/output.json",
-			}
+		}
 
 		err := writeOutputWithFS(spec, config, mockFS)
 		if err == nil {
@@ -1257,7 +1257,7 @@ func TestWriteOutputWithFSErrors(t *testing.T) {
 
 		config := &GenerateConfig{
 			OutputPath: "/nonexistent/directory/output.json",
-			}
+		}
 
 		err := writeOutputWithFS(spec, config, mockFS)
 		if err == nil {
@@ -1380,6 +1380,7 @@ func TestWriteSpecWithWriterYAMLJSONErrors(t *testing.T) {
 
 // createTempFile creates a temporary file for testing
 func createTempFile(t *testing.T) *os.File {
+	t.Helper()
 	tmpFile := filepath.Join(t.TempDir(), "test.yaml")
 	f, err := os.Create(tmpFile)
 	if err != nil {
@@ -1419,4 +1420,3 @@ func (m *mockJSONMarshaler) Unmarshal(data []byte, v any) error {
 	}
 	return json.Unmarshal(data, v)
 }
-

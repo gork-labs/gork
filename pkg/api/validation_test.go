@@ -83,7 +83,7 @@ func TestHTTPValidationFlow(t *testing.T) {
 
 	// 1. Valid request
 	rr := httptest.NewRecorder()
-	body, _ := json.Marshal(map[string]interface{}{"name": "joe"})
+	body, _ := json.Marshal(map[string]any{"name": "john"})
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(body))
 	mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
@@ -100,7 +100,7 @@ func TestHTTPValidationFlow(t *testing.T) {
 
 	// 3. Validation error (too short name) -> 400
 	rr = httptest.NewRecorder()
-	body, _ = json.Marshal(map[string]interface{}{"name": "a"})
+	body, _ = json.Marshal(map[string]any{"name": "x"})
 	req = httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(body))
 	mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusBadRequest {
@@ -128,7 +128,7 @@ func TestValidationWithRealGetUserExample(t *testing.T) {
 		},
 	}
 
-	err := validator.ValidateRequest(req)
+	err := validator.ValidateRequest(context.Background(), req)
 	if err == nil {
 		t.Fatal("Expected validation error for empty UserID field")
 	}
@@ -174,7 +174,7 @@ func TestValidationFieldNamesUseGorkTags(t *testing.T) {
 		},
 	}
 
-	err := validator.ValidateRequest(req)
+	err := validator.ValidateRequest(context.Background(), req)
 	if err == nil {
 		t.Fatal("Expected validation error for invalid email")
 	}
@@ -327,7 +327,7 @@ func TestValidateRequestEdgeCases(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -338,7 +338,7 @@ func TestValidateRequestEdgeCases(t *testing.T) {
 
 		req := &EmptyRequest{}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 		if err != nil {
 			t.Errorf("Expected no error for empty request, got %v", err)
 		}
@@ -481,7 +481,7 @@ func TestConventionValidator_ValidateRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validator.ValidateRequest(tt.request)
+			err := validator.ValidateRequest(context.Background(), tt.request)
 
 			if (err != nil) != tt.wantError {
 				t.Errorf("ValidateRequest() error = %v, wantError %v", err, tt.wantError)
@@ -489,9 +489,33 @@ func TestConventionValidator_ValidateRequest(t *testing.T) {
 			}
 
 			if tt.wantError && err != nil {
+				// Validate error message is not empty
+				if err.Error() == "" {
+					t.Error("Expected non-empty error message")
+				}
+
 				// Check that it's a validation error (client error, not server error)
 				if !api.IsValidationError(err) {
 					t.Errorf("Expected validation error, got %T: %v", err, err)
+				}
+
+				// For validation errors, ensure they contain meaningful information
+				if valErr, ok := err.(*api.ValidationErrorResponse); ok {
+					if len(valErr.Details) == 0 {
+						t.Error("Expected validation error details to be populated")
+					}
+
+					// Validate that error details contain actual validation messages
+					for field, errors := range valErr.Details {
+						if len(errors) == 0 {
+							t.Errorf("Expected validation errors for field %q", field)
+						}
+						for _, errMsg := range errors {
+							if errMsg == "" {
+								t.Errorf("Expected non-empty validation error message for field %q", field)
+							}
+						}
+					}
 				}
 			}
 		})

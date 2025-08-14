@@ -127,7 +127,7 @@ func ensureStdResponses(comps *Components) {
 		if _, ok := comps.Responses[name]; !ok {
 			comps.Responses[name] = &Response{
 				Description: desc,
-				Content: map[string]MediaType{
+				Content: map[string]*MediaType{
 					"application/json": {Schema: &Schema{Ref: schemaRef}},
 				},
 			}
@@ -208,8 +208,10 @@ func handleUnionType(t reflect.Type, registry map[string]*Schema) *Schema {
 	rawName := t.Name()
 	typeName := sanitizeSchemaName(rawName)
 	if typeName != "" {
-		registry[typeName] = u
-		return &Schema{Ref: "#/components/schemas/" + typeName}
+		// Choose a human-friendly unique name (guaranteed non-empty since typeName != "")
+		unique := uniqueSchemaNameForType(t, registry)
+		registry[unique] = u
+		return &Schema{Ref: "#/components/schemas/" + unique}
 	}
 	return u
 }
@@ -220,6 +222,14 @@ func checkExistingType(t reflect.Type, registry map[string]*Schema) *Schema {
 	if typeName != "" {
 		if _, ok := registry[typeName]; ok {
 			return &Schema{Ref: "#/components/schemas/" + typeName}
+		}
+		// Also check the package-prefixed alternative used for collision avoidance
+		pkgPref := toPascalCase(lastPathComponent(t.PkgPath()))
+		if pkgPref != "" {
+			alt := pkgPref + typeName
+			if _, ok := registry[alt]; ok {
+				return &Schema{Ref: "#/components/schemas/" + alt}
+			}
 		}
 	}
 	return nil
@@ -611,4 +621,49 @@ func sanitizeSchemaName(n string) string {
 
 	// Replace disallowed characters
 	return sanitizeCharacters(n)
+}
+
+// lastPathComponent returns the last segment of a slash-separated path.
+func lastPathComponent(p string) string {
+	if p == "" {
+		return ""
+	}
+	parts := strings.Split(p, "/")
+	return parts[len(parts)-1]
+}
+
+// uniqueSchemaNameForType returns a human-friendly unique component name for a type.
+// Preference order:
+// 1) Simple type name (sanitized)
+// 2) PackageName + TypeName (PascalCase prefix)
+// 3) PackageName + TypeName + numeric suffix.
+func uniqueSchemaNameForType(t reflect.Type, registry map[string]*Schema) string {
+	base := sanitizeSchemaName(t.Name())
+	if base == "" {
+		return ""
+	}
+	if _, exists := registry[base]; !exists {
+		return base
+	}
+	pkgPref := toPascalCase(lastPathComponent(t.PkgPath()))
+	if pkgPref != "" {
+		alt := pkgPref + base
+		if _, exists := registry[alt]; !exists {
+			return alt
+		}
+		// As a last resort, append a numeric suffix
+		for i := 2; ; i++ {
+			candidate := alt + strconv.Itoa(i)
+			if _, exists := registry[candidate]; !exists {
+				return candidate
+			}
+		}
+	}
+	// If there's no package info, fallback to numbered variants of base
+	for i := 2; ; i++ {
+		candidate := base + strconv.Itoa(i)
+		if _, exists := registry[candidate]; !exists {
+			return candidate
+		}
+	}
 }

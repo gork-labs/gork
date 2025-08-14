@@ -280,7 +280,11 @@ func TestEnrichParametersWithDocsComplete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
-		defer os.RemoveAll(tempDir)
+		defer func() {
+			if err := os.RemoveAll(tempDir); err != nil {
+				t.Logf("Warning: failed to clean up temp dir %s: %v", tempDir, err)
+			}
+		}()
 
 		// Create a Go file with documented struct
 		sourceCode := `package test

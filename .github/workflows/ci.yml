@@ -116,6 +116,17 @@ jobs:
 
           ./bin/gork openapi generate --build ${{ matrix.source.dir }}/cmd/openapi_export --source ${{ matrix.source.dir }} --output ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli
+
+      # See https://redocly.com/docs/cli/commands/lint for details
+      - name: Lint OpenAPI spec with Redocly (${{ matrix.format }})
+        run: redocly lint --config .redocly.yaml ${{ matrix.source.dir }}/openapi-new.${{ matrix.format }}
+
       - name: Validate OpenAPI spec with Swagger validator
         id: swagger-validate
         continue-on-error: true

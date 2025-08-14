@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -22,7 +23,7 @@ func TestValidateSectionAllPaths(t *testing.T) {
 		fieldValue := reflect.ValueOf(NormalStruct{Value: "test"})
 		validationErrors := make(map[string][]string)
 
-		err := validator.validateSection(field, fieldValue, validationErrors)
+		err := validator.validateSection(context.Background(), field, fieldValue, validationErrors)
 
 		if err != nil {
 			t.Errorf("Expected no error for normal struct, got %v", err)
@@ -43,7 +44,7 @@ func TestValidateSectionAllPaths(t *testing.T) {
 		fieldValue := reflect.ValueOf(ValidationStruct{RequiredField: ""})
 		validationErrors := make(map[string][]string)
 
-		err := validator.validateSection(field, fieldValue, validationErrors)
+		err := validator.validateSection(context.Background(), field, fieldValue, validationErrors)
 
 		// Should not return error, but should populate validationErrors
 		if err != nil {

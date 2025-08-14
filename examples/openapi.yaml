@@ -80,6 +80,18 @@ components:
                 - cardNumber
             title: CreditCardPaymentMethod
             type: object
+        CustomerMetadata:
+            description: CustomerMetadata represents customer-specific metadata for webhook events.
+            properties:
+                PlanType:
+                    type: string
+                UserID:
+                    description: UserID is the ID of the user
+                    type: string
+            required:
+                - UserID
+            title: CustomerMetadata
+            type: object
         DeleteUserBody:
             properties:
                 userID:
@@ -102,6 +114,21 @@ components:
                 - error
             title: ErrorResponse
             type: object
+        InvoiceMetadata:
+            description: InvoiceMetadata represents invoice-specific metadata for webhook events.
+            properties:
+                BillingPeriod:
+                    type: string
+                SubscriptionID:
+                    type: string
+                UserID:
+                    description: UserID is the ID of the user
+                    type: string
+            required:
+                - UserID
+                - SubscriptionID
+            title: InvoiceMetadata
+            type: object
         ListUsersResponse:
             description: ListUsersResponse represents the response for listing users.
             oneOf:
@@ -123,6 +150,54 @@ components:
                     description: Token is the JWT token for the authenticated user
                     type: string
             title: LoginResponse
+            type: object
+        PaymentMetadata:
+            description: PaymentMetadata represents example user-defined metadata types validated by the webhook dispatcher.
+            properties:
+                ProjectID:
+                    type: string
+                UserID:
+                    description: UserID is the ID of the user
+                    type: string
+            required:
+                - UserID
+            title: PaymentMetadata
+            type: object
+        StripeWebhookErrorResponse:
+            properties:
+                Body:
+                    properties:
+                        Error:
+                            type: string
+                        Received:
+                            type: boolean
+                    type: object
+            title: StripeWebhookErrorResponse
+            type: object
+        StripeWebhookRequest:
+            properties:
+                Body:
+                    format: byte
+                    type: string
+                Headers:
+                    properties:
+                        Content-Type:
+                            type: string
+                        Stripe-Signature:
+                            type: string
+                    required:
+                        - Stripe-Signature
+                    type: object
+            title: StripeWebhookRequest
+            type: object
+        StripeWebhookResponse:
+            properties:
+                Body:
+                    properties:
+                        Received:
+                            type: boolean
+                    type: object
+            title: StripeWebhookResponse
             type: object
         UpdateUserBody:
             properties:
@@ -441,3 +516,56 @@ paths:
                 - BearerAuth: []
             tags:
                 - users
+    /webhooks/stripe:
+        post:
+            description: Webhook endpoint that receives events from external services
+            operationId: StripeWebhook
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/StripeWebhookRequest'
+                description: Webhook event payload
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/StripeWebhookResponse'
+                    description: Webhook processed successfully
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/StripeWebhookErrorResponse'
+                    description: Invalid webhook payload or signature
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            summary: Webhook endpoint for StripeWebhook
+            tags:
+                - webhooks
+                - stripe
+            x-webhook-events:
+                - event: customer.created
+                  operationId: HandleCustomerCreated
+                  userPayloadSchema:
+                    $ref: '#/components/schemas/CustomerMetadata'
+                - event: invoice.paid
+                  operationId: HandleInvoicePaid
+                  userPayloadSchema:
+                    $ref: '#/components/schemas/InvoiceMetadata'
+                - event: payment_intent.payment_failed
+                  operationId: HandlePaymentIntentFailed
+                  userPayloadSchema:
+                    $ref: '#/components/schemas/PaymentMetadata'
+                - event: payment_intent.succeeded
+                  operationId: HandlePaymentIntentSucceeded
+                  userPayloadSchema:
+                    $ref: '#/components/schemas/PaymentMetadata'
+            x-webhook-provider:
+                docs: https://stripe.com/docs/webhooks
+                name: Stripe
+                website: https://stripe.com

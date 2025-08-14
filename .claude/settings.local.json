@@ -38,7 +38,8 @@
       "Bash(./gork openapi generate:*)",
       "Bash(diff:*)",
       "Bash(GORK_EXPORT=1 go run -tags openapi ./cmd/openapi_export)",
-      "WebFetch(domain:spec.openapis.org)"
+      "WebFetch(domain:spec.openapis.org)",
+      "Bash(scripts/check-coverage.sh:*)"
     ],
     "deny": []
   }
