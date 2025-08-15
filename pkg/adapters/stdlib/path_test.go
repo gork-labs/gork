@@ -29,7 +29,7 @@ func TestToNativePath(t *testing.T) {
 			input:    "",
 			expected: "",
 		},
-		
+
 		// Wildcard conversion scenarios
 		{
 			name:     "path with trailing wildcard",
@@ -51,7 +51,7 @@ func TestToNativePath(t *testing.T) {
 			input:    "/files//*",
 			expected: "/files//{rest...}",
 		},
-		
+
 		// Edge cases - only trailing wildcard should be converted
 		{
 			name:     "path with wildcard in middle (unchanged)",

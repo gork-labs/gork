@@ -36,13 +36,13 @@ func TestMain(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=TestMain")
 			cmd.Env = append(os.Environ(), "BE_MAIN=1")
 			cmd.Args = append([]string{os.Args[0]}, tt.args...)
-			
+
 			err := cmd.Run()
-			
+
 			if tt.wantExit == 0 && err != nil {
 				t.Errorf("Expected success but got error: %v", err)
 			}
-			
+
 			if tt.wantExit == 1 && err == nil {
 				t.Errorf("Expected error but command succeeded")
 			}
@@ -61,7 +61,7 @@ func TestMainErrorHandling(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestMainErrorHandling")
 	cmd.Env = append(os.Environ(), "TEST_MAIN_ERROR=1")
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("Expected main to exit with error, but it didn't")

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"testing"
 )
 
@@ -57,7 +58,7 @@ func TestValidateSectionValidationError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		// Should return ValidationErrorResponse with section-level errors
 		if err == nil {
@@ -105,7 +106,7 @@ func TestValidateSectionValidationError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		// Should return ValidationErrorResponse with section-level errors
 		if err == nil {
@@ -147,7 +148,7 @@ func TestValidateSectionValidationError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		if err != nil {
 			t.Errorf("Expected no error for valid section, got: %v", err)
@@ -162,7 +163,7 @@ func TestValidateSectionValidationError(t *testing.T) {
 			},
 		}
 
-		err := validator.ValidateRequest(req)
+		err := validator.ValidateRequest(context.Background(), req)
 
 		if err == nil {
 			t.Error("Expected validation errors")

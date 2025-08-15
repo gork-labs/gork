@@ -17,6 +17,15 @@ type RouteInfo struct {
 	RequestType  reflect.Type   // The concrete request struct type (non-pointer)
 	ResponseType reflect.Type   // The concrete response struct type (non-pointer)
 	Options      *HandlerOption // Collected handler options (tags, security, etc.)
+	// WebhookHandler stores the original webhook handler instance for OpenAPI reflection.
+	// This field is only set for webhook routes created with WebhookHandlerFunc.
+	WebhookHandler interface{} // Original webhook handler with SuccessResponse() and ErrorResponse() methods
+	// WebhookProviderInfo contains optional provider metadata exposed by the handler implementation.
+	WebhookProviderInfo *WebhookProviderInfo
+	// WebhookHandledEvents lists only the events that have user-registered handlers via WithEventHandler.
+	WebhookHandledEvents []string
+	// WebhookHandlersMeta contains detailed metadata about each registered handler for documentation.
+	WebhookHandlersMeta []RegisteredEventHandler
 	// Middleware can hold router specific middleware descriptors. For now we
 	// simply keep them as raw Option values so that future work can refine the
 	// representation without breaking the API.

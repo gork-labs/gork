@@ -1271,32 +1271,6 @@
       "created": "2025-08-04T13:51:45.045425+02:00",
       "updated": "2025-08-04T13:51:45.045425+02:00"
     },
-    "Union Type Schema Name Bug": {
-      "name": "Union Type Schema Name Bug",
-      "entity_type": "bug",
-      "category": "business_entity",
-      "observations": [
-        "Union type schema names contain invalid characters for OpenAPI specification",
-        "Issue occurs in generateRequestBodyComponentName function at line 477",
-        "Function concatenates bodyType.Name() + 'Body' without sanitization",
-        "Union type names like 'Union2[github.com/gork-labs/gork/examples/handlers.BankPaymentMethod,github.com/gork-labs/gork/examples/handlers.CreditCardPaymentMethod]Body' violate OpenAPI naming conventions",
-        "sanitizeSchemaName function exists but is not applied to union type names in request body generation",
-        "Pattern is inconsistent with other schema name generation locations that properly use sanitizeSchemaName",
-        "Second occurrence at line 485 also lacks sanitization for requestName concatenation"
-      ],
-      "tags": [
-        "union-types",
-        "schema-naming",
-        "openapi-validation",
-        "sanitization",
-        "bug",
-        "category:business_entity"
-      ],
-      "lifetime": "task",
-      "expires_at": "2025-08-13T19:32:54.362673+02:00",
-      "created": "2025-08-06T19:32:54.362674+02:00",
-      "updated": "2025-08-06T19:32:54.362674+02:00"
-    },
     "Union Type System": {
       "name": "Union Type System",
       "entity_type": "component",
@@ -1413,7 +1387,11 @@
         "Automatic OpenAPI schema generation for webhook endpoints",
         "Type-safe event payload structures with validation",
         "Backward compatibility maintained with existing functionality",
-        "Focus on developer experience with intuitive API"
+        "Focus on developer experience with intuitive API",
+        "Updated ParseRequest interface to use conventional struct approach",
+        "Webhook request types follow Gork conventions with gork tags and automatic body handling",
+        "Type-safe webhook request parsing with provider-specific request structs",
+        "Leverages existing parameter adapter system and validation infrastructure"
       ],
       "tags": [
         "webhooks",
@@ -1425,7 +1403,7 @@
       ],
       "lifetime": "permanent",
       "created": "2025-08-06T15:02:39.159038+02:00",
-      "updated": "2025-08-06T15:02:39.159038+02:00"
+      "updated": "2025-08-07T13:24:06.50281+02:00"
     },
     "pkg/api Coverage Issues": {
       "name": "pkg/api Coverage Issues",
@@ -1961,5 +1939,5 @@
     "yaml": 1
   },
   "embeddings": {},
-  "updated": "2025-08-06T19:32:54.36268+02:00"
+  "updated": "2025-08-13T22:47:22.996437+02:00"
 }

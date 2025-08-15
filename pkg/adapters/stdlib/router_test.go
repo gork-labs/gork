@@ -30,27 +30,27 @@ func createTestHandler() func(ctx context.Context, req struct {
 
 func TestNewRouter(t *testing.T) {
 	tests := []struct {
-		name        string
-		mux         *http.ServeMux
-		opts        []api.Option
+		name         string
+		mux          *http.ServeMux
+		opts         []api.Option
 		expectNilMux bool
 	}{
 		{
-			name:        "with provided mux",
-			mux:         http.NewServeMux(),
-			opts:        nil,
+			name:         "with provided mux",
+			mux:          http.NewServeMux(),
+			opts:         nil,
 			expectNilMux: false,
 		},
 		{
-			name:        "with nil mux (should create new)",
-			mux:         nil,
-			opts:        nil,
+			name:         "with nil mux (should create new)",
+			mux:          nil,
+			opts:         nil,
 			expectNilMux: false,
 		},
 		{
-			name:        "with options",
-			mux:         http.NewServeMux(),
-			opts:        []api.Option{api.WithTags("test")},
+			name:         "with options",
+			mux:          http.NewServeMux(),
+			opts:         []api.Option{api.WithTags("test")},
 			expectNilMux: false,
 		},
 	}
@@ -92,7 +92,6 @@ func TestRouterGetRegistry(t *testing.T) {
 		t.Error("GetRegistry() returned different registry")
 	}
 }
-
 
 func TestStdlibParamAdapter(t *testing.T) {
 	adapter := stdlibParamAdapter{}
@@ -291,7 +290,7 @@ func TestRouterGroup(t *testing.T) {
 		// Test that all groups share the same registry
 		registries := []interface{}{
 			apiGroup.GetRegistry(),
-			v1Group.GetRegistry(), 
+			v1Group.GetRegistry(),
 			usersGroup.GetRegistry(),
 		}
 		for i, reg := range registries {
@@ -352,7 +351,7 @@ func TestRouterRegister(t *testing.T) {
 
 func TestRouterDocsRoute(t *testing.T) {
 	router := NewRouter(nil)
-	
+
 	// Test DocsRoute method - it should delegate to the underlying TypedRouter
 	// and should not panic
 	defer func() {
@@ -360,14 +359,14 @@ func TestRouterDocsRoute(t *testing.T) {
 			t.Errorf("DocsRoute should not panic: %v", r)
 		}
 	}()
-	
+
 	router.DocsRoute("/docs/*")
-	
+
 	// DocsRoute should not add routes to the metadata registry
 	// as they are infrastructure routes, not business API routes
 	registry := router.GetRegistry()
 	routes := registry.GetRoutes()
-	
+
 	// Registry should be empty since we haven't registered any business API routes
 	if len(routes) != 0 {
 		t.Errorf("Expected no routes in registry after DocsRoute calls, got %d", len(routes))

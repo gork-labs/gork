@@ -6,6 +6,7 @@ require (
 	github.com/gork-labs/gork/pkg/adapters/stdlib v0.0.0-20250721160900-f2cc4c67346b
 	github.com/gork-labs/gork/pkg/api v0.0.0
 	github.com/gork-labs/gork/pkg/unions v0.0.0
+	github.com/stripe/stripe-go/v76 v76.25.0
 )
 
 require (
