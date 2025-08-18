@@ -8,7 +8,6 @@ import (
 	stdlib "github.com/gork-labs/gork/pkg/adapters/stdlib"
 	"github.com/gork-labs/gork/pkg/api"
 	stripepkg "github.com/gork-labs/gork/pkg/webhooks/stripe"
-	"github.com/stripe/stripe-go/v76"
 )
 
 // RegisterRoutes registers all API routes.
@@ -34,16 +33,16 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 		"/webhooks/stripe",
 		api.WebhookHandlerFunc(
 			stripepkg.NewHandler(getStripeSecret()),
-			api.WithEventHandler[stripe.PaymentIntent, handlers.PaymentMetadata](
+			api.WithEventHandler(
 				"payment_intent.succeeded", handlers.HandlePaymentIntentSucceeded,
 			),
-			api.WithEventHandler[stripe.PaymentIntent, handlers.PaymentMetadata](
+			api.WithEventHandler(
 				"payment_intent.payment_failed", handlers.HandlePaymentIntentFailed,
 			),
-			api.WithEventHandler[stripe.Customer, handlers.CustomerMetadata](
+			api.WithEventHandler(
 				"customer.created", handlers.HandleCustomerCreated,
 			),
-			api.WithEventHandler[stripe.Invoice, handlers.InvoiceMetadata](
+			api.WithEventHandler(
 				"invoice.paid", handlers.HandleInvoicePaid,
 			),
 		),

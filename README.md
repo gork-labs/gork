@@ -168,6 +168,53 @@ go get github.com/gork-labs/gork/pkg/api
 ```
 Framework-agnostic API handlers with automatic OpenAPI metadata extraction and type-safe request/response handling.
 
+### Webhooks
+```bash
+go get github.com/gork-labs/gork/pkg/webhooks/stripe
+```
+- **Typed Webhook Handling**: Define a provider handler and register event-specific functions with compile-time checked signatures.
+- **Signature Verification**: Provider verifies signatures (Stripe via official SDK) and extracts provider payload + optional user metadata.
+- **OpenAPI Extensions**: Webhook routes automatically include `x-webhook-provider` and `x-webhook-events` metadata in the generated spec.
+
+Basic Stripe example:
+```go
+import (
+  "net/http"
+  "github.com/gork-labs/gork/pkg/api"
+  stripepkg "github.com/gork-labs/gork/pkg/webhooks/stripe"
+  "github.com/stripe/stripe-go/v76"
+)
+
+// User-defined metadata extracted from Stripe objects' Metadata field (optional)
+type PaymentMetadata struct {
+  UserID string `json:"user_id" validate:"required"`
+}
+
+func HandlePaymentSucceeded(ctx context.Context, pi *stripe.PaymentIntent, meta *PaymentMetadata) error {
+  // process success; return error to signal failure
+  return nil
+}
+
+func RegisterRoutes(mux *http.ServeMux) {
+  r := stdlib.NewRouter(mux)
+
+  r.Post(
+    "/webhooks/stripe",
+    api.WebhookHandlerFunc(
+      stripepkg.NewHandler("whsec_example"), // verifies Stripe-Signature
+      // Type parameters inferred from handler signature
+      api.WithEventHandler("payment_intent.succeeded", HandlePaymentSucceeded),
+    ),
+    api.WithTags("webhooks", "stripe"),
+  )
+}
+```
+
+Notes:
+- Provider returns standardized success/error JSON. Unhandled events return 200 with provider success response.
+- Handlers have signature: `func(ctx context.Context, payload *ProviderType, meta *UserType) error`.
+- Stripe provider maps common event families to concrete types (e.g., `*stripe.PaymentIntent`, `*stripe.Invoice`) and forwards `Metadata` as `meta`.
+
 ### Union Types
 ```bash  
 go get github.com/gork-labs/gork/pkg/unions
@@ -276,11 +323,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Static Analysis**: Custom linter for convention compliance
 - **100% Test Coverage**: Quality-first development approach
 - **Interactive Documentation**: Built-in docs serving
+- **Webhook Utilities**: Typed event handlers, signature verification (Stripe), OpenAPI extensions
 
 ### 🚀 Coming Soon
 - **⚡ Ahead-of-Time Compilation**: Eliminate runtime reflection for better performance
 - **📝 Enhanced Documentation**: Improved OpenAPI spec generation
-- **🔒 Webhook Utilities**: Signature verification and event handling
 - **🌊 Event Streams**: WebSocket and SSE support  
 - **🎯 Advanced Validation**: Build-time validation generation
 - **📏 Simple Rule Engine**: Input validation with business rules (e.g., `rule:owned_by($current_user)`)

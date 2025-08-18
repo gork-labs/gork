@@ -206,8 +206,8 @@ func (h *AdvancedWebhookHandlers) GetAdvancedWebhookHandler() http.HandlerFunc {
 
 	return api.WebhookHandlerFunc[stripepkg.WebhookRequest](
 		handler,
-		api.WithEventHandler[stripe.PaymentIntent, CustomPaymentMetadata]("payment_intent.succeeded", h.HandleAdvancedPaymentSuccess),
-		api.WithEventHandler[stripe.PaymentIntent, CustomPaymentMetadata]("payment_intent.payment_failed", h.HandleFailedPaymentWithRetry),
+		api.WithEventHandler("payment_intent.succeeded", h.HandleAdvancedPaymentSuccess),
+		api.WithEventHandler("payment_intent.payment_failed", h.HandleFailedPaymentWithRetry),
 	)
 }
 

@@ -277,6 +277,30 @@ func TestWithEventHandler(t *testing.T) {
 	}
 }
 
+func TestWithEventHandler_TypeInference(t *testing.T) {
+    // No explicit generic parameters; types are inferred from handler signature
+    handler := func(ctx context.Context, payload *struct{}, metadata *PaymentMetadata) error { return nil }
+
+    option := WithEventHandler("payment.succeeded", handler)
+
+    options := &WebhookHandlerOption{}
+    option(options)
+
+    if options.EventHandlers == nil {
+        t.Error("expected EventHandlers to be initialized")
+        return
+    }
+
+    if len(options.EventHandlers) != 1 {
+        t.Errorf("expected 1 event handler, got %d", len(options.EventHandlers))
+        return
+    }
+
+    if _, exists := options.EventHandlers["payment.succeeded"]; !exists {
+        t.Error("expected payment.succeeded event handler to be registered")
+    }
+}
+
 func TestWebhookHandlerFunc_EventTypeValidation(t *testing.T) {
 	handler := NewTestWebhookHandler("test-secret")
 
@@ -404,6 +428,29 @@ func TestWebhookHandlerFunc_HTTPHandling(t *testing.T) {
 			t.Errorf("expected status 500, got %d", rec.Code)
 		}
 	})
+}
+
+func TestWebhookHandlerFunc_TypeInference_HTTPHandling(t *testing.T) {
+    // Ensure WithEventHandler infers generic parameters from the provided handler function
+    handler := NewTestWebhookHandler("valid-secret")
+
+    // Provider payload for payment events is map[string]string; omit generic args
+    eventHandler := func(ctx context.Context, payload *map[string]string, metadata *PaymentMetadata) error { return nil }
+    httpHandler := WebhookHandlerFunc[TestWebhookRequest](handler, WithEventHandler("payment.succeeded", eventHandler))
+
+    req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(`{"event": "payment", "data": {"id": "pi_123"}}`))
+    req.Header.Set("X-Test-Signature", "valid-secret")
+
+    rec := httptest.NewRecorder()
+    httpHandler(rec, req)
+
+    if rec.Code != http.StatusOK {
+        t.Errorf("expected status 200, got %d", rec.Code)
+    }
+
+    if !strings.Contains(rec.Body.String(), "received") {
+        t.Errorf("expected success response, got %s", rec.Body.String())
+    }
 }
 
 func TestValidateEventHandlerSignature(t *testing.T) {
