@@ -158,7 +158,8 @@ func TestRouterGroups(t *testing.T) {
 			Name string `json:"name"`
 		}) (struct {
 			Message string `json:"message"`
-		}, error) {
+		}, error,
+		) {
 			return struct {
 				Message string `json:"message"`
 			}{
@@ -322,7 +323,8 @@ func TestHTTPMethods(t *testing.T) {
 		Name string `json:"name"`
 	}) (struct {
 		Message string `json:"message"`
-	}, error) {
+	}, error,
+	) {
 		return struct {
 			Message string `json:"message"`
 		}{
@@ -378,7 +380,8 @@ func TestRouterRegistration(t *testing.T) {
 		Name string `json:"name"`
 	}) (struct {
 		Message string `json:"message"`
-	}, error) {
+	}, error,
+	) {
 		return struct {
 			Message string `json:"message"`
 		}{

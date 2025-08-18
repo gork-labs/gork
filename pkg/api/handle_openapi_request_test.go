@@ -124,5 +124,4 @@ func TestHandleOpenAPIRequest(t *testing.T) {
 			t.Errorf("handler returned wrong body: got %v want %v", body, expectedBody)
 		}
 	})
-
 }

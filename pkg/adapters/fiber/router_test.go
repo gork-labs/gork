@@ -522,7 +522,6 @@ func TestErrorHandling(t *testing.T) {
 			err := handleFiberRequestWithCreator(c, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			}), failingCreator)
-
 			// Error should be handled internally
 			if err != nil {
 				t.Errorf("Expected no error from handleFiberRequestWithCreator, got: %v", err)

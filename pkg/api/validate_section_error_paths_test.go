@@ -120,7 +120,6 @@ func TestValidateSection_ByteBodyVarNonValidationError(t *testing.T) {
 	validationErrors := make(map[string][]string)
 
 	err := v.validateSection(context.Background(), field, fieldValue, validationErrors)
-
 	// Should have validation errors added to the map
 	if err != nil {
 		t.Fatalf("unexpected server error: %v", err)

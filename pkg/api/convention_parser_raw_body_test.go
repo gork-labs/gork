@@ -112,7 +112,6 @@ func TestParseRequest_MixedWithRawBody(t *testing.T) {
 
 	var mixedReq MixedRequest
 	err := ParseRequest(req, &mixedReq)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -143,7 +142,6 @@ func TestParseRequest_WebhookWithValidation(t *testing.T) {
 
 	var webhookReq StripeWebhookTestRequest
 	err := ParseRequest(req, &webhookReq)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -197,7 +195,6 @@ func TestParseRequest_BackwardCompatibility(t *testing.T) {
 
 	var traditionalReq TraditionalRequest
 	err := ParseRequest(req, &traditionalReq)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -220,7 +217,6 @@ func TestConventionParser_ParseRawBodyField_EdgeCases(t *testing.T) {
 
 		var webhookReq StripeWebhookTestRequest
 		err := ParseRequest(req, &webhookReq)
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			return
@@ -243,7 +239,6 @@ func TestConventionParser_ParseRawBodyField_EdgeCases(t *testing.T) {
 
 		var webhookReq StripeWebhookTestRequest
 		err := ParseRequest(req, &webhookReq)
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			return

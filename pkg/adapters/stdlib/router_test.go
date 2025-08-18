@@ -19,7 +19,8 @@ func createTestHandler() func(ctx context.Context, req struct {
 		Name string `json:"name"`
 	}) (struct {
 		Message string `json:"message"`
-	}, error) {
+	}, error,
+	) {
 		return struct {
 			Message string `json:"message"`
 		}{

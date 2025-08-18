@@ -5,10 +5,12 @@ go 1.24
 replace github.com/gork-labs/gork/pkg/unions => ../unions
 
 replace github.com/gork-labs/gork/pkg/adapters/stdlib => ../adapters/stdlib
+replace github.com/gork-labs/gork/pkg/rules => ../rules
 
 require (
-	github.com/go-playground/validator/v10 v10.27.0
-	github.com/gork-labs/gork/pkg/adapters/stdlib v0.0.0-20250721160900-f2cc4c67346b
+    github.com/go-playground/validator/v10 v10.27.0
+    github.com/gork-labs/gork/pkg/adapters/stdlib v0.0.0-20250721160900-f2cc4c67346b
+    github.com/gork-labs/gork/pkg/rules v0.0.0
 )
 
 require (

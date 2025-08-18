@@ -79,7 +79,7 @@ openapi:
   version: "2.0.0"
 `
 
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,7 +123,7 @@ func TestLoadConfigFileWithInvalidYAML(t *testing.T) {
 invalid: yaml: content: [
 `
 
-	if err := os.WriteFile(configFile, []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(invalidContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -564,7 +564,7 @@ func TestWriteOutputDirectoryHandling(t *testing.T) {
 
 	// Create a file at the expected directory location
 	filePath := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -588,7 +588,7 @@ func TestGenerateSpecWithBuildPath(t *testing.T) {
 import "nonexistent/package"
 func main() {}`
 
-	if err := os.WriteFile(mainFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(mainFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -640,7 +640,7 @@ func TestBuildAndExtractErrorPaths(t *testing.T) {
 
 	// Create a simple valid Go module
 	goMod := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goMod, []byte("module test\ngo 1.24\n"), 0644); err != nil {
+	if err := os.WriteFile(goMod, []byte("module test\ngo 1.24\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -666,7 +666,7 @@ func main() {
 	}
 }`
 
-	if err := os.WriteFile(mainFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(mainFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -691,7 +691,6 @@ func TestEnrichWithDocsErrorPath(t *testing.T) {
 	// Test with a directory that exists but has no Go files to parse
 	tmpDir := t.TempDir()
 	err := enrichWithDocs(spec, tmpDir)
-
 	// This should not error since ParseDirectory handles empty directories
 	if err != nil {
 		t.Errorf("enrichWithDocs should handle empty directory: %v", err)
@@ -726,10 +725,10 @@ func TestWriteOutputErrorPaths(t *testing.T) {
 
 	// Test error creating file (permission denied)
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
-	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+	if err := os.Mkdir(readOnlyDir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(readOnlyDir, 0755) // cleanup
+	defer os.Chmod(readOnlyDir, 0o755) // cleanup
 
 	config := &GenerateConfig{
 		OutputPath: filepath.Join(readOnlyDir, "output.json"),

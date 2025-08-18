@@ -299,7 +299,7 @@ type GetUserRequest struct {
 `
 
 		testFile := filepath.Join(tempDir, "test.go")
-		if err := ioutil.WriteFile(testFile, []byte(sourceCode), 0644); err != nil {
+		if err := ioutil.WriteFile(testFile, []byte(sourceCode), 0o644); err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}
 

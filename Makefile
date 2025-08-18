@@ -98,7 +98,7 @@ verify:
 fmt:
 	@for module in $(MODULES); do \
 		echo "Formatting $$module..."; \
-		(cd $$module && go fmt ./...) || exit 1; \
+		(cd $$module && gofumpt -w .) || exit 1; \
 	done
 
 # Check for vulnerabilities

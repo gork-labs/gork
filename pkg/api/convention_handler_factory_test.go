@@ -129,7 +129,6 @@ func TestConventionHandlerFactory_RegisterTypeParser(t *testing.T) {
 		t, err := time.Parse(time.RFC3339, value)
 		return &t, err
 	})
-
 	if err != nil {
 		t.Errorf("RegisterTypeParser() error = %v", err)
 	}
@@ -922,7 +921,8 @@ func TestConventionHandlerFactory_MarshalErrors(t *testing.T) {
 		handler := func(ctx context.Context, req TestConventionHandlerRequest) (*struct {
 			ID   string `gork:"id"`
 			Name string `gork:"name"`
-		}, error) {
+		}, error,
+		) {
 			return &struct {
 				ID   string `gork:"id"`
 				Name string `gork:"name"`

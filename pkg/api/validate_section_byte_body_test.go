@@ -37,7 +37,6 @@ func TestValidateSection_ByteBodyHandling(t *testing.T) {
 
 		// This should not cause validation errors because []byte Body fields are handled specially
 		err := validator.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		if err != nil {
 			t.Errorf("expected no error for byte body, got %v", err)
 		}
@@ -61,7 +60,6 @@ func TestValidateSection_ByteBodyHandling(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		if err != nil {
 			t.Errorf("expected no error for empty byte body, got %v", err)
 		}
@@ -85,7 +83,6 @@ func TestValidateSection_ByteBodyHandling(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		if err != nil {
 			t.Errorf("expected no error for nil byte body, got %v", err)
 		}
@@ -113,7 +110,6 @@ func TestValidateSection_ByteBodyHandling(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		if err != nil {
 			t.Errorf("expected no server error for struct body validation, got %v", err)
 		}

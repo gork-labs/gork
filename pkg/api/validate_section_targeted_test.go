@@ -24,7 +24,6 @@ func TestValidateSectionAllPaths(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), field, fieldValue, validationErrors)
-
 		if err != nil {
 			t.Errorf("Expected no error for normal struct, got %v", err)
 		}
@@ -45,7 +44,6 @@ func TestValidateSectionAllPaths(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), field, fieldValue, validationErrors)
-
 		// Should not return error, but should populate validationErrors
 		if err != nil {
 			t.Errorf("Expected no error, validation errors should be collected, got %v", err)
@@ -55,5 +53,4 @@ func TestValidateSectionAllPaths(t *testing.T) {
 			t.Error("Expected validation errors to be populated")
 		}
 	})
-
 }

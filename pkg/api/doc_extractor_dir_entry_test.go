@@ -94,21 +94,21 @@ func TestProcessDirectoryEntryComprehensive(t *testing.T) {
 
 		// Create a Go file
 		goFile := filepath.Join(tmpDir, "test.go")
-		err = os.WriteFile(goFile, []byte("package test\n\n// TestType is a test type\ntype TestType struct {\n\t// Field is a test field\n\tField string\n}"), 0644)
+		err = os.WriteFile(goFile, []byte("package test\n\n// TestType is a test type\ntype TestType struct {\n\t// Field is a test field\n\tField string\n}"), 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a non-Go file (should be skipped)
 		txtFile := filepath.Join(tmpDir, "readme.txt")
-		err = os.WriteFile(txtFile, []byte("This is not a Go file"), 0644)
+		err = os.WriteFile(txtFile, []byte("This is not a Go file"), 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a subdirectory (should be skipped in the loop)
 		subDir := filepath.Join(tmpDir, "subdir")
-		err = os.Mkdir(subDir, 0755)
+		err = os.Mkdir(subDir, 0o755)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -137,7 +137,7 @@ func TestProcessDirectoryEntryComprehensive(t *testing.T) {
 
 		// Create an invalid Go file
 		badGoFile := filepath.Join(tmpDir, "bad.go")
-		err = os.WriteFile(badGoFile, []byte("this is not valid go syntax {{{"), 0644)
+		err = os.WriteFile(badGoFile, []byte("this is not valid go syntax {{{"), 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}

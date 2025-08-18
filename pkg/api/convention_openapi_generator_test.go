@@ -357,7 +357,6 @@ func TestConventionOpenAPIGenerator_ProcessConventionResponse(t *testing.T) {
 }
 
 func TestConventionOpenAPIGenerator_IsUnionType(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		typ      reflect.Type
