@@ -142,7 +142,6 @@ func TestValidateRequestServerErrorFromSections(t *testing.T) {
 
 		// This might not cause a server error, but it tests the robustness
 		err := validator.ValidateRequest(context.Background(), req)
-
 		// We mainly want to ensure this doesn't panic and handles the case gracefully
 		if err != nil {
 			t.Logf("Got error (may be expected): %v", err)

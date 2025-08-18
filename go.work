@@ -14,6 +14,7 @@ use (
 	./pkg/adapters/stdlib
 	./pkg/api
 	./pkg/gorkson
+	./pkg/rules
 	./pkg/unions
- 	./pkg/webhooks/stripe
+	./pkg/webhooks/stripe
 )

@@ -7,8 +7,10 @@ import (
 )
 
 // Dummy types for handler signature tests
-type testProviderPayload struct{ ID string }
-type testUserMeta struct{ Name string }
+type (
+	testProviderPayload struct{ ID string }
+	testUserMeta        struct{ Name string }
+)
 
 func TestValidateEventHandlerSignature_ProviderParamMustBePointer(t *testing.T) {
 	// Non-pointer provider parameter should fail validation

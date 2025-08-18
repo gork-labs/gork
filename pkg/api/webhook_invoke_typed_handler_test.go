@@ -7,10 +7,12 @@ import (
 	"testing"
 )
 
-type provObj struct{ ID string }
-type userCfg struct {
-	A string `json:"a"`
-}
+type (
+	provObj struct{ ID string }
+	userCfg struct {
+		A string `json:"a"`
+	}
+)
 
 func TestInvokeTypedEventHandler_ValidJSONPath(t *testing.T) {
 	ctx := context.Background()

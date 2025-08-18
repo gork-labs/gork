@@ -32,7 +32,6 @@ func TestValidateSection_ByteBodyValidationServerError(t *testing.T) {
 	// This should trigger the []byte Body path and call validator.Var() with nil interface
 	// which should return InvalidValidationError (a non-ValidationError type)
 	err := v.validateSection(context.Background(), bodyField, fieldValue, validationErrors)
-
 	if err != nil {
 		t.Logf("Got error from validator.Var() with nil interface: %v (type: %T)", err, err)
 
@@ -57,7 +56,6 @@ func TestValidateSection_ByteBodyValidationServerError(t *testing.T) {
 	funcValue := reflect.ValueOf(func() {})
 
 	err = v.validateSection(context.Background(), bodyField, funcValue, validationErrors)
-
 	if err != nil {
 		t.Logf("Got error from validator.Var() with function type: %v (type: %T)", err, err)
 
@@ -72,7 +70,6 @@ func TestValidateSection_ByteBodyValidationServerError(t *testing.T) {
 	chanValue := reflect.ValueOf(make(chan int))
 
 	err = v.validateSection(context.Background(), bodyField, chanValue, validationErrors)
-
 	if err != nil {
 		t.Logf("Got error from validator.Var() with channel type: %v (type: %T)", err, err)
 
@@ -115,7 +112,6 @@ func TestValidateSection_StructValidationServerError(t *testing.T) {
 	// This should trigger the regular struct validation path and call validator.Struct()
 	// with nil interface, which should return InvalidValidationError
 	err := v.validateSection(context.Background(), queryField, fieldValue, validationErrors)
-
 	if err != nil {
 		t.Logf("Got error from validator.Struct() with nil interface: %v (type: %T)", err, err)
 
@@ -140,7 +136,6 @@ func TestValidateSection_StructValidationServerError(t *testing.T) {
 	stringValue := reflect.ValueOf("not a struct")
 
 	err = v.validateSection(context.Background(), queryField, stringValue, validationErrors)
-
 	if err != nil {
 		t.Logf("Got error from validator.Struct() with string type: %v (type: %T)", err, err)
 
@@ -155,7 +150,6 @@ func TestValidateSection_StructValidationServerError(t *testing.T) {
 	funcValue := reflect.ValueOf(func() {})
 
 	err = v.validateSection(context.Background(), queryField, funcValue, validationErrors)
-
 	if err != nil {
 		t.Logf("Got error from validator.Struct() with function type: %v (type: %T)", err, err)
 
@@ -314,7 +308,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		// Should not return error and should not add validation errors
 		if err != nil {
 			t.Errorf("Expected no error for []byte Body without validation tag, got: %v", err)
@@ -336,7 +329,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		// Should not return error and should not add validation errors (validation passes)
 		if err != nil {
 			t.Errorf("Expected no error for valid []byte Body, got: %v", err)
@@ -358,7 +350,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		// Should not return error but should add validation errors
 		if err != nil {
 			t.Errorf("Expected no server error for validation failure, got: %v", err)
@@ -383,7 +374,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), queryField, queryValue, validationErrors)
-
 		// Should not return error and should not add validation errors
 		if err != nil {
 			t.Errorf("Expected no error for valid struct, got: %v", err)
@@ -408,7 +398,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), queryField, queryValue, validationErrors)
-
 		// Should not return error but should add validation errors
 		if err != nil {
 			t.Errorf("Expected no server error for validation failure, got: %v", err)
@@ -435,7 +424,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), headersField, headersValue, validationErrors)
-
 		// Should not return error and should not add validation errors
 		if err != nil {
 			t.Errorf("Expected no error for successful custom validation, got: %v", err)
@@ -459,7 +447,6 @@ func TestValidateSection_AllConditionalBranches(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), cookiesField, cookiesValue, validationErrors)
-
 		// Should not return error but should add validation errors
 		if err != nil {
 			t.Errorf("Expected no server error for validation error, got: %v", err)

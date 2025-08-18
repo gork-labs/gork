@@ -181,7 +181,6 @@ func TestValidateSection_RefactoredWithMocks(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		// Should not return error (validation errors are collected)
 		if err != nil {
 			t.Errorf("Expected no error for ValidationErrors, got: %v", err)
@@ -226,7 +225,6 @@ func TestValidateSection_RefactoredWithMocks(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), queryField, queryValue, validationErrors)
-
 		// Should not return error (validation errors are collected)
 		if err != nil {
 			t.Errorf("Expected no error for ValidationErrors, got: %v", err)
@@ -260,7 +258,6 @@ func TestValidateSection_RefactoredWithMocks(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), bodyField, bodyValue, validationErrors)
-
 		// Should not return error and not call validator
 		if err != nil {
 			t.Errorf("Expected no error for field without validation tag, got: %v", err)
@@ -295,7 +292,6 @@ func TestValidateSection_RefactoredWithMocks(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), queryField, queryValue, validationErrors)
-
 		// Should not return error
 		if err != nil {
 			t.Errorf("Expected no error for successful validation, got: %v", err)
@@ -394,7 +390,6 @@ func TestValidateSection_CustomValidationCoverage(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), queryField, queryValue, validationErrors)
-
 		// Should not return error (validation errors are collected)
 		if err != nil {
 			t.Errorf("Expected no error for custom validation errors, got: %v", err)
@@ -436,7 +431,6 @@ func TestValidateSection_CustomValidationCoverage(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := v.validateSection(context.Background(), queryField, queryValue, validationErrors)
-
 		// Should not return error
 		if err != nil {
 			t.Errorf("Expected no error for successful custom validation, got: %v", err)

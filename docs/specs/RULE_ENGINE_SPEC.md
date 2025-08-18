@@ -20,11 +20,19 @@ Rules are functions registered globally that validate entities based on their ty
 
 ```go
 // Single entity rule signature
-type SingleEntityRule func(ctx context.Context, entity interface{}) error
+type SingleEntityRule func(ctx context.Context, entity any) error
 
-// Multi-argument rule signature  
-type MultiArgumentRule func(ctx context.Context, entity interface{}, arg1 interface{}, arg2 interface{}, ...) error
+// Multi-argument rule signature (variadic)
+type MultiArgumentRule func(ctx context.Context, entity any, args ...any) error
 ```
+
+Rules must use explicit type switches inside their body and return validation errors mapped to HTTP 400 (see Error Handling). Internal/server errors should be returned as `error` to produce HTTP 500.
+
+### Naming and Registry
+
+- Rule names are process‑global and must be unique. Registering the same name twice panics with a clear error.
+- Registration is intended to happen at init/startup time. The registry is read‑mostly and goroutine‑safe for lookups during request handling.
+- Recommended naming convention uses dotted namespaces to avoid collisions, e.g., `auth.admin`, `billing.owned_by`.
 
 ### Rule Registration
 
@@ -113,7 +121,7 @@ Rules are applied using the `rule` tag with optional arguments referencing other
 type UpdateItemRequest struct {
   Path struct {
     User User `gork:"user_id" rule:"admin"`
-    Item Item `gork:"item_id" rule:"owned_by(Path.User),category_matches(Body.Category)"`
+    Item Item `gork:"item_id" rule:"owned_by($.Path.User),category_matches($.Body.Category)"`
   }
   Query struct {
     Force bool `gork:"force"`
@@ -130,22 +138,28 @@ type UpdateItemRequest struct {
 
 ## Rule Reference Syntax
 
-### Section References
+### Argument Grammar
 
-Rules can reference fields from any section of the request:
+Arguments in `rule:"..."` use a simple, explicit grammar:
 
-- `Path.FieldName` - Path parameter
-- `Query.FieldName` - Query parameter  
-- `Body.FieldName` - Body field
-- `Headers.FieldName` - Header value
-- `Cookies.FieldName` - Cookie value
+- Field reference (two forms only):
+  - Absolute: `$.X.Y[.Z...]` — traverse from the request root. Example: `$.Path.User`, `$.Headers.Authorization`.
+  - Relative: `.X.Y[.Z...]` — resolve from the same parent struct as the annotated field (typically the same section). Example (on `Path.Item`): `.User` resolves to `Path.User`.
+  - Nested struct traversal is supported. Slice/map indexing is NOT supported in v1.
+- String literal: `'text'` or `"text"` (quotes required when passing strings directly).
+- Number literal: `123`, `45.67` (parsed as float64; rule code can convert as needed).
+- Boolean literal: `true`, `false`.
+- Null literal: `null` (passed as nil).
+- Context variable: `$varName` — pulls a value from per-request context variables, set via `rules.WithContextVars(ctx, rules.ContextVars{...})`. Useful for current user, permissions, etc. Example: `owned_by($current_user)`.
+
+No inline operators or expressions are supported in v1 (e.g., `Type=admin`). Pass values explicitly as separate arguments and implement comparisons inside the rule.
 
 ### Multiple Arguments
 
 Rules can accept multiple arguments separated by commas:
 
 ```go
-Item `gork:"item_id" rule:"owned_by(Path.User),category_matches(Body.Category),within_limit(Query.MaxPrice)"`
+Item `gork:"item_id" rule:"owned_by($.Path.User),category_matches($.Body.Category),within_limit($.Query.MaxPrice)"`
 ```
 
 ### Chained Rules
@@ -197,8 +211,8 @@ api.RegisterRule("verified", func(ctx context.Context, entity interface{}) error
 ```go
 type TransferFundsRequest struct {
   Path struct {
-    FromAccount Account `gork:"from_account_id" rule:"owned_by(Headers.User),sufficient_balance(Body.Amount)"`
-    ToAccount   Account `gork:"to_account_id" rule:"accepts_currency(Body.Currency),not_same_as(Path.FromAccount)"`
+    FromAccount Account `gork:"from_account_id" rule:"owned_by($.Headers.User),sufficient_balance($.Body.Amount)"`
+    ToAccount   Account `gork:"to_account_id" rule:"accepts_currency($.Body.Currency),not_same_as($.Path.FromAccount)"`
   }
   Body struct {
     Amount   float64 `gork:"amount"`
@@ -260,7 +274,7 @@ api.RegisterRule("not_same_as", func(ctx context.Context, entity interface{}, ot
 type DeleteProjectRequest struct {
   Path struct {
     User    User    `gork:"user_id"`
-    Project Project `gork:"project_id" rule:"owned_by(Path.User),deletable_by(Path.User)"`
+    Project Project `gork:"project_id" rule:"owned_by($.Path.User),deletable_by($.Path.User)"`
   }
 }
 
@@ -308,7 +322,7 @@ api.RegisterRule("deletable_by", func(ctx context.Context, entity interface{}, u
 ```go
 type UpdateUserRequest struct {
   Path struct {
-    User User `gork:"user_id" rule:"admin_or_self(Headers.CurrentUser),changeable_if(Query.Force)"`
+    User User `gork:"user_id" rule:"admin_or_self($.Headers.CurrentUser),changeable_if($.Query.Force)"`
   }
   Query struct {
     Force bool `gork:"force"`
@@ -358,8 +372,8 @@ api.RegisterRule("changeable_if", func(ctx context.Context, entity interface{}, 
 ```go
 type PlaceOrderRequest struct {
   Path struct {
-    Customer Customer `gork:"customer_id" rule:"active,verified,credit_limit(Body.TotalAmount)"`
-    Product  Product  `gork:"product_id" rule:"available,in_region(Customer.Region),category_allowed(Customer.Type)"`
+    Customer Customer `gork:"customer_id" rule:"active,verified,credit_limit($.Body.TotalAmount)"`
+    Product  Product  `gork:"product_id" rule:"available,in_region($.Path.Customer.Region),category_allowed($.Path.Customer.Type)"`
   }
   Body struct {
     Quantity    int     `gork:"quantity"`
@@ -431,8 +445,21 @@ The framework must resolve rule arguments by:
 
 1. **Parsing argument strings** - `"Path.User"` → section: "Path", field: "User"
 2. **Looking up parsed values** - Find the actual value in the parsed request structure
-3. **Type assertion** - Ensure the argument matches the expected type for the rule function
-4. **Error handling** - Return clear errors if arguments cannot be resolved
+3. **Type conversion** - Pass resolved values to the rule function; the rule must perform explicit type switches/assertions.
+4. **Error handling** - If a field reference cannot be resolved (missing section/field), return a `*RequestValidationError` with a clear message (HTTP 400). Literal parsing errors are also reported as `*RequestValidationError`.
+
+### Execution Semantics
+
+- Ordering: For a given field, rules execute in declaration order (left to right in the tag string).
+- Aggregation: All validation errors from rules on a field are aggregated and returned alongside other validation errors. Execution continues after individual rule failures unless a rule returns a non‑validation `error` (treated as server error and short‑circuits processing).
+- Scope: Rules execute only after successful request parsing and standard validation.
+- Error typing: For absolute refs beginning with `$.Path/$.Query/$.Body/$.Headers/$.Cookies`, map errors to the corresponding validation type. For relative refs `.X...`, inherit the parent’s section if it is one of the five; otherwise use request‑level validation error.
+
+### Thread Safety and Lifecycle
+
+- Rule registration occurs during init/startup and panics on duplicate names.
+- The registry is safe for concurrent reads during request handling.
+- Dynamic registration after the first request is discouraged; if used, it must acquire internal locks (implementation detail) and still respects uniqueness.
 
 ### Error Handling
 
@@ -449,9 +476,15 @@ Rules return the same validation error types as other validation:
 ### Performance Considerations
 
 - **Rule registry caching** - Cache rule function lookups
-- **Argument resolution caching** - Cache field path parsing
+- **Argument resolution caching** - Cache field path parsing and resolved accessors for nested field traversal
 - **Type switch optimization** - Minimize reflection overhead
 - **Lazy evaluation** - Only execute rules for successfully parsed entities
+
+### Limitations (v1)
+
+- No inline expressions/operators in rule arguments; pass values explicitly.
+- Nested struct traversal is supported; slice/map indexing is not.
+- Field references to `Body` require a structured Body. When a raw `[]byte` Body is used (e.g., some webhooks), Body field references cannot be resolved.
 
 ## Advanced Features
 
@@ -506,8 +539,8 @@ Rules can be applied conditionally based on other fields:
 type CreateUserRequest struct {
   Body struct {
     Type     string `gork:"type" validate:"oneof=admin user guest"`
-    User     User   `gork:"user" rule:"admin_required_if(Type=admin)"`
-    Password string `gork:"password" rule:"strong_if(Type=admin)"`
+    User     User   `gork:"user" rule:"admin_required_if(Body.Type, 'admin')"`
+    Password string `gork:"password" rule:"strong_if(Body.Type, 'admin')"`
   }
 }
 ```

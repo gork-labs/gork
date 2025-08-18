@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/gork-labs/gork/pkg/rules"
 	"github.com/gork-labs/gork/pkg/unions"
 )
 
@@ -193,4 +195,46 @@ func ListUsers(ctx context.Context, _ ListUsersRequest) (ListUsersResponse, erro
 			},
 		},
 	}, nil
+}
+
+// Simulated ownership map for demo purposes.
+var exampleItemOwners = map[string]string{
+	"123": "alice",
+}
+
+// Register a simple owned_by rule for demonstration when the package is loaded.
+func init() {
+	rules.Register("owned_by", func(_ context.Context, entity any, args ...any) error {
+		if len(args) != 1 {
+			return fmt.Errorf("expected 1 argument")
+		}
+		currentUser, _ := args[0].(string)
+		itemIDPtr, _ := entity.(*string)
+		if itemIDPtr == nil {
+			return fmt.Errorf("item id is nil")
+		}
+		owner := exampleItemOwners[*itemIDPtr]
+		if owner != currentUser {
+			return fmt.Errorf("item %s is not owned by %s", *itemIDPtr, currentUser)
+		}
+		return nil
+	})
+}
+
+// UpdateOwnedItemRequest is a demo request guarded by a rule expression.
+type UpdateOwnedItemRequest struct {
+	Path struct {
+		ItemID string `gork:"itemId" rule:"owned_by($current_user)"`
+	}
+}
+
+// UpdateOwnedItemResponse is a demo empty response.
+type UpdateOwnedItemResponse struct {
+	Body struct{} `gork:"body"`
+}
+
+// UpdateOwnedItem is a demo handler that runs after validation and rules.
+func UpdateOwnedItem(_ context.Context, _ UpdateOwnedItemRequest) (*UpdateOwnedItemResponse, error) {
+	// Validation (including rules) is applied by the router before this handler runs.
+	return &UpdateOwnedItemResponse{}, nil
 }

@@ -141,7 +141,6 @@ func TestValidateSection_DirectTriggerLine194(t *testing.T) {
 	}()
 
 	err := v.validateSection(context.Background(), field, fieldValue, validationErrors)
-
 	if err != nil {
 		t.Logf("got error (possibly from panic): %v", err)
 	}

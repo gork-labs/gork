@@ -70,6 +70,7 @@ type Operation struct {
 	// Explicit vendor extension fields to ensure emission
 	XWebhookProvider map[string]string        `json:"x-webhook-provider,omitempty"`
 	XWebhookEvents   []map[string]interface{} `json:"x-webhook-events,omitempty"`
+	XRules           []map[string]interface{} `json:"x-rules,omitempty"`
 }
 
 // MarshalJSON ensures Operation.Extensions are emitted as top-level x-* fields.

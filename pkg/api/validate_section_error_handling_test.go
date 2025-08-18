@@ -167,7 +167,6 @@ func TestValidateSection_ErrorHandling(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), field, invalidValue, validationErrors)
-
 		// Should handle any panics gracefully
 		if err != nil {
 			t.Logf("Handled error gracefully: %v", err)
@@ -189,7 +188,6 @@ func TestValidateSection_EdgeCases(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), field, value, validationErrors)
-
 		if err != nil {
 			t.Errorf("Expected no error for field without validation tags, got: %v", err)
 		}
@@ -205,7 +203,6 @@ func TestValidateSection_EdgeCases(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateSection(context.Background(), field, value, validationErrors)
-
 		if err != nil {
 			t.Errorf("Expected no error for valid data, got: %v", err)
 		}

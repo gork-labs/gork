@@ -79,7 +79,6 @@ func TestValidateSection_ByteBodyLine194(t *testing.T) {
 
 	// This should go through the validator and add validation errors
 	err := v.validateSection(context.Background(), field2, fieldValue2, validationErrors)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

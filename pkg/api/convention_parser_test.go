@@ -503,7 +503,6 @@ func TestConventionParser_ParseBodySection_EdgeCases(t *testing.T) {
 
 		bodyValue := reflect.ValueOf(TestBody{})
 		err := parser.parseBodySection(bodyValue, req)
-
 		if err != nil {
 			t.Errorf("parseBodySection() for GET should not error, got %v", err)
 		}
@@ -519,7 +518,6 @@ func TestConventionParser_ParseBodySection_EdgeCases(t *testing.T) {
 
 		bodyValue := reflect.ValueOf(TestBody{})
 		err := parser.parseBodySection(bodyValue, req)
-
 		if err != nil {
 			t.Errorf("parseBodySection() with nil body should not error, got %v", err)
 		}
@@ -534,7 +532,6 @@ func TestConventionParser_ParseBodySection_EdgeCases(t *testing.T) {
 
 		bodyValue := reflect.ValueOf(TestBody{})
 		err := parser.parseBodySection(bodyValue, req)
-
 		if err != nil {
 			t.Errorf("parseBodySection() with empty body should not error, got %v", err)
 		}
@@ -679,7 +676,6 @@ func TestConventionParser_ParseSection_ErrorCases(t *testing.T) {
 		// Test with an unknown section name (should return nil)
 		structValue := reflect.ValueOf(struct{}{})
 		err := parser.parseSection(context.Background(), "UnknownSection", structValue, req, adapter)
-
 		if err != nil {
 			t.Errorf("parseSection() for unknown section should return nil, got error: %v", err)
 		}

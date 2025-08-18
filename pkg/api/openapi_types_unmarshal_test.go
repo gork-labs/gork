@@ -12,7 +12,6 @@ func TestSchemaUnmarshalJSON(t *testing.T) {
 		// Test unmarshaling from JSON object
 		jsonData := `{"type": "string", "description": "A test string"}`
 		err := json.Unmarshal([]byte(jsonData), &schema)
-
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -32,7 +31,6 @@ func TestSchemaUnmarshalJSON(t *testing.T) {
 		// Test with array schema
 		jsonData := `{"type": "array", "items": {"type": "string"}}`
 		err := json.Unmarshal([]byte(jsonData), &schema)
-
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -64,7 +62,6 @@ func TestSchemaUnmarshalJSON(t *testing.T) {
 		// Test with null value
 		jsonData := `null`
 		err := json.Unmarshal([]byte(jsonData), &schema)
-
 		if err != nil {
 			t.Errorf("Expected no error for null, got %v", err)
 		}
@@ -81,7 +78,6 @@ func TestSchemaUnmarshalJSON(t *testing.T) {
 		// Test with types array (nullable string)
 		jsonData := `{"type": ["string", "null"]}`
 		err := json.Unmarshal([]byte(jsonData), &schema)
-
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -101,7 +97,6 @@ func TestSchemaUnmarshalJSON(t *testing.T) {
 		// Test with mixed types array containing non-string items
 		jsonData := `{"type": ["string", 123, "null"]}`
 		err := json.Unmarshal([]byte(jsonData), &schema)
-
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -122,7 +117,6 @@ func TestSchemaUnmarshalJSON(t *testing.T) {
 		// Test with empty object
 		jsonData := `{}`
 		err := json.Unmarshal([]byte(jsonData), &schema)
-
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}

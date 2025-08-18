@@ -9,8 +9,10 @@ import (
 // Use the minimal webhook request type from handler_factory_httpfunc_test.go
 
 // Provider payload/user meta types (unused beyond typing)
-type acmeProviderPayload struct{ ID string }
-type acmeUserMeta struct{ Note string }
+type (
+	acmeProviderPayload struct{ ID string }
+	acmeUserMeta        struct{ Note string }
+)
 
 // Provider implementing handler + provider info exposure
 type testProvider struct{}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	rules "github.com/gork-labs/gork/pkg/rules"
 )
 
 // Validator interface for custom validation.
@@ -137,6 +138,7 @@ func (g *GoPlaygroundValidator) Struct(s interface{}) error {
 type ConventionValidator struct {
 	validator      *validator.Validate
 	fieldValidator FieldValidator
+	applyRulesFunc func(ctx context.Context, reqPtr interface{}) []error
 }
 
 // NewConventionValidator creates a new convention validator.
@@ -145,6 +147,7 @@ func NewConventionValidator() *ConventionValidator {
 	return &ConventionValidator{
 		validator:      v,
 		fieldValidator: &GoPlaygroundValidator{validator: v},
+		applyRulesFunc: rules.Apply,
 	}
 }
 
@@ -154,6 +157,7 @@ func NewConventionValidatorWithFieldValidator(fieldValidator FieldValidator) *Co
 	return &ConventionValidator{
 		validator:      NewValidator(DefaultValidatorConfig()),
 		fieldValidator: fieldValidator,
+		applyRulesFunc: rules.Apply,
 	}
 }
 
@@ -184,7 +188,31 @@ func (v *ConventionValidator) ValidateRequest(ctx context.Context, reqPtr interf
 		return err // Server error
 	}
 
-	// Step 3: Return validation errors if any
+	// Step 3: Apply rule-based validation (rules engine)
+	applyFn := v.applyRulesFunc
+	if applyFn == nil {
+		applyFn = rules.Apply
+	}
+	if rerrs := applyFn(ctx, reqPtr); len(rerrs) > 0 {
+		for _, re := range rerrs {
+			// Distinguish validation vs server errors
+			var valErr ValidationError
+			if errors.As(re, &valErr) {
+				validationErrors["request"] = append(validationErrors["request"], valErr.Error())
+				continue
+			}
+			// Check for RuleValidationError specifically (since it no longer implements ValidationError)
+			var ruleErr *rules.RuleValidationError
+			if errors.As(re, &ruleErr) {
+				validationErrors["request"] = append(validationErrors["request"], ruleErr.Error())
+				continue
+			}
+			// Server error from a rule -> short-circuit
+			return re
+		}
+	}
+
+	// Step 4: Return validation errors if any
 	if len(validationErrors) > 0 {
 		return &ValidationErrorResponse{
 			Message: "Validation failed",

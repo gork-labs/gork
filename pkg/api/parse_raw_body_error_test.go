@@ -60,7 +60,6 @@ func TestParseRawBodyField_ErrorHandling(t *testing.T) {
 		bodyValue := reflect.ValueOf(&bodyBytes).Elem()
 
 		err := parser.parseRawBodyField(bodyValue, req)
-
 		if err != nil {
 			t.Errorf("expected no error for nil body, got %v", err)
 		}
@@ -82,7 +81,6 @@ func TestParseRawBodyField_ErrorHandling(t *testing.T) {
 		bodyValue := reflect.ValueOf(&bodyBytes).Elem()
 
 		err := parser.parseRawBodyField(bodyValue, req)
-
 		if err != nil {
 			t.Errorf("expected no error for successful read, got %v", err)
 		}

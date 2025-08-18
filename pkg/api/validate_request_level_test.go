@@ -67,7 +67,6 @@ func TestValidateRequestLevel(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateRequestLevel(context.Background(), req, validationErrors)
-
 		if err != nil {
 			t.Errorf("Expected no error for request without validator, got: %v", err)
 		}
@@ -85,7 +84,6 @@ func TestValidateRequestLevel(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateRequestLevel(context.Background(), req, validationErrors)
-
 		if err != nil {
 			t.Errorf("Expected no error for successful validation, got: %v", err)
 		}
@@ -103,7 +101,6 @@ func TestValidateRequestLevel(t *testing.T) {
 		validationErrors := make(map[string][]string)
 
 		err := validator.validateRequestLevel(context.Background(), req, validationErrors)
-
 		// Should not return error (validation errors are added to map, not returned)
 		if err != nil {
 			t.Errorf("Expected no error return for validation errors, got: %v", err)

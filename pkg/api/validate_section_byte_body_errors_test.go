@@ -77,7 +77,6 @@ func TestValidateSection_ByteBodyInternalError(t *testing.T) {
 
 	// This might trigger the non-ValidationErrors path
 	err := v.validateSection(context.Background(), field, fieldValue, validationErrors)
-
 	if err != nil {
 		t.Logf("got error (line 194 path): %v", err)
 		// Check if it's not ValidationErrors

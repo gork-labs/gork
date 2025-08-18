@@ -319,7 +319,6 @@ func TestDefaultProcessors(t *testing.T) {
 		}
 
 		err := processor.ProcessField(field, schema, registry)
-
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -336,7 +335,6 @@ func TestDefaultProcessors(t *testing.T) {
 		}
 
 		err := processor.ProcessEmbedded(field, schema, registry)
-
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}

@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
-type providerPayload struct{ ID string }
-type userMeta struct{ X string }
+type (
+	providerPayload struct{ ID string }
+	userMeta        struct{ X string }
+)
 
 func TestInvokeTypedEventHandler_EdgeCases(t *testing.T) {
 	ctx := context.Background()

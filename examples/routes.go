@@ -24,6 +24,9 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	r.Put("/api/v1/users/{userId}", handlers.UpdateUser, api.WithTags("users"), api.WithBearerTokenAuth())
 	r.Delete("/api/v1/users/{userId}", handlers.DeleteUser, api.WithTags("users"))
 
+	// Example demonstrating rules with context variables
+	r.Post("/api/v1/items/{itemId}", handlers.UpdateOwnedItem, api.WithTags("items"))
+
 	// Nested resources
 	r.Put("/api/v1/users/{userId}/payment-method", handlers.UpdateUserPaymentMethod, api.WithTags("users"), api.WithBearerTokenAuth("write:payment"))
 	r.Put("/api/v1/users/{userId}/preferences", handlers.UpdateUserPreferences, api.WithTags("users"), api.WithBearerTokenAuth("write:preferences"))
