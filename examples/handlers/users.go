@@ -204,20 +204,15 @@ var exampleItemOwners = map[string]string{
 
 // Register a simple owned_by rule for demonstration when the package is loaded.
 func init() {
-	rules.Register("owned_by", func(_ context.Context, entity any, args ...any) error {
-		if len(args) != 1 {
-			return fmt.Errorf("expected 1 argument")
+	rules.Register("owned_by", func(_ context.Context, itemID *string, currentUser string) (bool, error) {
+		if itemID == nil {
+			return false, fmt.Errorf("item id is nil")
 		}
-		currentUser, _ := args[0].(string)
-		itemIDPtr, _ := entity.(*string)
-		if itemIDPtr == nil {
-			return fmt.Errorf("item id is nil")
-		}
-		owner := exampleItemOwners[*itemIDPtr]
+		owner := exampleItemOwners[*itemID]
 		if owner != currentUser {
-			return fmt.Errorf("item %s is not owned by %s", *itemIDPtr, currentUser)
+			return false, fmt.Errorf("item %s is not owned by %s", *itemID, currentUser)
 		}
-		return nil
+		return true, nil
 	})
 }
 

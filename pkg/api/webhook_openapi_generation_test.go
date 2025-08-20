@@ -5,71 +5,113 @@ import (
 	"testing"
 )
 
-// TestWebhookReflectionCoverage tests the reflection methods to achieve full coverage
-func TestWebhookReflectionCoverage(t *testing.T) {
-	generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
+// TestWebhookOpenAPIInternalLogic consolidates tests for internal webhook OpenAPI generation logic,
+// including response type detection, fallback handling, and request body processing.
+func TestWebhookOpenAPIInternalLogic(t *testing.T) {
+	t.Run("GeneratorBranches", func(t *testing.T) {
+		gen := &ConventionOpenAPIGenerator{}
 
-	t.Run("addFallbackWebhookResponses covers fallback scenario", func(t *testing.T) {
-		operation := &Operation{
-			Responses: make(map[string]*Response),
-		}
-		components := &Components{}
+		type StripeWebhookRequest struct{}
 
-		// Call the fallback method directly
-		generator.addFallbackWebhookResponses(operation, components)
+		t.Run("getWebhookEventTypes falls back by provider when no handler", func(t *testing.T) {
+			route := &RouteInfo{RequestType: reflect.TypeOf(StripeWebhookRequest{})}
+			events := gen.getWebhookEventTypes(route)
+			if len(events) != 0 {
+				t.Fatalf("expected no fallback event types, got %v", events)
+			}
+		})
 
-		// Verify fallback responses were added
-		if _, exists := operation.Responses["200"]; !exists {
-			t.Error("Expected fallback success response (200) to be added")
-		}
+		t.Run("processWebhookRequestBody handles interface request type", func(t *testing.T) {
+			op := &Operation{Responses: map[string]*Response{}}
+			comps := &Components{Schemas: map[string]*Schema{}}
+			// Use interface type to trigger generic schema branch
+			gen.processWebhookRequestBody(reflect.TypeOf((*WebhookRequest)(nil)).Elem(), op, comps)
+			if op.RequestBody == nil || op.RequestBody.Content["application/json"].Schema == nil {
+				t.Fatal("expected request body schema to be set")
+			}
+			if op.RequestBody.Content["application/json"].Schema.Type != "object" {
+				t.Fatalf("expected generic object schema, got %s", op.RequestBody.Content["application/json"].Schema.Type)
+			}
+		})
 
-		if _, exists := operation.Responses["400"]; !exists {
-			t.Error("Expected fallback error response (400) to be added")
-		}
+		t.Run("addWebhookResponses falls back when handler missing", func(t *testing.T) {
+			op := &Operation{Responses: map[string]*Response{}}
+			comps := &Components{Schemas: map[string]*Schema{}}
+			gen.addWebhookResponses(op, comps, &RouteInfo{WebhookHandler: nil})
+			if _, ok := op.Responses["200"]; !ok {
+				t.Fatal("expected 200 fallback response")
+			}
+			if _, ok := op.Responses["400"]; !ok {
+				t.Fatal("expected 400 fallback response")
+			}
+		})
 	})
 
-	t.Run("createFallbackSuccessResponse creates proper response", func(t *testing.T) {
-		response := generator.createFallbackSuccessResponse()
+	t.Run("ReflectionHandling", func(t *testing.T) {
+		generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
 
-		if response == nil {
-			t.Fatal("Expected non-nil response")
-		}
+		t.Run("addFallbackWebhookResponses covers fallback scenario", func(t *testing.T) {
+			operation := &Operation{
+				Responses: make(map[string]*Response),
+			}
+			components := &Components{}
 
-		if response.Description == "" {
-			t.Error("Expected non-empty description")
-		}
+			// Call the fallback method directly
+			generator.addFallbackWebhookResponses(operation, components)
 
-		if response.Content == nil {
-			t.Error("Expected content to be set")
-		}
+			// Verify fallback responses were added
+			if _, exists := operation.Responses["200"]; !exists {
+				t.Error("Expected fallback success response (200) to be added")
+			}
 
-		if jsonContent, exists := response.Content["application/json"]; !exists {
-			t.Error("Expected JSON content")
-		} else if jsonContent.Schema == nil {
-			t.Error("Expected schema in JSON content")
-		}
-	})
+			if _, exists := operation.Responses["400"]; !exists {
+				t.Error("Expected fallback error response (400) to be added")
+			}
+		})
 
-	t.Run("createFallbackErrorResponse creates proper response", func(t *testing.T) {
-		response := generator.createFallbackErrorResponse()
+		t.Run("createFallbackSuccessResponse creates proper response", func(t *testing.T) {
+			response := generator.createFallbackSuccessResponse()
 
-		if response == nil {
-			t.Fatal("Expected non-nil response")
-		}
+			if response == nil {
+				t.Fatal("Expected non-nil response")
+			}
 
-		if response.Description == "" {
-			t.Error("Expected non-empty description")
-		}
+			if response.Description == "" {
+				t.Error("Expected non-empty description")
+			}
 
-		if response.Content == nil {
-			t.Error("Expected content to be set")
-		}
+			if response.Content == nil {
+				t.Error("Expected content to be set")
+			}
 
-		if jsonContent, exists := response.Content["application/json"]; !exists {
-			t.Error("Expected JSON content")
-		} else if jsonContent.Schema == nil {
-			t.Error("Expected schema in JSON content")
-		}
+			if jsonContent, exists := response.Content["application/json"]; !exists {
+				t.Error("Expected JSON content")
+			} else if jsonContent.Schema == nil {
+				t.Error("Expected schema in JSON content")
+			}
+		})
+
+		t.Run("createFallbackErrorResponse creates proper response", func(t *testing.T) {
+			response := generator.createFallbackErrorResponse()
+
+			if response == nil {
+				t.Fatal("Expected non-nil response")
+			}
+
+			if response.Description == "" {
+				t.Error("Expected non-empty description")
+			}
+
+			if response.Content == nil {
+				t.Error("Expected content to be set")
+			}
+
+			if jsonContent, exists := response.Content["application/json"]; !exists {
+				t.Error("Expected JSON content")
+			} else if jsonContent.Schema == nil {
+				t.Error("Expected schema in JSON content")
+			}
+		})
 	})
 }
 
@@ -91,7 +133,8 @@ func (h *InvalidHandler) SomeOtherMethod() string {
 	return "not a webhook handler"
 }
 
-func TestGetWebhookResponseTypeCoverage(t *testing.T) {
+// TestWebhookResponseTypeDetection tests webhook response type detection and reflection
+func TestWebhookResponseTypeDetection(t *testing.T) {
 	generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
 
 	t.Run("getWebhookResponseType with nil handler", func(t *testing.T) {
@@ -194,7 +237,8 @@ func (h *WrongSignatureHandler) ErrorResponse() interface{} {
 	return "wrong signature - no error param"
 }
 
-func TestAddWebhookResponsesCoverage(t *testing.T) {
+// TestWebhookResponseGeneration tests webhook response generation scenarios
+func TestWebhookResponseGeneration(t *testing.T) {
 	generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
 
 	t.Run("addWebhookResponses with nil webhook handler", func(t *testing.T) {

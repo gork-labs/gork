@@ -121,7 +121,7 @@ Rules are applied using the `rule` tag with optional arguments referencing other
 type UpdateItemRequest struct {
   Path struct {
     User User `gork:"user_id" rule:"admin"`
-    Item Item `gork:"item_id" rule:"owned_by($.Path.User),category_matches($.Body.Category)"`
+    Item Item `gork:"item_id" rule:"owned_by($.Path.User) && category_matches($.Body.Category)"`
   }
   Query struct {
     Force bool `gork:"force"`
@@ -159,15 +159,15 @@ No inline operators or expressions are supported in v1 (e.g., `Type=admin`). Pas
 Rules can accept multiple arguments separated by commas:
 
 ```go
-Item `gork:"item_id" rule:"owned_by($.Path.User),category_matches($.Body.Category),within_limit($.Query.MaxPrice)"`
+Item `gork:"item_id" rule:"owned_by($.Path.User) && category_matches($.Body.Category) && within_limit($.Query.MaxPrice)"`
 ```
 
 ### Chained Rules
 
-Multiple rules can be applied to a single field, separated by commas:
+Multiple rules can be applied to a single field using boolean expressions with && (AND) and || (OR) operators:
 
 ```go
-User `gork:"user_id" rule:"admin,active,verified"`
+User `gork:"user_id" rule:"admin() && active() && verified()"`
 ```
 
 ## Comprehensive Examples
@@ -177,7 +177,7 @@ User `gork:"user_id" rule:"admin,active,verified"`
 ```go
 type GetUserRequest struct {
   Path struct {
-    User User `gork:"user_id" rule:"active,verified"`
+    User User `gork:"user_id" rule:"active() && verified()"`
   }
 }
 
@@ -211,8 +211,8 @@ api.RegisterRule("verified", func(ctx context.Context, entity interface{}) error
 ```go
 type TransferFundsRequest struct {
   Path struct {
-    FromAccount Account `gork:"from_account_id" rule:"owned_by($.Headers.User),sufficient_balance($.Body.Amount)"`
-    ToAccount   Account `gork:"to_account_id" rule:"accepts_currency($.Body.Currency),not_same_as($.Path.FromAccount)"`
+    FromAccount Account `gork:"from_account_id" rule:"owned_by($.Headers.User) && sufficient_balance($.Body.Amount)"`
+    ToAccount   Account `gork:"to_account_id" rule:"accepts_currency($.Body.Currency) && not_same_as($.Path.FromAccount)"`
   }
   Body struct {
     Amount   float64 `gork:"amount"`
@@ -274,7 +274,7 @@ api.RegisterRule("not_same_as", func(ctx context.Context, entity interface{}, ot
 type DeleteProjectRequest struct {
   Path struct {
     User    User    `gork:"user_id"`
-    Project Project `gork:"project_id" rule:"owned_by($.Path.User),deletable_by($.Path.User)"`
+    Project Project `gork:"project_id" rule:"owned_by($.Path.User) && deletable_by($.Path.User)"`
   }
 }
 
@@ -322,7 +322,7 @@ api.RegisterRule("deletable_by", func(ctx context.Context, entity interface{}, u
 ```go
 type UpdateUserRequest struct {
   Path struct {
-    User User `gork:"user_id" rule:"admin_or_self($.Headers.CurrentUser),changeable_if($.Query.Force)"`
+    User User `gork:"user_id" rule:"admin_or_self($.Headers.CurrentUser) && changeable_if($.Query.Force)"`
   }
   Query struct {
     Force bool `gork:"force"`
@@ -372,8 +372,8 @@ api.RegisterRule("changeable_if", func(ctx context.Context, entity interface{}, 
 ```go
 type PlaceOrderRequest struct {
   Path struct {
-    Customer Customer `gork:"customer_id" rule:"active,verified,credit_limit($.Body.TotalAmount)"`
-    Product  Product  `gork:"product_id" rule:"available,in_region($.Path.Customer.Region),category_allowed($.Path.Customer.Type)"`
+    Customer Customer `gork:"customer_id" rule:"active() && verified() && credit_limit($.Body.TotalAmount)"`
+    Product  Product  `gork:"product_id" rule:"available() && in_region($.Path.Customer.Region) && category_allowed($.Path.Customer.Type)"`
   }
   Body struct {
     Quantity    int     `gork:"quantity"`
@@ -539,8 +539,8 @@ Rules can be applied conditionally based on other fields:
 type CreateUserRequest struct {
   Body struct {
     Type     string `gork:"type" validate:"oneof=admin user guest"`
-    User     User   `gork:"user" rule:"admin_required_if(Body.Type, 'admin')"`
-    Password string `gork:"password" rule:"strong_if(Body.Type, 'admin')"`
+    User     User   `gork:"user" rule:"admin_required_if(.Type, 'admin')"`
+    Password string `gork:"password" rule:"strong_if(.Type, 'admin')"`
   }
 }
 ```

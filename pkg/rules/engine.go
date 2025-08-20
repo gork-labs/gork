@@ -9,8 +9,8 @@ import (
 	"reflect"
 )
 
-// Apply scans a conventional request struct for `rule` tags and executes
-// It returns a slice of errors returned by rules, preserving invocation order.
+// Apply scans a conventional request struct for `rule` tags and evaluates boolean expressions.
+// It returns a slice of errors returned by rule evaluation.
 func Apply(ctx context.Context, reqPtr any) []error {
 	var errs []error
 	rv := reflect.ValueOf(reqPtr)

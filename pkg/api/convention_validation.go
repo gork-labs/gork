@@ -151,22 +151,6 @@ func NewConventionValidator() *ConventionValidator {
 	}
 }
 
-// NewConventionValidatorWithFieldValidator creates a new convention validator with a custom field validator.
-// This is primarily used for testing to inject mock validators.
-func NewConventionValidatorWithFieldValidator(fieldValidator FieldValidator) *ConventionValidator {
-	return &ConventionValidator{
-		validator:      NewValidator(DefaultValidatorConfig()),
-		fieldValidator: fieldValidator,
-		applyRulesFunc: rules.Apply,
-	}
-}
-
-// GetValidator returns the underlying validator for testing purposes.
-// This method should only be used in tests.
-func (v *ConventionValidator) GetValidator() *validator.Validate {
-	return v.validator
-}
-
 // ValidateRequest validates a request using the Convention Over Configuration approach.
 func (v *ConventionValidator) ValidateRequest(ctx context.Context, reqPtr interface{}) error {
 	reqValue := reflect.ValueOf(reqPtr)
