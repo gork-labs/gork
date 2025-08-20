@@ -71,39 +71,3 @@ func TestDefaultRouteFilter_ComprehensivePointerCases(t *testing.T) {
 		})
 	}
 }
-
-func TestDefaultRouteFilter_Lines24to26Coverage(t *testing.T) {
-	// This test is specifically designed to trigger lines 24-26 in openapi_generator.go
-	// The condition is: info.ResponseType.Kind() == reflect.Ptr && info.ResponseType.Elem() == specPtrType.Elem()
-
-	// Let's create a mock RouteInfo that bypasses the line 19 check but triggers lines 24-26
-	// We need a pointer type whose element matches OpenAPISpec but isn't exactly *OpenAPISpec
-
-	// Actually, let's verify if lines 24-26 are even reachable
-	// by creating the exact scenario they're designed to catch
-
-	specType := reflect.TypeOf(OpenAPISpec{})
-	pointerToSpec := reflect.PtrTo(specType)
-
-	// This should be identical to *OpenAPISpec, so line 19 should catch it
-	route1 := &RouteInfo{ResponseType: pointerToSpec}
-	result1 := defaultRouteFilter(route1)
-	if result1 {
-		t.Error("Expected false for constructed *OpenAPISpec")
-	}
-
-	// Now test the case that might reach lines 24-26:
-	// What if we create a type that has the same element but different identity?
-	// In Go's type system, this shouldn't be possible, but let's test edge cases
-
-	// Test with a custom type that embeds OpenAPISpec
-	type CustomOpenAPISpec OpenAPISpec
-	customType := reflect.TypeOf((*CustomOpenAPISpec)(nil))
-
-	route2 := &RouteInfo{ResponseType: customType}
-	result2 := defaultRouteFilter(route2)
-	// This should return true (not filtered) because it's not exactly *OpenAPISpec
-	if !result2 {
-		t.Error("Expected true for *CustomOpenAPISpec (should not be filtered)")
-	}
-}

@@ -11,8 +11,10 @@ import (
 type argKind int
 
 const (
+	// argInvalid represents an invalid or zero-value argument token.
+	argInvalid argKind = iota
 	// argFieldRef represents a field reference like $.Path or .Header.
-	argFieldRef argKind = iota
+	argFieldRef
 	// argString is a quoted string literal.
 	argString
 	// argNumber is a numeric literal (float64).
@@ -42,65 +44,11 @@ type argToken struct {
 	Bool bool
 }
 
-// invocation represents a single rule invocation parsed from a tag.
-type invocation struct {
-	Name string
-	Args []argToken
-}
-
-// parse parses the content of a `rule:"..."` tag into invocations.
-// Grammar:
-//
-//	rule = invocation *("," invocation)
-//	invocation = ident ["(" [args] ")"]
-//	args = arg *("," arg)
-//	arg = FieldRef | String | Number | Bool | Null
-//	FieldRef = Section '.' Identifier {'.' Identifier}
-//
-// Sections: Path, Query, Body, Headers, Cookies.
-func parse(s string) ([]invocation, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil, nil
-	}
-	parts, err := splitTopLevel(s, ',')
-	if err != nil {
-		return nil, err
-	}
-	invs := make([]invocation, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		name, argstr, hasArgs, _ := splitInvocation(p)
-		inv := invocation{Name: name}
-		if hasArgs {
-			argTokens, err := parseArgs(argstr)
-			if err != nil {
-				return nil, err
-			}
-			inv.Args = argTokens
-		}
-		invs = append(invs, inv)
-	}
-	return invs, nil
-}
-
-func splitInvocation(s string) (name, argstr string, hasArgs bool, err error) {
-	// find first '(' if any
-	i := strings.IndexRune(s, '(')
-	if i < 0 {
-		return s, "", false, nil
-	}
-	if !strings.HasSuffix(s, ")") {
-		return "", "", false, fmt.Errorf("rules: unmatched '(' in %q", s)
-	}
-	return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1 : len(s)-1]), true, nil
-}
-
 // parseArgs parses a comma-separated list of rule arguments.
 // Supports field refs $.X.Y and .X.Y, string/number/bool/null literals, and $var context variables.
 // Example: owned_by($current_user), has_permission($user_role).
 func parseArgs(s string) ([]argToken, error) {
-	parts, err := splitTopLevel(s, ',')
+	parts, err := splitTopLevel(s)
 	if err != nil {
 		return nil, err
 	}
@@ -254,8 +202,8 @@ func isIdent(s string) bool {
 
 // no section validation; only absolute $. and relative . prefixes are allowed
 
-// splitTopLevel splits by sep while respecting parentheses and quotes.
-func splitTopLevel(s string, sep rune) ([]string, error) {
+// splitTopLevel splits by comma while respecting parentheses and quotes.
+func splitTopLevel(s string) ([]string, error) {
 	var (
 		parts    []string
 		cur      strings.Builder
@@ -287,7 +235,7 @@ func splitTopLevel(s string, sep rune) ([]string, error) {
 			}
 			cur.WriteRune(r)
 		default:
-			if shouldSplit(r, depth, inSingle, inDouble, sep) {
+			if shouldSplit(r, depth, inSingle, inDouble, ',') {
 				pushPart()
 				continue
 			}

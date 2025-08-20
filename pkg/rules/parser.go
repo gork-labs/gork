@@ -56,6 +56,14 @@ func (p *parser) expect(k tokKind) error {
 	return nil
 }
 
+// must consumes a token of the specified kind or panics.
+// Use this when the token is guaranteed to be present due to program invariants.
+func (p *parser) must(k tokKind) {
+	if !p.eat(k) {
+		panic(fmt.Sprintf("parser invariant violated: expected token %v at position %d, got %v", k, p.pos, p.cur().kind))
+	}
+}
+
 // parseExpr parses a complete expression.
 func (p *parser) parseExpr() (node, error) { return p.parseOr() }
 
@@ -151,8 +159,8 @@ func (p *parser) parseFunctionCall(name string) (node, error) {
 		}
 		args = atoks
 	}
-	// Consume the closing )
-	p.expect(tkRPar)
+	// Consume the closing ) - this should always succeed after collectArgsString
+	p.must(tkRPar)
 	return &nodeCall{name: name, args: args}, nil
 }
 

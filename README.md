@@ -160,6 +160,214 @@ lintgork ./...
 # Integrates with golangci-lint
 ```
 
+## 🎯 Rules Engine
+
+Gork includes a powerful, lightweight rules engine that enables business logic validation through simple struct tags. Rules are perfect for authorization, ownership checks, and complex business validations that go beyond standard validation tags.
+
+### Basic Rule Usage
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "net/http"
+    
+    "github.com/gork-labs/gork/pkg/adapters/stdlib"
+    "github.com/gork-labs/gork/pkg/api"
+    "github.com/gork-labs/gork/pkg/rules"
+)
+
+// Example ownership database (in real apps, this would be your database)
+var itemOwners = map[string]string{
+    "item-123": "alice",
+    "item-456": "bob",
+}
+
+var userRoles = map[string]string{
+    "alice": "admin",
+    "bob":   "user",
+}
+
+// Register business rules on startup
+func init() {
+    // Rule: Check if current user owns the specified item (fixed-arity, typed)
+    rules.Register("owned_by", func(ctx context.Context, itemID *string, currentUser string) (bool, error) {
+        if itemID == nil {
+            return false, fmt.Errorf("owned_by: entity must be *string (item ID)")
+        }
+
+        owner, exists := itemOwners[*itemID]
+        if !exists {
+            return false, fmt.Errorf("owned_by: item %s not found", *itemID)
+        }
+
+        // Return false (validation failed) if ownership doesn't match
+        return owner == currentUser, nil
+    })
+
+    // Rule: Check if user has required role (fixed-arity, typed)
+    rules.Register("has_role", func(ctx context.Context, _ *string, user string, requiredRole string) (bool, error) {
+        userRole, exists := userRoles[user]
+        if !exists {
+            return false, nil // User not found = validation failed
+        }
+        return userRole == requiredRole, nil
+    })
+
+    // Rule: Check if value is in allowed list (typed variadic)
+    rules.Register("in_list", func(ctx context.Context, value *string, allowed ...string) (bool, error) {
+        if value == nil {
+            return false, fmt.Errorf("in_list: entity must be *string")
+        }
+        v := *value
+        for _, a := range allowed {
+            if a == v {
+                return true, nil
+            }
+        }
+        return false, nil // Not in allowed list
+    })
+}
+
+// Request with rule-based validation
+type UpdateItemRequest struct {
+    Path struct {
+        // ItemID must be owned by the current user
+        ItemID string `gork:"itemId" validate:"required" rule:"owned_by($current_user)"`
+        
+        // Status must be one of the allowed values
+        Status string `gork:"status" validate:"required" rule:"in_list('active', 'inactive', 'pending')"`
+    }
+    Body struct {
+        // Name is required and must be owned by current user with admin role
+        Name string `gork:"name" validate:"required" rule:"owned_by($current_user) && has_role($current_user, 'admin')"`
+        
+        // Category can reference other fields in complex expressions
+        Category string `gork:"category" rule:"in_list('tech', 'business') || (.Name == 'special' && has_role($current_user, 'admin'))"`
+    }
+}
+
+type UpdateItemResponse struct {
+    Body struct {
+        Success bool   `gork:"success"`
+        Message string `gork:"message"`
+    }
+}
+
+// Handler that automatically validates rules before execution
+func UpdateItem(ctx context.Context, req UpdateItemRequest) (*UpdateItemResponse, error) {
+    // If we reach here, all validation and rules have passed!
+    return &UpdateItemResponse{
+        Body: struct {
+            Success bool   `gork:"success"`
+            Message string `gork:"message"`
+        }{
+            Success: true,
+            Message: fmt.Sprintf("Item %s updated successfully", req.Path.ItemID),
+        },
+    }, nil
+}
+
+func main() {
+    mux := http.NewServeMux()
+    router := stdlib.NewRouter(mux)
+    
+    // Context variables are injected via middleware
+    router.Use(func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            // Extract user from JWT/session (simplified example)
+            currentUser := r.Header.Get("X-Current-User")
+            if currentUser == "" {
+                currentUser = "anonymous"
+            }
+            
+            // Make context variables available to rules
+            ctx := rules.WithContextVars(r.Context(), rules.ContextVars{
+                "current_user": currentUser,
+                "user_role":    userRoles[currentUser],
+                "request_time": "2024-01-15T10:00:00Z",
+            })
+            
+            next.ServeHTTP(w, r.WithContext(ctx))
+        })
+    })
+    
+    // Register route - rules are automatically applied during request validation
+    router.Put("/items/{itemId}/status/{status}", UpdateItem, api.WithTags("items"))
+    
+    // Serve docs to see the generated OpenAPI spec
+    router.DocsRoute("/docs/*")
+    
+    fmt.Println("Server running at http://localhost:8080")
+    fmt.Println("Try: PUT /items/item-123/status/active with X-Current-User: alice")
+    fmt.Println("Docs: http://localhost:8080/docs/")
+    
+    http.ListenAndServe(":8080", mux)
+}
+```
+
+### Rule Expression Syntax
+
+Rules support powerful expressions with field references, context variables, and boolean logic:
+
+```go
+type AdvancedRulesRequest struct {
+    Path struct {
+        ResourceID string `rule:"owned_by($current_user)"` // Context variable
+        
+        Action string `rule:"in_list('read', 'write', 'delete')"` // Literal arguments
+    }
+    Query struct {
+        // Reference fields from other sections
+        Permission string `rule:"has_permission($current_user, $.Path.Action)"` 
+        
+        // Complex boolean expressions
+        Override bool `rule:"has_role($current_user, 'admin') || ($.Path.Action == 'read' && .Permission == 'public')"` 
+    }
+    Body struct {
+        // Relative field references within same section
+        Category string `rule:"in_list('tech', 'business')"`
+        Tags     []string `rule:"valid_tags(.Category)"`  // Pass sibling field
+    }
+}
+```
+
+**Expression Features:**
+- **Field References**: `$.Path.UserID` (absolute), `.Category` (relative to current section)
+- **Context Variables**: `$current_user`, `$user_role`, `$request_time`
+- **Literals**: `'string'`, `42`, `true`, `false`, `null`
+- **Boolean Logic**: `&&` (and), `||` (or), `==` (equals)
+
+
+### Manual Rule Application
+
+For custom validation flows, you can apply rules manually:
+
+```go
+import "github.com/gork-labs/gork/pkg/rules"
+
+func CustomHandler(ctx context.Context, req MyRequest) (*MyResponse, error) {
+    // Apply rules manually
+    if errs := rules.Apply(ctx, &req); len(errs) > 0 {
+        return nil, fmt.Errorf("validation failed: %v", errs)
+    }
+    
+    // Continue with business logic
+    return &MyResponse{}, nil
+}
+```
+
+### Key Benefits
+
+- **🔐 Authorization**: Implement ownership and permission checks declaratively
+- **📊 Business Logic**: Complex validation rules without cluttering handlers  
+- **🎯 Reusable**: Register rules once, use across multiple endpoints
+- **🌐 Context-Aware**: Access request context, user data, and session info
+- **📝 Self-Documenting**: Rules are visible in struct definitions
+- **⚡ Performance**: Compiled expressions, no runtime parsing overhead
+
 ## 📚 Libraries
 
 ### Core API Library

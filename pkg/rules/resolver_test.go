@@ -138,8 +138,26 @@ func TestResolveArgsWithContext_Errors(t *testing.T) {
 func TestResolveArgsWithContext_UnsupportedKind(t *testing.T) {
 	var r testReq
 	ctx := context.Background()
+
+	// Test unsupported kind (invalid enum value)
 	bad := argToken{Kind: argKind(999)}
 	if _, err := resolve(ctx, &r, &r.Path, []argToken{bad}); err == nil {
 		t.Fatal("expected error for unsupported arg kind")
+	}
+
+	// Test argInvalid specifically
+	invalid := argToken{Kind: argInvalid}
+	if _, err := resolve(ctx, &r, &r.Path, []argToken{invalid}); err == nil {
+		t.Fatal("expected error for argInvalid token")
+	}
+
+	// Verify the error message contains "invalid argument token"
+	_, err := resolve(ctx, &r, &r.Path, []argToken{invalid})
+	if err == nil {
+		t.Fatal("expected error for argInvalid token")
+	}
+	expectedMsg := "rules: cannot resolve invalid argument token"
+	if err.Error() != expectedMsg {
+		t.Fatalf("expected error message %q, got %q", expectedMsg, err.Error())
 	}
 }

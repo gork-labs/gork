@@ -199,6 +199,10 @@ components:
                     type: object
             title: StripeWebhookResponse
             type: object
+        UpdateOwnedItemResponse:
+            description: UpdateOwnedItemResponse is a demo empty response.
+            title: UpdateOwnedItemResponse
+            type: object
         UpdateUserBody:
             properties:
                 userID:
@@ -290,6 +294,31 @@ paths:
                     $ref: '#/components/responses/InternalServerError'
             tags:
                 - auth
+    /api/v1/items/{itemId}:
+        post:
+            description: UpdateOwnedItem is a demo handler that runs after validation and rules.
+            operationId: UpdateOwnedItem
+            parameters:
+                - in: path
+                  name: itemId
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateOwnedItemResponse'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            tags:
+                - items
     /api/v1/users:
         get:
             description: ListUsers handles listing all users.

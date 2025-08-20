@@ -23,6 +23,8 @@ func resolve(ctx context.Context, root any, parent any, tokens []argToken) ([]an
 
 func resolveSingle(ctx context.Context, root any, parent any, t argToken) (any, error) {
 	switch t.Kind {
+	case argInvalid:
+		return nil, fmt.Errorf("rules: cannot resolve invalid argument token")
 	case argFieldRef:
 		return resolveFieldRef(root, parent, t)
 	case argContextVar:

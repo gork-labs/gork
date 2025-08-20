@@ -3,6 +3,7 @@ package rules
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -294,5 +295,84 @@ func TestEngine_BooleanExpression_AND_OR_NOT(t *testing.T) {
 	errs := Apply(ctx, &r)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errs: %v", errs)
+	}
+}
+
+func TestEngine_TypedFixedArityRules(t *testing.T) {
+	resetRegistry()
+
+	// Register a typed, fixed-arity rule (no manual len(args) checks needed)
+	Register("typed_owned_by", func(ctx context.Context, itemID *string, currentUser string) (bool, error) {
+		if itemID == nil {
+			return false, fmt.Errorf("item id is nil")
+		}
+		// Simple ownership check for test
+		if *itemID == "item123" && currentUser == "alice" {
+			return true, nil
+		}
+		return false, nil // Validation failed (business logic)
+	})
+
+	// Register a typed variadic rule
+	Register("typed_in_list", func(ctx context.Context, value *string, allowed ...string) (bool, error) {
+		if value == nil {
+			return false, fmt.Errorf("value is nil")
+		}
+		v := *value
+		for _, a := range allowed {
+			if a == v {
+				return true, nil
+			}
+		}
+		return false, nil // Not in allowed list
+	})
+
+	type typedReq struct {
+		Path struct {
+			ItemID string `rule:"typed_owned_by($current_user)"`
+			Status string `rule:"typed_in_list('active', 'inactive', 'pending')"`
+		}
+	}
+
+	var r typedReq
+	r.Path.ItemID = "item123"
+	r.Path.Status = "active"
+
+	ctx := context.Background()
+	ctx = WithContextVars(ctx, ContextVars{"current_user": "alice"})
+
+	errs := Apply(ctx, &r)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errs for valid typed rules: %v", errs)
+	}
+
+	// Test validation failure
+	r.Path.Status = "invalid_status"
+	errs = Apply(ctx, &r)
+	if len(errs) == 0 {
+		t.Fatalf("expected validation error for invalid status")
+	}
+
+	// Test arity enforcement - this should fail at call time, not in user code
+	Register("typed_needs_two", func(ctx context.Context, entity *string, arg1 string, arg2 string) (bool, error) {
+		return true, nil
+	})
+
+	type arityTestReq struct {
+		Path struct {
+			Field string `rule:"typed_needs_two('only_one_arg')"`
+		}
+	}
+
+	var arityReq arityTestReq
+	arityReq.Path.Field = "test"
+
+	errs = Apply(ctx, &arityReq)
+	if len(errs) == 0 {
+		t.Fatalf("expected arity mismatch error")
+	}
+	// Verify it's a server error (arity mismatch), not a validation error
+	if !strings.Contains(errs[0].Error(), "expects 2 args, got 1") {
+		t.Fatalf("expected arity error, got: %v", errs[0])
 	}
 }
