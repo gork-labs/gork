@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1.0",
+  "openapi": "3.2.0",
   "info": {
     "title": "Example API",
     "version": "1.0.0"
@@ -328,6 +328,83 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/activity": {
+      "get": {
+        "description": "StreamUserActivity sends the actions of a user as Server-Sent Events.",
+        "operationId": "StreamUserActivity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "itemSchema": {
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "data": {
+                          "contentMediaType": "application/json",
+                          "contentSchema": {
+                            "$ref": "#/components/schemas/UserActivity"
+                          }
+                        },
+                        "event": {
+                          "const": "activity"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "contentMediaType": "application/json",
+                          "contentSchema": {
+                            "type": "object"
+                          }
+                        },
+                        "event": {
+                          "const": "reset"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Event stream"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -838,6 +915,21 @@
           "paymentMethod",
           "primaryNotificationChannel"
         ]
+      },
+      "UserActivity": {
+        "type": "object",
+        "title": "UserActivity",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Action is the name of the action"
+          },
+          "userId": {
+            "type": "string",
+            "description": "UserID is the ID of the user who did the action"
+          }
+        },
+        "description": "UserActivity describes one action of a user."
       },
       "UserType": {
         "type": "object",
