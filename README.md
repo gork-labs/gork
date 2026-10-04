@@ -278,6 +278,8 @@ if os.Getenv("GORK_EXPORT") == "1" {
 }
 ```
 
+The generator makes no network call. To check the spec with the online Swagger validator, add `--validate-online`. This flag sends the spec to https://validator.swagger.io, and the command fails if the validator reports an error. The validator does not support OpenAPI 3.2, so the CLI does not send a 3.2 spec.
+
 ### lintgork - Convention Linter
 
 ```bash
