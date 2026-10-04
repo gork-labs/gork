@@ -286,6 +286,32 @@ components:
                 - action
             title: UserActivity
             type: object
+        UserActivityEvents:
+            description: UserActivityEvents lists the events of the user activity stream.
+            oneOf:
+                - properties:
+                    data:
+                        contentMediaType: application/json
+                        contentSchema:
+                            $ref: '#/components/schemas/UserActivity'
+                    event:
+                        const: activity
+                  required:
+                    - event
+                    - data
+                  type: object
+                - properties:
+                    data:
+                        contentMediaType: application/json
+                        contentSchema:
+                            type: object
+                    event:
+                        const: reset
+                  required:
+                    - event
+                    - data
+                  type: object
+            title: UserActivityEvents
         UserType:
             description: UserType represents user data structure.
             properties:
@@ -609,29 +635,7 @@ paths:
                     content:
                         text/event-stream:
                             itemSchema:
-                                oneOf:
-                                    - properties:
-                                        data:
-                                            contentMediaType: application/json
-                                            contentSchema:
-                                                $ref: '#/components/schemas/UserActivity'
-                                        event:
-                                            const: activity
-                                      required:
-                                        - event
-                                        - data
-                                      type: object
-                                    - properties:
-                                        data:
-                                            contentMediaType: application/json
-                                            contentSchema:
-                                                type: object
-                                        event:
-                                            const: reset
-                                      required:
-                                        - event
-                                        - data
-                                      type: object
+                                $ref: '#/components/schemas/UserActivityEvents'
                     description: Event stream
                 "400":
                     $ref: '#/components/responses/BadRequest'

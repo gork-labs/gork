@@ -36,7 +36,7 @@ func TestStreamOpenAPITimePayloadSchema(t *testing.T) {
 
 	spec := GenerateOpenAPI(registry)
 
-	data := spec.Paths["/routea"].Get.Responses["200"].Content["text/event-stream"].ItemSchema.OneOf[0].Properties["data"]
+	data := spec.Components.Schemas["streamTimeEvents"].OneOf[0].Properties["data"]
 	if data.ContentSchema.Ref != "#/components/schemas/streamTimeTick" {
 		t.Fatalf("contentSchema = %+v, want a reference to streamTimeTick", data.ContentSchema)
 	}
