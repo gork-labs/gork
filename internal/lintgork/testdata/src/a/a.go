@@ -61,6 +61,32 @@ type NamedBodyRequest struct {
 	Body NamedBody
 }
 
+type UserPath struct {
+	ID string `gork:"id"`
+}
+
+type UserQuery struct {
+	Limit int `gork:"limit"`
+	Bad   int // want "field 'Query.Bad' missing gork tag"
+}
+
+// Test struct with named section types
+type NamedSectionRequest struct {
+	Path  UserPath
+	Query UserQuery
+}
+
+// Test struct with a pointer to a named section type
+type PointerSectionRequest struct {
+	Path *UserPath // want "section 'Path' must be a struct type"
+}
+
+// Test struct with an embedded field and a field that is not a section
+type ExtraFieldsRequest struct {
+	UserPath
+	Extra int
+}
+
 // Test router method calls
 func setupRoutes(router TestRouter) {
 	// Valid router calls with path parameters

@@ -170,24 +170,39 @@ type Reporter interface {
 }
 
 // validateConventionSection validates a Convention Over Configuration section.
-func validateConventionSection(sectionName string, field *ast.Field, reporter Reporter) {
-	if reporter == nil {
-		return
-	}
-
+func validateConventionSection(sectionName string, field *ast.Field, pass *analysis.Pass) {
 	// Body may be any type: []byte gets the raw body and other types are JSON-decoded.
-	structType, ok := field.Type.(*ast.StructType)
-	if !ok {
+	if _, ok := pass.TypesInfo.TypeOf(field.Type).Underlying().(*types.Struct); !ok {
 		if sectionName != "Body" {
-			reporter.Reportf(field.Pos(), "section '%s' must be a struct type", sectionName)
+			pass.Reportf(field.Pos(), "section '%s' must be a struct type", sectionName)
 		}
 		return
 	}
 
 	// Validate fields within the section
-	for _, sectionField := range structType.Fields.List {
-		validateSectionField(sectionName, sectionField, reporter)
+	for _, sectionField := range sectionFields(field.Type, pass) {
+		validateSectionField(sectionName, sectionField, pass)
 	}
+}
+
+// sectionFields returns the fields of an inline struct or of a struct type that the package declares.
+// It returns nil for a type that another package declares.
+func sectionFields(expr ast.Expr, pass *analysis.Pass) []*ast.Field {
+	if st, ok := expr.(*ast.StructType); ok {
+		return st.Fields.List
+	}
+
+	t := pass.TypesInfo.TypeOf(expr)
+	var fields []*ast.Field
+	for _, file := range pass.Files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			if ts, ok := n.(*ast.TypeSpec); ok && pass.TypesInfo.Defs[ts.Name].Type() == t {
+				fields = sectionFields(ts.Type, pass)
+			}
+			return true
+		})
+	}
+	return fields
 }
 
 // validateSectionField validates a field within a Convention Over Configuration section.
