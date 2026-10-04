@@ -47,9 +47,12 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 	}
 
 	// Process response sections
-	if route.ResponseType != nil {
+	switch {
+	case route.StreamType != nil:
+		operation.Responses["200"] = g.buildStreamResponse(route.StreamType, components)
+	case route.ResponseType != nil:
 		g.processResponseSections(route.ResponseType, operation, components, route)
-	} else {
+	default:
 		// Error-only handlers generate 204 No Content
 		operation.Responses["204"] = g.generateNoContentResponse()
 	}
@@ -291,6 +294,32 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 	}
 
 	operation.Responses["200"] = response
+}
+
+// buildStreamResponse builds a text/event-stream response with one item schema for each event field.
+func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type, components *Components) *Response {
+	events := make([]*Schema, 0, eventType.NumField())
+	for i := 0; i < eventType.NumField(); i++ {
+		field := eventType.Field(i)
+		events = append(events, &Schema{
+			Type:     "object",
+			Required: []string{"event", "data"},
+			Properties: map[string]*Schema{
+				"event": {Const: parseGorkTag(field.Tag.Get("gork")).Name},
+				"data": {
+					ContentMediaType: "application/json",
+					ContentSchema:    g.generateSchemaFromType(field.Type.Elem(), "", components),
+				},
+			},
+		})
+	}
+
+	return &Response{
+		Description: "Event stream",
+		Content: map[string]*MediaType{
+			"text/event-stream": {ItemSchema: &Schema{OneOf: events}},
+		},
+	}
 }
 
 // generateResponseComponentSchema creates a component reference for a response type,

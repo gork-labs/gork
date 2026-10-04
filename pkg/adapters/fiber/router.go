@@ -2,6 +2,7 @@ package fiber
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -87,7 +88,8 @@ func NewRouter(app *fiber.App, opts ...api.Option) *Router {
 
 	registry := api.NewRouteRegistry()
 
-	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
+	registerFn := func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+		rejectStream(info)
 		nativePath := toNativePath(path)
 		app.Add(method, nativePath, func(c *fiber.Ctx) error {
 			return handleFiberRequest(c, handler)
@@ -163,11 +165,20 @@ func handleFiberRequestWithCreator(c *fiber.Ctx, handler http.HandlerFunc, creat
 // createRegisterFn creates a register function for a Fiber group.
 // This function is extracted to make it easily testable.
 func createRegisterFn(g fiber.Router, newPrefix string) func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-	return func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
+	return func(method, path string, handler http.HandlerFunc, info *api.RouteInfo) {
+		rejectStream(info)
 		nativePath := toNativePath(newPrefix + path)
 		g.Add(method, nativePath, func(c *fiber.Ctx) error {
 			return handleFiberRequest(c, handler)
 		})
+	}
+}
+
+// rejectStream panics for stream handlers. Fasthttp sends the response body
+// only after the handler returns, so events cannot reach the client in time.
+func rejectStream(info *api.RouteInfo) {
+	if info != nil && info.StreamType != nil {
+		panic(fmt.Sprintf("fiber adapter does not support stream handlers: %s %s", info.Method, info.Path))
 	}
 }
 

@@ -169,11 +169,15 @@ func validateHandlerSignature(t reflect.Type) {
 	if t.Kind() != reflect.Func {
 		panic("handler must be a function")
 	}
-	if t.NumIn() != 2 {
-		panic("handler must accept exactly 2 parameters (context.Context, Request)")
+	if t.NumIn() != 2 && t.NumIn() != 3 {
+		panic("handler must accept 2 parameters (context.Context, Request) or 3 parameters (context.Context, Request, *api.Stream[E])")
 	}
 	if !t.In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
 		panic("first handler parameter must be context.Context")
+	}
+	if t.NumIn() == 3 {
+		validateStreamHandlerSignature(t)
+		return
 	}
 
 	// Allow either (ResponseType, error) or (error) returns
@@ -215,6 +219,7 @@ func buildRouteInfo(handler interface{}, reqType, respType reflect.Type, opts []
 		HandlerName:  getFunctionName(handler),
 		RequestType:  reqType,
 		ResponseType: respType,
+		StreamType:   streamEventType(reflect.TypeOf(handler)),
 		Options:      optionCfg,
 	}
 }

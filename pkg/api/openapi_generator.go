@@ -56,6 +56,9 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		}
 		generator := NewConventionOpenAPIGenerator(spec, NewDocExtractor())
 		op := generator.buildConventionOperation(route, spec.Components)
+		if route.StreamType != nil {
+			spec.OpenAPI = "3.2.0"
+		}
 
 		// Security mapping
 		applySecurityToOperation(route, spec, op)

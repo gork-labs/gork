@@ -16,6 +16,7 @@ type RouteInfo struct {
 	HandlerName  string         // getFunctionName(handler)
 	RequestType  reflect.Type   // The concrete request struct type (non-pointer)
 	ResponseType reflect.Type   // The concrete response struct type (non-pointer)
+	StreamType   reflect.Type   // The event struct type E of a stream handler, nil for other handlers
 	Options      *HandlerOption // Collected handler options (tags, security, etc.)
 	// WebhookHandler stores the original webhook handler instance for OpenAPI reflection.
 	// This field is only set for webhook routes created with WebhookHandlerFunc.
