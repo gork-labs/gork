@@ -259,10 +259,12 @@ go install github.com/gork-labs/gork/cmd/gork@latest
 # Generate OpenAPI spec from your handlers
 gork openapi generate --build ./cmd/server --source ./handlers --output openapi.json
 
-# With custom metadata and YAML output  
-gork openapi generate --source ./api --output spec.yaml --format yaml \
+# With custom metadata and YAML output
+gork openapi generate --source ./api --output spec.yaml \
   --title "My API" --version "2.0.0"
 ```
+
+The extension of the `--output` file selects the format. The extensions `.yaml` and `.yml` give YAML. Other extensions give JSON. `--output -` writes JSON to standard output.
 
 With `--build`, the CLI builds the package, runs the binary with the environment variable `GORK_EXPORT=1`, and reads the spec as JSON from standard output. The `main` function of the server must write the spec and stop when it sees this variable:
 
