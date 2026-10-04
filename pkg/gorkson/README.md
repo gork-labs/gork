@@ -25,7 +25,7 @@ var u User
 err = gorkson.Unmarshal(data, &u)
 ```
 
-The field name comes from the `gork` tag. When a field has no `gork` tag, the `json` tag gives the name. A field with no tag or with the name `-` is not encoded.
+The field name comes from the `gork` tag. When a field has no `gork` tag, the `json` tag gives the name. When a field has no tag, the Go field name is the name, as in `encoding/json`. An unexported field or a field with the name `-` is not encoded. An exported embedded struct without a tag gives its fields to the outer object, as in `encoding/json`.
 
 A value with no codec that implements `json.Marshaler` is written with its `MarshalJSON` method, also inside a struct, a slice or a pointer. A union from `pkg/unions` in a field thus writes only its set member.
 

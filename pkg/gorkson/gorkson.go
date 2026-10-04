@@ -4,6 +4,7 @@ package gorkson
 
 import (
 	"encoding/json"
+	"maps"
 	"reflect"
 	"strings"
 )
@@ -107,9 +108,17 @@ func (m *Marshaler) convertStructToGorkSON(val reflect.Value) (map[string]any, e
 			continue
 		}
 
-		// Get field name from gork tag
+		if isEmbeddedStruct(field) {
+			embedded, err := m.convertStructToGorkSON(fieldValue)
+			if err != nil {
+				return nil, err
+			}
+			maps.Copy(result, embedded)
+			continue
+		}
+
 		fieldName := m.getFieldName(field)
-		if fieldName == "" || fieldName == "-" {
+		if fieldName == "-" {
 			continue
 		}
 
@@ -149,55 +158,57 @@ func (m *Marshaler) convertNonStruct(jsonMap map[string]any, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// buildFieldMap creates a mapping from field names to field indices.
-func (m *Marshaler) buildFieldMap(structType reflect.Type) map[string]int {
-	fieldMap := make(map[string]int)
+// buildFieldMap maps the JSON name of each field to the index path of the field.
+func (m *Marshaler) buildFieldMap(structType reflect.Type) map[string][]int {
+	fieldMap := make(map[string][]int)
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
-		fieldName := m.getFieldName(field)
-		if fieldName != "" && fieldName != "-" {
-			fieldMap[fieldName] = i
+		if !field.IsExported() {
+			continue
+		}
+		if isEmbeddedStruct(field) {
+			for name, index := range m.buildFieldMap(field.Type) {
+				fieldMap[name] = append([]int{i}, index...)
+			}
+			continue
+		}
+		if fieldName := m.getFieldName(field); fieldName != "-" {
+			fieldMap[fieldName] = []int{i}
 		}
 	}
 	return fieldMap
 }
 
 // setFieldsFromMap sets struct field values from the JSON map.
-func (m *Marshaler) setFieldsFromMap(structVal reflect.Value, fieldMap map[string]int, jsonMap map[string]any) error {
+func (m *Marshaler) setFieldsFromMap(structVal reflect.Value, fieldMap map[string][]int, jsonMap map[string]any) error {
 	for jsonKey, jsonValue := range jsonMap {
-		if fieldIndex, exists := fieldMap[jsonKey]; exists {
-			field := structVal.Field(fieldIndex)
-			if field.CanSet() {
-				if err := m.setFieldValue(field, jsonValue); err != nil {
-					return err
-				}
+		if index, exists := fieldMap[jsonKey]; exists {
+			if err := m.setFieldValue(structVal.FieldByIndex(index), jsonValue); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
 }
 
-// getFieldName extracts the field name from gork tag, falling back to json tag if no gork tag.
+// getFieldName returns the JSON name of the field: the gork tag name, else the
+// json tag name, else the Go field name, as in encoding/json. The name "-"
+// means that the field is not encoded.
 func (m *Marshaler) getFieldName(field reflect.StructField) string {
-	// Prefer gork tag
-	if gorkTag := field.Tag.Get("gork"); gorkTag != "" {
-		tagInfo := parseGorkTag(gorkTag)
-		if tagInfo.Name != "" {
-			return tagInfo.Name
-		}
+	name := parseGorkTag(field.Tag.Get("gork")).Name
+	if name == "" {
+		name = strings.Split(field.Tag.Get("json"), ",")[0]
 	}
-
-	// Fall back to json tag if no gork tag found
-	if jsonTag := field.Tag.Get("json"); jsonTag != "" {
-		// Parse json tag (take first part before comma)
-		name := strings.Split(jsonTag, ",")[0]
-		if name != "" && name != "-" {
-			return name
-		}
+	if name == "" {
+		return field.Name
 	}
+	return name
+}
 
-	// No tags found - skip field
-	return ""
+// isEmbeddedStruct reports whether the fields of the embedded struct field are
+// encoded as fields of the outer struct, as in encoding/json.
+func isEmbeddedStruct(field reflect.StructField) bool {
+	return field.Anonymous && field.Type.Kind() == reflect.Struct && field.Tag.Get("gork") == "" && field.Tag.Get("json") == ""
 }
 
 // GorkTagInfo represents parsed information from a gork struct tag.
