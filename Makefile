@@ -17,8 +17,10 @@ clean:
 	rm -rf bin/
 	go clean -cache -testcache
 
+# Test files define invalid request types on purpose, so lintgork checks only the other files.
 lint:
 	golangci-lint run
+	go run ./cmd/lintgork -test=false ./...
 
 # Update dependencies
 deps:
