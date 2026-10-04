@@ -136,6 +136,22 @@ func (a *ArrayTypeHandler) GenerateSchema(t reflect.Type, registry map[string]*S
 	return buildArraySchema(t, registry)
 }
 
+// MapTypeHandler handles map types.
+type MapTypeHandler struct{}
+
+// CanHandle returns true if this handler can process the given type.
+func (m *MapTypeHandler) CanHandle(t reflect.Type) bool {
+	return t.Kind() == reflect.Map
+}
+
+// GenerateSchema generates an object schema with the map value schema as additionalProperties.
+func (m *MapTypeHandler) GenerateSchema(t reflect.Type, registry map[string]*Schema, _ bool) *Schema {
+	if t.Elem().Kind() == reflect.Interface {
+		return &Schema{Type: "object", AdditionalProperties: &Schema{}}
+	}
+	return &Schema{Type: "object", AdditionalProperties: reflectTypeToSchemaInternal(t.Elem(), registry, true)}
+}
+
 // BasicTypeHandler handles basic types (string, int, etc.).
 type BasicTypeHandler struct{}
 
@@ -164,6 +180,7 @@ func NewSchemaGenerator() *SchemaGenerator {
 			&UnionTypeHandler{},
 			&StructTypeHandler{},
 			&ArrayTypeHandler{},
+			&MapTypeHandler{},
 			&BasicTypeHandler{}, // Must be last as it accepts everything
 		},
 	}

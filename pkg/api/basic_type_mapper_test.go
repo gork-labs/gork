@@ -132,7 +132,7 @@ func TestMapAdvancedKind(t *testing.T) {
 		{
 			name:     "map type",
 			kind:     reflect.Map,
-			expected: &Schema{Type: "object", Description: "Map with dynamic keys"},
+			expected: &Schema{Type: "object"},
 		},
 		{
 			name:     "unsafe pointer type",

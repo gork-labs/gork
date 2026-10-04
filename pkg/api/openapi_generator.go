@@ -191,6 +191,8 @@ func makeNullableSchema(originalSchema *Schema) *Schema {
 			Items:       originalSchema.Items,
 			Format:      originalSchema.Format,
 			Example:     originalSchema.Example,
+
+			AdditionalProperties: originalSchema.AdditionalProperties,
 		}
 	}
 
@@ -305,7 +307,8 @@ func gorksonWrites(f reflect.StructField) bool {
 }
 
 // requireWrittenFields adds the written fields of each struct schema that the
-// response schema reaches to its required list.
+// response schema reaches to its required list. It does not visit
+// additionalProperties, because gorkson writes map values with encoding/json.
 func requireWrittenFields(s *Schema, schemas map[string]*Schema) {
 	if s == nil {
 		return
@@ -405,9 +408,6 @@ func mapAdvancedKindDirect(kind reflect.Kind) *Schema {
 	}
 	if kind == reflect.Interface {
 		return &Schema{Type: "object", Description: "Interface"}
-	}
-	if kind == reflect.Map {
-		return &Schema{Type: "object", Description: "Map with dynamic keys"}
 	}
 	if kind == reflect.UnsafePointer {
 		return &Schema{Type: "object", Description: "Unsafe pointer"}

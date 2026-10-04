@@ -851,8 +851,9 @@ func (g *ConventionOpenAPIGenerator) ensureErrorSchemas(components *Components) 
 					Description: "Error message",
 				},
 				"details": {
-					Type:        "object",
-					Description: "Additional error details",
+					Type:                 "object",
+					Description:          "Additional error details",
+					AdditionalProperties: &Schema{},
 				},
 			},
 			Required: []string{"error"},
@@ -871,8 +872,9 @@ func (g *ConventionOpenAPIGenerator) ensureErrorSchemas(components *Components) 
 					Description: "Error message",
 				},
 				"details": {
-					Type:        "object",
-					Description: "Field-level validation errors (maps field names to arrays of error messages)",
+					Type:                 "object",
+					Description:          "Field-level validation errors (maps field names to arrays of error messages)",
+					AdditionalProperties: &Schema{Type: "array", Items: &Schema{Type: "string"}},
 				},
 			},
 			Required: []string{"error"},
