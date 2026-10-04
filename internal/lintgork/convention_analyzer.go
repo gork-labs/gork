@@ -3,6 +3,8 @@ package lintgork
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
+	"reflect"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -23,6 +25,7 @@ func analyzeConventionStructure(file *ast.File, pass *analysis.Pass) {
 		switch node := n.(type) {
 		case *ast.FuncDecl:
 			analyzeHandler(node)
+			analyzeStreamHandler(node, pass)
 		case *ast.TypeSpec:
 			if st, ok := node.Type.(*ast.StructType); ok {
 				analyzeRequestStructure(node.Name.Name, st, pass)
@@ -89,6 +92,56 @@ func validateHandlerSignature(fn *ast.FuncDecl) {
 
 	// Additional validation can be added here
 	// For now, this is a placeholder for future enhancements
+}
+
+// apiStreamType is the qualified name of the stream parameter type of stream handlers.
+const apiStreamType = "github.com/gork-labs/gork/pkg/api.Stream"
+
+// analyzeStreamHandler checks the event struct E of a stream handler
+// func(context.Context, Request, *api.Stream[E]) error.
+func analyzeStreamHandler(fn *ast.FuncDecl, pass *analysis.Pass) {
+	sig, ok := pass.TypesInfo.TypeOf(fn.Name).(*types.Signature)
+	if !ok || sig.Params().Len() != 3 {
+		return
+	}
+
+	event, ok := streamEventStruct(sig.Params().At(2).Type())
+	if !ok {
+		return
+	}
+
+	for i := 0; i < event.NumFields(); i++ {
+		validateStreamEventField(event.Field(i), event.Tag(i), pass)
+	}
+}
+
+// streamEventStruct returns the struct E when t is *api.Stream[E].
+func streamEventStruct(t types.Type) (*types.Struct, bool) {
+	ptr, ok := t.(*types.Pointer)
+	if !ok {
+		return nil, false
+	}
+
+	named, ok := ptr.Elem().(*types.Named)
+	if !ok || named.Obj().Pkg() == nil || named.Obj().Pkg().Path()+"."+named.Obj().Name() != apiStreamType {
+		return nil, false
+	}
+
+	event, ok := named.TypeArgs().At(0).Underlying().(*types.Struct)
+	return event, ok
+}
+
+// validateStreamEventField validates that a stream event field is an exported pointer with a gork tag.
+func validateStreamEventField(field *types.Var, tag string, reporter Reporter) {
+	if !field.Exported() {
+		reporter.Reportf(field.Pos(), "stream event field '%s' must be exported", field.Name())
+	}
+	if _, ok := field.Type().(*types.Pointer); !ok {
+		reporter.Reportf(field.Pos(), "stream event field '%s' must be a pointer", field.Name())
+	}
+	if reflect.StructTag(tag).Get("gork") == "" {
+		reporter.Reportf(field.Pos(), "stream event field '%s' missing gork tag", field.Name())
+	}
 }
 
 // analyzeRequestStructure analyzes request struct for Convention Over Configuration compliance.
