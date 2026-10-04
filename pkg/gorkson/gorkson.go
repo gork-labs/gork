@@ -35,6 +35,15 @@ func (m *Marshaler) UnmarshalFromJSON(data []byte, v any) error {
 		return unmarshaler.UnmarshalJSON(data)
 	}
 
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Pointer && val.Elem().Kind() == reflect.Slice {
+		var items []any
+		if err := json.Unmarshal(data, &items); err != nil {
+			return err
+		}
+		return m.setSliceField(val.Elem(), items)
+	}
+
 	// First unmarshal into a map
 	var jsonMap map[string]any
 	if err := json.Unmarshal(data, &jsonMap); err != nil {

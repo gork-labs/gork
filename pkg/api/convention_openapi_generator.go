@@ -195,14 +195,18 @@ func (g *ConventionOpenAPIGenerator) processCookiesSection(sectionType reflect.T
 	}
 }
 
-// processBodySection processes request body for OpenAPI.
+// processBodySection processes request body for OpenAPI. A []byte Body is the raw
+// body, so it has no JSON schema.
 func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type, reqType reflect.Type, operation *Operation, components *Components) {
-	if sectionType.Kind() != reflect.Struct {
+	var schema *Schema
+	switch {
+	case sectionType.Kind() == reflect.Struct:
+		schema = g.generateRequestBodyComponentSchema(sectionType, reqType, components)
+	case sectionType.Kind() == reflect.Slice && sectionType.Elem().Kind() != reflect.Uint8:
+		schema = g.generateSchemaFromType(sectionType, "", components)
+	default:
 		return
 	}
-
-	// Generate component reference for the body section
-	schema := g.generateRequestBodyComponentSchema(sectionType, reqType, components)
 
 	operation.RequestBody = &RequestBody{
 		Required: true,
@@ -348,13 +352,10 @@ func (g *ConventionOpenAPIGenerator) generateResponseComponentSchema(respType re
 		if field.Name == SchemaSuffixBody.String() {
 			bodyType := field.Type
 
-			// If Body is a named struct type, reference it directly instead of creating a wrapper
-			if bodyType.Kind() == reflect.Struct && bodyType.Name() != "" && !isUnionType(bodyType) {
-				// Generate schema for the body type directly
+			// Only an anonymous struct or a union Body gets a component named after the response type.
+			if !isUnionType(bodyType) && (bodyType.Kind() != reflect.Struct || bodyType.Name() != "") {
 				return g.generateSchemaFromType(bodyType, "", components)
 			}
-
-			// For anonymous structs or other types, proceed with original logic
 			break
 		}
 	}
