@@ -86,6 +86,97 @@ func main() {
 
 > **💡 Documentation Magic**: Notice how the Go comments above struct fields automatically become field descriptions in your OpenAPI documentation! No need to maintain separate documentation - your code comments become live API docs.
 
+## 🔄 Type Codec System
+
+A type codec converts a Go type to a text value and back. The `gorkson` package keeps one global codec registry. Gork uses the same codec for path, query, header and cookie parameters, for JSON request bodies, for JSON responses, for response headers and cookies, and for Server-Sent Events payloads. The codec also gives the OpenAPI schema of the type.
+
+### time.Time
+
+`time.Time` has a built-in codec, `gorkson.TimeCodec`. You do not register it:
+
+```go
+type ListEventsRequest struct {
+    Query struct {
+        Since *time.Time `gork:"since"` // ?since=2024-01-02T03:04:05Z
+    }
+}
+
+type ListEventsResponse struct {
+    Body struct {
+        CreatedAt time.Time  `gork:"created_at"` // "2024-01-02T03:04:05Z"
+        DeletedAt *time.Time `gork:"deleted_at"` // null when nil
+    }
+}
+```
+
+- Parameters and JSON bodies must use RFC3339.
+- Responses use RFC3339.
+- The OpenAPI schema is `{"type": "string", "format": "date-time"}`. A pointer field is nullable where the generator makes pointers nullable.
+
+To send Unix seconds for all `time.Time` fields, replace the built-in codec:
+
+```go
+gorkson.RegisterCodec[time.Time](gorkson.UnixTimeCodec{})
+```
+
+### Custom Codecs
+
+A codec implements `gorkson.TypeCodec[T]`:
+
+```go
+type Task struct {
+    ID    int    `json:"id"`
+    Title string `json:"title"`
+}
+
+type TaskCodec struct{}
+
+var minTaskID = 1.0
+
+// Parse receives only values that pass the schema constraints (minimum: 1).
+func (TaskCodec) Parse(ctx context.Context, value string) (*Task, error) {
+    id, err := strconv.Atoi(value)
+    if err != nil {
+        return nil, gorkson.NewParseError("Task", value, err)
+    }
+    return taskService.GetByID(ctx, id) // "123" → Task{ID: 123, Title: "..."}
+}
+
+func (TaskCodec) Format(ctx context.Context, value *Task) (string, error) {
+    return strconv.Itoa(value.ID), nil // Task{ID: 123} → 123
+}
+
+func (TaskCodec) Schema() gorkson.OpenAPISchema {
+    return gorkson.OpenAPISchema{
+        Type:        gorkson.OpenAPITypeInteger,
+        Description: "Task ID that resolves to full task information",
+        Minimum:     &minTaskID,
+    }
+}
+
+func init() {
+    if err := gorkson.RegisterCodec[Task](TaskCodec{}); err != nil {
+        panic(err)
+    }
+}
+
+type GetTaskRequest struct {
+    Path struct {
+        Task Task `gork:"taskId"`
+    }
+}
+```
+
+Rules:
+
+- **Registration**: `gorkson.RegisterCodec[T]` registers the codec for `T` and for `*T`. A second registration for the same type replaces the first.
+- **Validation**: Gork checks each value against the `Pattern`, `MinLength`, `MaxLength`, `Minimum`, `Maximum` and `Enum` constraints of the schema before it calls `Parse`. A value that is not correct gives a 400 response.
+- **JSON**: When the schema type is `string`, the codec text is a JSON string. For other schema types, the codec text is the JSON value itself. `TaskCodec` thus writes `"task": 123`, not `"task": "123"`.
+- **Errors**: Use `gorkson.NewParseError`, `gorkson.NewParseErrorWithReason` and `gorkson.NewFormatError`. A format error in a response body gives a 500 response.
+- **Context**: Parameters give the request context to `Parse`. JSON bodies and responses give `context.Background()`.
+
+Types with no codec use the basic conversion: strings, numbers, booleans, comma-separated string slices in parameters, and the gorkson JSON encoding in bodies. The task example in [`examples/handlers/tasks_with_codecs.go`](examples/handlers/tasks_with_codecs.go) also shows an iota enum (`Priority`) with string values.
+
 ## Repository Structure
 
 ```
@@ -95,6 +186,7 @@ gork/
 │   └── lintgork/      # Custom linter for struct validation and OpenAPI compliance
 ├── pkg/
 │   ├── api/           # HTTP handler adapter and OpenAPI generation
+│   ├── gorkson/       # JSON encoding with gork tags and the type codec system
 │   ├── adapters/      # Framework-specific adapters
 │   │   ├── chi/       # Chi router adapter
 │   │   ├── echo/      # Echo framework adapter  
@@ -129,6 +221,13 @@ gork/
 - **Server-Sent Events**: Stream handlers send typed events, documented with the OpenAPI 3.2 `itemSchema`
 - **Multi-Framework**: Works with Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib
 
+### Type Codec System
+- **Built-in time.Time**: RFC3339 values and the `date-time` OpenAPI format with no registration
+- **Entity Resolution**: Transform IDs to full entities (e.g., `"123"` → `User{ID: 123, Name: "John"}`)
+- **Custom Enum Support**: iota-based enums with string transport (`Priority(2)` ↔ `"high"`)
+- **One Conversion Layer**: The same codec for parameters, JSON bodies, responses and stream events
+- **OpenAPI Integration**: The codec gives the schema, and Gork validates values against it
+
 ### Developer Experience
 - **Zero Boilerplate**: Focus on business logic, not API plumbing
 - **Interactive Docs**: Built-in documentation server
@@ -148,6 +247,20 @@ gork openapi generate --build ./cmd/server --source ./handlers --output openapi.
 # With custom metadata and YAML output  
 gork openapi generate --source ./api --output spec.yaml --format yaml \
   --title "My API" --version "2.0.0"
+```
+
+With `--build`, the CLI builds the package, runs the binary with the environment variable `GORK_EXPORT=1`, and reads the spec as JSON from standard output. The `main` function of the server must write the spec and stop when it sees this variable:
+
+```go
+router := examples.RegisterRoutes(mux)
+
+if os.Getenv("GORK_EXPORT") == "1" {
+    spec := api.GenerateOpenAPI(router.GetRegistry(), api.WithTitle("My API"), api.WithVersion("1.0.0"))
+    if err := json.NewEncoder(os.Stdout).Encode(spec); err != nil {
+        log.Fatal(err)
+    }
+    return
+}
 ```
 
 ### lintgork - Convention Linter
@@ -533,6 +646,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **100% Test Coverage**: Quality-first development approach
 - **Interactive Documentation**: Built-in docs serving
 - **Webhook Utilities**: Typed event handlers, signature verification (Stripe), OpenAPI extensions
+- **Type Codec System**: Automatic type resolution, entity resolution, iota-based enums
+- **Rules Engine**: Declarative business validation with context variables
 - **Server-Sent Events**: Stream handlers with typed events (all adapters except Fiber)
 
 ### 🚀 Coming Soon
@@ -540,7 +655,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **📝 Enhanced Documentation**: Improved OpenAPI spec generation
 - **🌊 Event Streams**: WebSocket support
 - **🎯 Advanced Validation**: Build-time validation generation
-- **📏 Simple Rule Engine**: Input validation with business rules (e.g., `rule:owned_by($current_user)`)
 - **🔗 Variable-Length Unions**: User-defined union types with custom properties
   ```go
   type Events struct {

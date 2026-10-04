@@ -14,7 +14,7 @@ The `ConventionParser` handles parsing HTTP requests into structured request typ
 
 **Key Features:**
 - Section-based parsing (Query, Body, Path, Headers, Cookies)
-- Type parser registry for complex types
+- Type codecs from `pkg/gorkson` for complex types
 - `gork` tag support for field mapping
 - Union type discriminator parsing
 
@@ -22,10 +22,8 @@ The `ConventionParser` handles parsing HTTP requests into structured request typ
 ```go
 parser := NewConventionParser()
 
-// Register type parsers for complex types
-parser.RegisterTypeParser(func(ctx context.Context, id string) (*User, error) {
-    return userService.GetByID(ctx, id)
-})
+// Register codecs for complex types (time.Time has a built-in codec)
+gorkson.RegisterCodec[User](UserCodec{})
 
 // Parse request automatically detects sections
 err := parser.ParseRequest(ctx, httpRequest, requestPtr, adapter)
@@ -57,29 +55,22 @@ if IsValidationError(err) {
 }
 ```
 
-### 3. Type Parser Registry (`pkg/api/type_parser_registry.go`)
+### 3. Type Codecs (`pkg/gorkson`)
 
-The `TypeParserRegistry` manages parsers for complex types, enabling automatic entity resolution.
+The global codec registry in `pkg/gorkson` manages type codecs for complex types. A codec parses parameters and JSON values, formats responses, and gives the OpenAPI schema of its type.
 
-**Parser Signature:**
+**Codec Interface:**
 ```go
-func(ctx context.Context, value string) (*T, error)
+type TypeCodec[T any] interface {
+    Parse(ctx context.Context, value string) (*T, error)
+    Format(ctx context.Context, value *T) (string, error)
+    Schema() gorkson.OpenAPISchema
+}
 ```
 
 **Example:**
 ```go
-registry := NewTypeParserRegistry()
-
-// Register entity parser
-registry.Register(func(ctx context.Context, id string) (*User, error) {
-    return userRepo.GetByID(ctx, id)
-})
-
-// Register standard library parser
-registry.Register(func(ctx context.Context, s string) (*time.Time, error) {
-    t, err := time.Parse(time.RFC3339, s)
-    return &t, err
-})
+gorkson.RegisterCodec[User](UserCodec{})
 ```
 
 ### 4. Handler Factory (`pkg/api/convention_handler_factory.go`)
@@ -261,20 +252,11 @@ func (r *TransferFundsRequest) Validate() error {
 
 ## Complex Type Parsing
 
-Register parsers for automatic entity resolution:
+Register codecs for automatic entity resolution. `time.Time` has a built-in RFC3339 codec:
 
 ```go
 // Register in your application initialization
-factory := api.NewConventionHandlerFactory()
-
-factory.RegisterTypeParser(func(ctx context.Context, id string) (*User, error) {
-    return userService.GetByID(ctx, id)
-})
-
-factory.RegisterTypeParser(func(ctx context.Context, s string) (*time.Time, error) {
-    t, err := time.Parse(time.RFC3339, s)
-    return &t, err
-})
+gorkson.RegisterCodec[User](UserCodec{})
 ```
 
 Then use in requests:
