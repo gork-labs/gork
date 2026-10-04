@@ -87,7 +87,7 @@ func validateStreamEventType(eventType reflect.Type) {
 	}
 	for i := 0; i < eventType.NumField(); i++ {
 		field := eventType.Field(i)
-		if !field.IsExported() || field.Type.Kind() != reflect.Ptr || parseGorkTag(field.Tag.Get("gork")).Name == "" {
+		if !field.IsExported() || field.Type.Kind() != reflect.Pointer || parseGorkTag(field.Tag.Get("gork")).Name == "" {
 			panic(fmt.Sprintf("stream event field %s.%s must be an exported pointer with a gork tag", eventType, field.Name))
 		}
 	}
