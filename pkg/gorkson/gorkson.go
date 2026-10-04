@@ -72,6 +72,9 @@ func (m *Marshaler) convertValueToGorkSON(val reflect.Value) (any, error) {
 		data, err := marshaler.MarshalJSON()
 		return json.RawMessage(data), err
 	}
+	if kind == reflect.Map && val.IsNil() {
+		return map[string]any{}, nil
+	}
 	if kind == reflect.Slice {
 		return m.convertSliceToGorkSON(val)
 	}
