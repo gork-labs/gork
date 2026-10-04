@@ -146,6 +146,39 @@ type UpdateUserRequest struct {
 }
 ```
 
+### Response Cookies
+
+A plain field in the response `Cookies` section sets a cookie with the name from the `gork` tag. Gork gives this cookie the `Secure`, `HttpOnly` and `SameSite=Lax` attributes. Gork does not send a cookie for an empty value.
+
+To control the attributes, use a field of type `*http.Cookie` or `http.Cookie`. Gork sends this cookie unchanged with `http.SetCookie`. The cookie name comes from `Cookie.Name`, so the field does not need a `gork` tag. A nil `*http.Cookie` sends no cookie.
+
+```go
+type LoginResponse struct {
+    Cookies struct {
+        // Session gets Secure, HttpOnly and SameSite=Lax
+        Session string `gork:"session_id"`
+        // JavaScript in the browser can read Theme
+        Theme *http.Cookie
+    }
+}
+
+func Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
+    resp := &LoginResponse{}
+    resp.Cookies.Session = newSessionID()
+    resp.Cookies.Theme = &http.Cookie{
+        Name:     "theme",
+        Value:    "dark",
+        Path:     "/",
+        MaxAge:   86400,
+        Secure:   true,
+        SameSite: http.SameSiteStrictMode,
+    }
+    return resp, nil
+}
+```
+
+The OpenAPI document does not show response cookies.
+
 ### Context Usage
 
 The adapter passes through the HTTP request context:

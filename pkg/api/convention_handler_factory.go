@@ -272,6 +272,7 @@ func (f *ConventionHandlerFactory) setResponseHeaders(w http.ResponseWriter, hea
 }
 
 // setResponseCookies sets HTTP cookies from the Cookies section.
+// An http.Cookie or *http.Cookie field is sent unchanged.
 func (f *ConventionHandlerFactory) setResponseCookies(w http.ResponseWriter, cookiesValue reflect.Value) {
 	if cookiesValue.Kind() != reflect.Struct {
 		return
@@ -281,6 +282,18 @@ func (f *ConventionHandlerFactory) setResponseCookies(w http.ResponseWriter, coo
 	for i := 0; i < cookiesType.NumField(); i++ {
 		field := cookiesType.Field(i)
 		fieldValue := cookiesValue.Field(i)
+
+		switch field.Type {
+		case reflect.TypeOf((*http.Cookie)(nil)):
+			if !fieldValue.IsNil() {
+				http.SetCookie(w, fieldValue.Interface().(*http.Cookie))
+			}
+			continue
+		case reflect.TypeOf((*http.Cookie)(nil)).Elem():
+			cookie := fieldValue.Interface().(http.Cookie)
+			http.SetCookie(w, &cookie)
+			continue
+		}
 
 		gorkTag := field.Tag.Get("gork")
 		if gorkTag == "" {
