@@ -242,6 +242,8 @@ Where:
 - `ResponseType` is your response type with convention sections (pointer)
 - `error` is for error handling
 
+A handler can also be a method value, for example `router.Get("/workstreams", h.ListWorkstreams)`. The function or method name is the `operationId`, and its doc comment is the operation description.
+
 ## Stream Handlers (Server-Sent Events)
 
 A handler with a third parameter `*api.Stream[E]` sends Server-Sent Events. Register it with the usual router methods.

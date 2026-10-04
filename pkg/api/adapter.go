@@ -111,7 +111,10 @@ func extractFunctionNameFromRuntimeWithFunc(i interface{}, funcProvider FuncForP
 	return trimFunctionName(fullName)
 }
 
+// trimFunctionName returns the function or method name. The runtime name of a
+// method value such as h.List ends with "-fm".
 func trimFunctionName(fullName string) string {
+	fullName = strings.TrimSuffix(fullName, "-fm")
 	if lastSlash := strings.LastIndex(fullName, "/"); lastSlash != -1 {
 		fullName = fullName[lastSlash+1:]
 	}
