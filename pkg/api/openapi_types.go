@@ -163,6 +163,8 @@ type Schema struct {
 	Format        string             `json:"format,omitempty"`
 	Example       interface{}        `json:"example,omitempty"`
 
+	AdditionalProperties *Schema `json:"additionalProperties,omitempty"`
+
 	Const            string  `json:"const,omitempty"`
 	ContentMediaType string  `json:"contentMediaType,omitempty"`
 	ContentSchema    *Schema `json:"contentSchema,omitempty"`

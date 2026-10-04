@@ -109,6 +109,7 @@ components:
             description: Generic error response structure
             properties:
                 details:
+                    additionalProperties: {}
                     description: Additional error details
                     type: object
                 error:
@@ -301,6 +302,10 @@ components:
             description: Validation error response with field-level details
             properties:
                 details:
+                    additionalProperties:
+                        items:
+                            type: string
+                        type: array
                     description: Field-level validation errors (maps field names to arrays of error messages)
                     type: object
                 error:
