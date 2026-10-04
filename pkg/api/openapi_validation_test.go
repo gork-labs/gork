@@ -406,6 +406,17 @@ func TestApplyOneOfConstraint(t *testing.T) {
 			},
 			desc: "should trim spaces from values",
 		},
+		{
+			name: "quoted values with spaces",
+			val:  "'usage limit' question 'Lead failed'",
+			verify: func(s *Schema) bool {
+				return len(s.Enum) == 3 &&
+					s.Enum[0] == "usage limit" &&
+					s.Enum[1] == "question" &&
+					s.Enum[2] == "Lead failed"
+			},
+			desc: "should keep a quoted value as one value without the quotes",
+		},
 	}
 
 	for _, tt := range tests {
