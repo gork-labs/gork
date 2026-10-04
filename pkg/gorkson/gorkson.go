@@ -42,7 +42,7 @@ func (m *Marshaler) UnmarshalFromJSON(data []byte, v any) error {
 // convertToGorkSON converts a struct to a map using gork tags for field names.
 func (m *Marshaler) convertToGorkSON(v any) any {
 	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -102,7 +102,7 @@ func (m *Marshaler) convertFromGorkSON(jsonMap map[string]any, v any) error {
 
 // isStructPointer checks if the value is a pointer to a struct.
 func (m *Marshaler) isStructPointer(val reflect.Value) bool {
-	return val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct
+	return val.Kind() == reflect.Pointer && val.Elem().Kind() == reflect.Struct
 }
 
 // convertNonStruct handles non-struct types using standard JSON unmarshaling.
@@ -202,7 +202,7 @@ func (m *Marshaler) setFieldValue(field reflect.Value, value any) error {
 	if kind == reflect.Struct {
 		return m.setStructField(field, value)
 	}
-	if kind == reflect.Ptr {
+	if kind == reflect.Pointer {
 		return m.setPtrField(field, value)
 	}
 

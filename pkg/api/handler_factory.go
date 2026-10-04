@@ -144,7 +144,7 @@ func deriveWebhookHandlerName(handler http.HandlerFunc, isWebhook bool) string {
 		return "webhook_handler"
 	}
 	t := reflect.TypeOf(original)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	pkg := t.PkgPath()
@@ -191,7 +191,7 @@ func validateHandlerSignature(t reflect.Type) {
 	// If two returns, first must be struct or pointer to struct
 	if numOut == 2 {
 		firstOut := t.Out(0)
-		if firstOut.Kind() == reflect.Ptr {
+		if firstOut.Kind() == reflect.Pointer {
 			// Pointer to struct
 			if firstOut.Elem().Kind() != reflect.Struct {
 				panic("response type must be struct or pointer to struct")
@@ -237,7 +237,7 @@ func validateBodyUsageForMethod(method string, reqType reflect.Type) {
 		return // No request type, no validation needed
 	}
 
-	if reqType.Kind() == reflect.Ptr {
+	if reqType.Kind() == reflect.Pointer {
 		reqType = reqType.Elem()
 	}
 

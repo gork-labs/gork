@@ -154,7 +154,7 @@ func NewConventionValidator() *ConventionValidator {
 // ValidateRequest validates a request using the Convention Over Configuration approach.
 func (v *ConventionValidator) ValidateRequest(ctx context.Context, reqPtr interface{}) error {
 	reqValue := reflect.ValueOf(reqPtr)
-	if reqValue.Kind() != reflect.Ptr || reqValue.Elem().Kind() != reflect.Struct {
+	if reqValue.Kind() != reflect.Pointer || reqValue.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("request must be a pointer to struct")
 	}
 
