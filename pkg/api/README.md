@@ -324,7 +324,7 @@ The OpenAPI spec shows `Last-Event-ID` as a header parameter of the route.
 
 The `gorkson` package converts all values: path, query, header and cookie parameters, the JSON body, the JSON response, response headers and cookies, and stream event payloads. A type with a registered codec uses its codec. The codec also gives the OpenAPI schema of the type, and the parser checks each value against the schema constraints before it calls the codec.
 
-`time.Time` and `*time.Time` use RFC3339 and the OpenAPI schema `{"type": "string", "format": "date-time"}` with no registration.
+`time.Time` and `*time.Time` use RFC3339 with fractional seconds and the OpenAPI schema `{"type": "string", "format": "date-time"}` with no registration.
 
 ```go
 type GetTaskRequest struct {

@@ -15,7 +15,8 @@ func ptr[T any](v T) *T {
 // It is the registered codec for time.Time unless RegisterCodec replaces it.
 type TimeCodec struct{}
 
-// Parse converts an RFC3339 formatted string to a time.Time.
+// Parse converts an RFC3339 formatted string, with or without fractional
+// seconds, to a time.Time.
 func (c TimeCodec) Parse(_ context.Context, value string) (*time.Time, error) {
 	t, err := time.Parse(time.RFC3339, value)
 	if err != nil {
@@ -24,12 +25,13 @@ func (c TimeCodec) Parse(_ context.Context, value string) (*time.Time, error) {
 	return &t, nil
 }
 
-// Format converts a time.Time to RFC3339 formatted string.
+// Format converts a time.Time to an RFC3339 string with the fractional
+// seconds of the value, so that Parse gives the same instant back.
 func (c TimeCodec) Format(_ context.Context, value *time.Time) (string, error) {
 	if value == nil {
 		return "", nil
 	}
-	return value.Format(time.RFC3339), nil
+	return value.Format(time.RFC3339Nano), nil
 }
 
 // Schema returns the OpenAPI schema for RFC3339 time representation.

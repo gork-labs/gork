@@ -57,7 +57,7 @@ if err := gorkson.RegisterCodec[Priority](PriorityCodec{}); err != nil {
 
 | Codec | Text form | Schema |
 |-------|-----------|--------|
-| `TimeCodec` | RFC3339 (`2024-01-02T03:04:05Z`) | `{"type": "string", "format": "date-time"}` |
+| `TimeCodec` | RFC3339 with fractional seconds when the value has them (`2024-01-02T03:04:05.5Z`) | `{"type": "string", "format": "date-time"}` |
 | `UnixTimeCodec` | Unix seconds (`1704164645`) | `{"type": "integer", "format": "int64", "minimum": 0}` |
 
 `TimeCodec` is the registered codec for `time.Time`. To use Unix seconds for all `time.Time` values, register `UnixTimeCodec`:

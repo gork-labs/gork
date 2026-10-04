@@ -124,8 +124,8 @@ type ListEventsResponse struct {
 }
 ```
 
-- Parameters and JSON bodies must use RFC3339.
-- Responses use RFC3339.
+- Parameters and JSON bodies must use RFC3339, with or without fractional seconds.
+- Responses use `time.RFC3339Nano`: RFC3339 with the fractional seconds of the value, for example `2024-01-02T03:04:05.123Z`. A value without fractional seconds gives `2024-01-02T03:04:05Z`. Thus a round trip keeps the value.
 - The OpenAPI schema is `{"type": "string", "format": "date-time"}`. A pointer field is nullable where the generator makes pointers nullable.
 
 To send Unix seconds for all `time.Time` fields, replace the built-in codec:
