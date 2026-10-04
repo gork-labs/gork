@@ -708,8 +708,15 @@
         "description": "AdminUserType represents admin user data structure."
       },
       "BankOrCreditBody": {
-        "type": "object",
-        "title": "BankOrCreditBody"
+        "title": "BankOrCreditBody",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BankPaymentMethod"
+          },
+          {
+            "$ref": "#/components/schemas/CreditCardPaymentMethod"
+          }
+        ]
       },
       "BankPaymentMethod": {
         "type": "object",

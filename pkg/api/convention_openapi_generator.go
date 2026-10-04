@@ -496,16 +496,18 @@ func (g *ConventionOpenAPIGenerator) generateRequestBodyComponentSchema(bodyType
 		}
 	}
 
-	// Create the component schema directly from the body type
-	componentSchema := &Schema{
-		Type:        "object",
-		Title:       componentName,
-		Properties:  make(map[string]*Schema),
-		Description: "",
+	var componentSchema *Schema
+	if isUnionType(bodyType) {
+		componentSchema = g.generateUnionSchema(bodyType, components)
+		componentSchema.Title = componentName
+	} else {
+		componentSchema = &Schema{
+			Type:       "object",
+			Title:      componentName,
+			Properties: make(map[string]*Schema),
+		}
+		g.extractStructPropertiesToSchema(bodyType, componentSchema, components)
 	}
-
-	// Extract properties from the body struct
-	g.extractStructPropertiesToSchema(bodyType, componentSchema, components)
 
 	// Store the component schema
 	components.Schemas[componentName] = componentSchema
@@ -655,6 +657,10 @@ func (g *ConventionOpenAPIGenerator) usesConventionSections(t reflect.Type) bool
 
 // generateUnionSchema generates OpenAPI oneOf schema for union types.
 func (g *ConventionOpenAPIGenerator) generateUnionSchema(unionType reflect.Type, components *Components) *Schema {
+	if unionType.Kind() == reflect.Pointer {
+		unionType = unionType.Elem()
+	}
+
 	// Extract union member types from the union struct
 	unionTypes := g.extractUnionMemberTypes(unionType)
 	if len(unionTypes) == 0 {

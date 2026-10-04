@@ -49,7 +49,8 @@ func (m *Marshaler) convertToGorkSON(v any) (any, error) {
 	return m.convertValueToGorkSON(reflect.ValueOf(v))
 }
 
-// convertValueToGorkSON converts a reflected value, formatting codec types with their codec.
+// convertValueToGorkSON converts a reflected value, formatting codec types with their codec
+// and json.Marshaler types with their MarshalJSON method.
 func (m *Marshaler) convertValueToGorkSON(val reflect.Value) (any, error) {
 	if !val.IsValid() {
 		return nil, nil
@@ -65,6 +66,10 @@ func (m *Marshaler) convertValueToGorkSON(val reflect.Value) (any, error) {
 			return nil, nil
 		}
 		return m.convertValueToGorkSON(val.Elem())
+	}
+	if marshaler, ok := val.Interface().(json.Marshaler); ok {
+		data, err := marshaler.MarshalJSON()
+		return json.RawMessage(data), err
 	}
 	if kind == reflect.Slice {
 		return m.convertSliceToGorkSON(val)
