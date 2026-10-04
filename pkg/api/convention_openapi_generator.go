@@ -219,7 +219,7 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 		return
 	}
 
-	if respType.Kind() == reflect.Ptr {
+	if respType.Kind() == reflect.Pointer {
 		respType = respType.Elem()
 	}
 
@@ -687,7 +687,7 @@ func (g *ConventionOpenAPIGenerator) extractUnionMemberTypes(unionType reflect.T
 	for i := 0; i < unionType.NumField(); i++ {
 		field := unionType.Field(i)
 		// Only process pointer fields (union members)
-		if field.Type.Kind() == reflect.Ptr {
+		if field.Type.Kind() == reflect.Pointer {
 			// Get the element type (the actual union member type)
 			memberTypes = append(memberTypes, field.Type.Elem())
 		}
@@ -1283,7 +1283,7 @@ func (g *ConventionOpenAPIGenerator) addUserMetadataSchemaToEntry(entry map[stri
 	}
 
 	userT := userMetadataType
-	if userT.Kind() == reflect.Ptr {
+	if userT.Kind() == reflect.Pointer {
 		userT = userT.Elem()
 	}
 

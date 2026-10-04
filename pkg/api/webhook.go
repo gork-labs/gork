@@ -377,11 +377,11 @@ func validateEventHandlerSignature(handlerType reflect.Type) error {
 	}
 
 	// Second parameter is the provider payload pointer (e.g. *stripe.PaymentIntent)
-	if handlerType.In(1).Kind() != reflect.Ptr {
+	if handlerType.In(1).Kind() != reflect.Pointer {
 		return fmt.Errorf("handler second parameter must be a pointer to provider payload type")
 	}
 	// Third parameter is the user-defined payload pointer (any type)
-	if handlerType.In(2).Kind() != reflect.Ptr {
+	if handlerType.In(2).Kind() != reflect.Pointer {
 		return fmt.Errorf("handler third parameter must be a pointer to user metadata type")
 	}
 

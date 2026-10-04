@@ -85,7 +85,7 @@ func (r *TypeParserRegistry) validateParserSignature(funcType reflect.Type) erro
 	}
 
 	// Check first return value is a pointer
-	if funcType.Out(0).Kind() != reflect.Ptr {
+	if funcType.Out(0).Kind() != reflect.Pointer {
 		return fmt.Errorf("first return value must be a pointer (*T)")
 	}
 

@@ -101,7 +101,7 @@ func resolveFrom(start reflect.Value, segs []string) (reflect.Value, error) {
 		return reflect.Value{}, err
 	}
 	// include whether the original start was a pointer to avoid subtle cache collisions.
-	key := makeKey(base.Type(), start.Kind() == reflect.Ptr, segs)
+	key := makeKey(base.Type(), start.Kind() == reflect.Pointer, segs)
 	if fn, ok := accCache.Load(key); ok {
 		return fn.(func(reflect.Value) (reflect.Value, error))(base)
 	}
@@ -117,7 +117,7 @@ func normalizeStart(start reflect.Value) (reflect.Value, error) {
 	if !start.IsValid() {
 		return reflect.Value{}, fmt.Errorf("rules: invalid start for field resolution")
 	}
-	if start.Kind() == reflect.Ptr {
+	if start.Kind() == reflect.Pointer {
 		if start.IsNil() {
 			return reflect.Value{}, fmt.Errorf("rules: nil start value")
 		}
@@ -143,7 +143,7 @@ func buildAccessor(startType reflect.Type, segs []string) (func(reflect.Value) (
 	return func(root reflect.Value) (reflect.Value, error) {
 		v := root
 		for _, idx := range indices {
-			if v.Kind() == reflect.Ptr {
+			if v.Kind() == reflect.Pointer {
 				if v.IsNil() {
 					return reflect.Value{}, fmt.Errorf("rules: nil pointer while resolving")
 				}
@@ -164,14 +164,14 @@ func advanceAccessor(cur reflect.Type, name string, pos, total int) (next reflec
 		return nil, -1, fmt.Errorf("rules: cannot traverse into raw body bytes")
 	}
 	next = f.Type
-	if next.Kind() == reflect.Ptr {
+	if next.Kind() == reflect.Pointer {
 		next = next.Elem()
 	}
 	return next, i, nil
 }
 
 func fieldByName(t reflect.Type, name string) (int, reflect.StructField, bool) {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	for i := 0; i < t.NumField(); i++ {

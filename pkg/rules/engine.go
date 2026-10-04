@@ -14,7 +14,7 @@ import (
 func Apply(ctx context.Context, reqPtr any) []error {
 	var errs []error
 	rv := reflect.ValueOf(reqPtr)
-	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+	if rv.Kind() != reflect.Pointer || rv.Elem().Kind() != reflect.Struct {
 		return []error{fmt.Errorf("rules: request must be a pointer to struct")}
 	}
 	root := rv.Elem()

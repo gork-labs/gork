@@ -55,7 +55,7 @@ func ParseRequest(r *http.Request, reqPtr interface{}) error {
 	adapter := NewDefaultParameterAdapter()
 
 	reqValue := reflect.ValueOf(reqPtr)
-	if reqValue.Kind() != reflect.Ptr {
+	if reqValue.Kind() != reflect.Pointer {
 		return fmt.Errorf("request must be a pointer")
 	}
 
@@ -107,7 +107,7 @@ func (p *ConventionParser) RegisterTypeParser(parserFunc interface{}) error {
 // ParseRequest parses an HTTP request into the given request struct using convention over configuration.
 // Follows spec parsing order: Path, Query, Headers, Cookies, Body.
 func (p *ConventionParser) ParseRequest(ctx context.Context, r *http.Request, reqPtr reflect.Value, adapter GenericParameterAdapter[*http.Request]) error {
-	if reqPtr.Kind() != reflect.Ptr || reqPtr.Elem().Kind() != reflect.Struct {
+	if reqPtr.Kind() != reflect.Pointer || reqPtr.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("request must be a pointer to struct")
 	}
 
