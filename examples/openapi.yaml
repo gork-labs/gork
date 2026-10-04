@@ -42,8 +42,10 @@ components:
             title: AdminUserType
             type: object
         BankOrCreditBody:
+            oneOf:
+                - $ref: '#/components/schemas/BankPaymentMethod'
+                - $ref: '#/components/schemas/CreditCardPaymentMethod'
             title: BankOrCreditBody
-            type: object
         BankPaymentMethod:
             description: BankPaymentMethod represents a bank account payment method.
             properties:

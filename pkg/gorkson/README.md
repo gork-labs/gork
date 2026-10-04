@@ -27,6 +27,8 @@ err = gorkson.Unmarshal(data, &u)
 
 The field name comes from the `gork` tag. When a field has no `gork` tag, the `json` tag gives the name. A field with no tag or with the name `-` is not encoded.
 
+A value with no codec that implements `json.Marshaler` is written with its `MarshalJSON` method, also inside a struct, a slice or a pointer. A union from `pkg/unions` in a field thus writes only its set member.
+
 ## Type Codecs
 
 A codec converts a Go type to a text value and back, and it gives the OpenAPI schema of the type:
