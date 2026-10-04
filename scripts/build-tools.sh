@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build all tool modules
+# Build all tools
 
 set -e
 
