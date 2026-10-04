@@ -62,12 +62,12 @@ func enrichSchemaWithTypeDoc(schema *Schema, typeName string, extractor *DocExtr
 	}
 	enrichSchemaPropertiesWithDocs(schema, doc)
 
-	// Check if we still have properties without descriptions that might come from embedded types
+	// Properties without a field doc in doc can get one from other types, such as embedded types.
 	// For contextual schema names, prioritize the matching request type
 	if isContextualSchemaName(typeName) {
-		enrichFromContextualRequestType(schema, typeName, extractor)
+		enrichFromContextualRequestType(schema, typeName, doc, extractor)
 	} else {
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, doc, extractor)
 	}
 }
 
@@ -77,9 +77,7 @@ func enrichSchemaPropertiesWithDocs(schema *Schema, doc Documentation) {
 	}
 	for propName, propSchema := range schema.Properties {
 		if fd, ok := doc.Fields[propName]; ok {
-			if propSchema.Description == "" {
-				propSchema.Description = fd.Description
-			}
+			propSchema.Description = fd.Description
 		}
 	}
 }
@@ -90,12 +88,12 @@ type TypeDocExtractor interface {
 	ExtractTypeDoc(typeName string) Documentation
 }
 
-func enrichFromEmbeddedTypes(schema *Schema, extractor TypeDocExtractor) {
+func enrichFromEmbeddedTypes(schema *Schema, doc Documentation, extractor TypeDocExtractor) {
 	if schema == nil || schema.Properties == nil {
 		return
 	}
 
-	propsNeedingDocs := findPropertiesNeedingDocs(schema)
+	propsNeedingDocs := findPropertiesNeedingDocs(schema, doc)
 	if len(propsNeedingDocs) == 0 {
 		return
 	}
@@ -103,11 +101,12 @@ func enrichFromEmbeddedTypes(schema *Schema, extractor TypeDocExtractor) {
 	enrichPropertiesFromTypes(propsNeedingDocs, extractor)
 }
 
-// findPropertiesNeedingDocs finds properties that still don't have descriptions.
-func findPropertiesNeedingDocs(schema *Schema) map[string]*Schema {
+// findPropertiesNeedingDocs finds the properties that have no field doc in doc.
+// A field doc from another type replaces a generated description such as "Array of Item".
+func findPropertiesNeedingDocs(schema *Schema, doc Documentation) map[string]*Schema {
 	propsNeedingDocs := make(map[string]*Schema)
 	for propName, propSchema := range schema.Properties {
-		if propSchema.Description == "" {
+		if _, ok := doc.Fields[propName]; !ok {
 			propsNeedingDocs[propName] = propSchema
 		}
 	}
@@ -285,12 +284,12 @@ func isContextualSchemaName(schemaName string) bool {
 
 // enrichFromContextualRequestType enriches schema properties from the specific request type
 // that matches the contextual schema name. This ensures we look at the right request type first.
-func enrichFromContextualRequestType(schema *Schema, schemaName string, extractor TypeDocExtractor) {
+func enrichFromContextualRequestType(schema *Schema, schemaName string, doc Documentation, extractor TypeDocExtractor) {
 	if schema == nil || schema.Properties == nil {
 		return
 	}
 
-	propsNeedingDocs := findPropertiesNeedingDocs(schema)
+	propsNeedingDocs := findPropertiesNeedingDocs(schema, doc)
 	if len(propsNeedingDocs) == 0 {
 		return
 	}

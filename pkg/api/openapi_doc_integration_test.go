@@ -27,7 +27,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 		extractor := NewDocExtractor()
 
 		// Should not panic and should return early
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, extractor)
 	})
 
 	t.Run("schema with properties but no matching types", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 			},
 		}
 
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, extractor)
 
 		// Properties should still have no descriptions
 		if schema.Properties["field1"].Description != "" {
@@ -78,7 +78,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 			},
 		}
 
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, extractor)
 
 		// Properties should now have descriptions
 		if schema.Properties["userID"].Description != "ID of the user" {
@@ -89,11 +89,16 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 		}
 	})
 
-	t.Run("schema with some properties already having descriptions", func(t *testing.T) {
+	t.Run("schema with some properties documented by its own type doc", func(t *testing.T) {
 		schema := &Schema{
 			Properties: map[string]*Schema{
 				"userID":   {Type: "string", Description: "Existing description"},
-				"username": {Type: "string"},
+				"username": {Type: "string", Description: "Array of string"},
+			},
+		}
+		ownDoc := Documentation{
+			Fields: map[string]FieldDoc{
+				"userID": {Description: "Existing description"},
 			},
 		}
 		extractor := NewDocExtractor()
@@ -108,9 +113,9 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 			},
 		}
 
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, ownDoc, extractor)
 
-		// userID should keep existing description, username should get new one
+		// userID keeps the doc of its own type, username gets the field doc instead of the generated text
 		if schema.Properties["userID"].Description != "Existing description" {
 			t.Errorf("Expected userID to keep existing description, got '%s'", schema.Properties["userID"].Description)
 		}
@@ -128,7 +133,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 		extractor := NewDocExtractor()
 		// Empty extractor - no types documented
 
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, extractor)
 
 		// Should not panic and should not change anything
 		if schema.Properties["field1"].Description != "" {
@@ -152,7 +157,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 			},
 		}
 
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, extractor)
 
 		// Should not change anything since type has no fields
 		if schema.Properties["field1"].Description != "" {
@@ -177,7 +182,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 			},
 		}
 
-		enrichFromEmbeddedTypes(schema, extractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, extractor)
 
 		// Should not change field1 since the type has no field documentation to provide
 		if schema.Properties["field1"].Description != "" {
@@ -209,7 +214,7 @@ func TestEnrichFromEmbeddedTypes(t *testing.T) {
 			},
 		}
 
-		enrichFromEmbeddedTypes(schema, mockExtractor)
+		enrichFromEmbeddedTypes(schema, Documentation{}, mockExtractor)
 
 		// Should get description from TypeWithFields since TypeWithoutFields is skipped by continue
 		if schema.Properties["field1"].Description != "Field description" {
@@ -223,6 +228,7 @@ func TestEnrichFromContextualRequestType(t *testing.T) {
 		name       string
 		schema     *Schema
 		schemaName string
+		doc        Documentation
 		extractor  *MockDocExtractor
 		expectDocs bool
 	}{
@@ -243,13 +249,18 @@ func TestEnrichFromContextualRequestType(t *testing.T) {
 			expectDocs: false,
 		},
 		{
-			name: "schema with properties that already have descriptions",
+			name: "schema with properties that its own type doc documents",
 			schema: &Schema{
 				Properties: map[string]*Schema{
 					"username": {Description: "Already documented"},
 				},
 			},
 			schemaName: "UpdateUserBody",
+			doc: Documentation{
+				Fields: map[string]FieldDoc{
+					"username": {Description: "Already documented"},
+				},
+			},
 			extractor:  &MockDocExtractor{},
 			expectDocs: false,
 		},
@@ -306,7 +317,7 @@ func TestEnrichFromContextualRequestType(t *testing.T) {
 				}
 			}
 
-			enrichFromContextualRequestType(tt.schema, tt.schemaName, tt.extractor)
+			enrichFromContextualRequestType(tt.schema, tt.schemaName, tt.doc, tt.extractor)
 
 			if tt.expectDocs && tt.schema != nil {
 				for propName, propSchema := range tt.schema.Properties {
@@ -605,7 +616,7 @@ func TestContextualSchemaDocumentationIntegration(t *testing.T) {
 	}
 
 	// Apply the contextual enrichment (this is what happens in enrichSchemaWithTypeDoc)
-	enrichFromContextualRequestType(schema, "UpdateUserPreferencesBody", extractor)
+	enrichFromContextualRequestType(schema, "UpdateUserPreferencesBody", Documentation{}, extractor)
 
 	// Verify that both fields got proper documentation
 	paymentMethodDesc := schema.Properties["paymentMethod"].Description
@@ -679,7 +690,7 @@ func TestContextualSchemaTypesDocumentation(t *testing.T) {
 				},
 			}
 
-			enrichFromContextualRequestType(schema, tc.contextualSchemaName, extractor)
+			enrichFromContextualRequestType(schema, tc.contextualSchemaName, Documentation{}, extractor)
 
 			actualDesc := schema.Properties[tc.propertyName].Description
 			if actualDesc != tc.expectedDescription {

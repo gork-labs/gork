@@ -799,7 +799,7 @@
           },
           "priority": {
             "type": "string",
-            "description": "Task priority level (internal iota, external string)",
+            "description": "Will be formatted back to string",
             "enum": [
               "low",
               "medium",
@@ -809,7 +809,7 @@
           },
           "task": {
             "type": "integer",
-            "description": "Task ID that resolves to full task information",
+            "description": "Will be formatted back to ID",
             "minimum": 1,
             "format": "int32",
             "example": 1
