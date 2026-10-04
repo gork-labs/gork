@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/gork-labs/gork/pkg/api"
 	"github.com/spf13/cobra"
@@ -266,6 +267,10 @@ func validateSpec(spec *api.OpenAPISpec) error {
 }
 
 func validateSpecWithClient(spec *api.OpenAPISpec, client ValidatorClient) error {
+	if !swaggerValidatorSupports(spec.OpenAPI) {
+		return nil
+	}
+
 	data, err := client.MarshalSpec(spec)
 	if err != nil {
 		return fmt.Errorf("marshal spec: %w", err)
@@ -277,6 +282,11 @@ func validateSpecWithClient(spec *api.OpenAPISpec, client ValidatorClient) error
 	}
 
 	return parseValidatorResponse(body, statusCode)
+}
+
+// swaggerValidatorSupports reports whether validator.swagger.io accepts the OpenAPI version.
+func swaggerValidatorSupports(version string) bool {
+	return !strings.HasPrefix(version, "3.2")
 }
 
 func parseValidatorResponse(body []byte, statusCode int) error {
