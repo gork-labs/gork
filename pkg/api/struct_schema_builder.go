@@ -55,9 +55,9 @@ func (b *StructSchemaBuilder) BuildSchema(t reflect.Type, registry map[string]*S
 
 	// s is in the registry while the loop builds the fields. Thus a field of
 	// type t gets a $ref to s, and a recursive type does not recurse without end.
-	name := uniqueSchemaNameForType(t, registry)
+	name := sanitizeSchemaName(t.Name())
 	if name != "" {
-		registry[name] = s
+		registerComponent(name, t, s, registry)
 	}
 
 	for i := 0; i < t.NumField(); i++ {
@@ -82,7 +82,7 @@ func (b *StructSchemaBuilder) BuildSchema(t reflect.Type, registry map[string]*S
 		}
 	}
 
-	// The registrar picks the first free name again, which is name.
+	// The registrar decides where the final schema goes.
 	delete(registry, name)
 	return b.typeRegistrar.RegisterType(t, s, registry)
 }
@@ -106,14 +106,10 @@ func (p *defaultEmbeddedStructProcessor) ProcessEmbedded(field reflect.StructFie
 type defaultTypeRegistrar struct{}
 
 func (r *defaultTypeRegistrar) RegisterType(t reflect.Type, schema *Schema, registry map[string]*Schema) *Schema {
-	rawName := t.Name()
-	typeName := sanitizeSchemaName(rawName)
+	typeName := sanitizeSchemaName(t.Name())
 	if typeName != "" {
-		// Pick a human-friendly unique name to avoid collisions
-		unique := uniqueSchemaNameForType(t, registry)
-		schema.Title = unique
-		registry[unique] = schema
-		return &Schema{Ref: "#/components/schemas/" + unique}
+		schema.Title = typeName
+		return registerComponent(typeName, t, schema, registry)
 	}
 	return schema
 }

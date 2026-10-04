@@ -330,8 +330,7 @@ func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type,
 	itemSchema := &Schema{OneOf: events}
 	if name := sanitizeSchemaName(eventType.Name()); name != "" {
 		itemSchema.Title = name
-		components.Schemas[name] = itemSchema
-		itemSchema = &Schema{Ref: "#/components/schemas/" + name}
+		itemSchema = registerComponent(name, eventType, itemSchema, components.Schemas)
 	}
 
 	return &Response{
@@ -345,18 +344,11 @@ func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type,
 // generateResponseComponentSchema creates a component reference for a response type,
 // extracting properties from its Body field to create a clean schema.
 func (g *ConventionOpenAPIGenerator) generateResponseComponentSchema(respType reflect.Type, components *Components) *Schema {
-	typeName := respType.Name()
+	typeName := sanitizeSchemaName(respType.Name())
 	if typeName == "" {
 		// For anonymous types, we can't create a component reference
 		// Fall back to inline schema generation
 		return g.generateInlineResponseSchema(respType, components)
-	}
-
-	// Check if we already have this component
-	if _, exists := components.Schemas[typeName]; exists {
-		return &Schema{
-			Ref: "#/components/schemas/" + typeName,
-		}
 	}
 
 	// Find the Body field first to check if we should bypass the response wrapper
@@ -371,6 +363,10 @@ func (g *ConventionOpenAPIGenerator) generateResponseComponentSchema(respType re
 			}
 			break
 		}
+	}
+
+	if ref := componentRef(typeName, respType, components.Schemas); ref != nil {
+		return ref
 	}
 
 	// Create the component schema by extracting Body field properties (fallback for complex cases)
@@ -391,15 +387,7 @@ func (g *ConventionOpenAPIGenerator) generateResponseComponentSchema(respType re
 		}
 	}
 
-	// Store the component schema with a collision-safe name
-	unique := uniqueSchemaNameForType(respType, components.Schemas)
-	componentSchema.Title = unique
-	components.Schemas[unique] = componentSchema
-
-	// Return a reference to the component
-	return &Schema{
-		Ref: "#/components/schemas/" + unique,
-	}
+	return registerComponent(typeName, respType, componentSchema, components.Schemas)
 }
 
 // generateInlineResponseSchema generates an inline schema for anonymous response types.
@@ -503,11 +491,8 @@ func (g *ConventionOpenAPIGenerator) generateRequestBodyComponentSchema(bodyType
 		return g.generateInlineRequestBodySchema(bodyType, components)
 	}
 
-	// Check if we already have this component
-	if _, exists := components.Schemas[componentName]; exists {
-		return &Schema{
-			Ref: "#/components/schemas/" + componentName,
-		}
+	if ref := componentRef(componentName, bodyType, components.Schemas); ref != nil {
+		return ref
 	}
 
 	var componentSchema *Schema
@@ -523,13 +508,7 @@ func (g *ConventionOpenAPIGenerator) generateRequestBodyComponentSchema(bodyType
 		g.extractStructPropertiesToSchema(bodyType, componentSchema, components)
 	}
 
-	// Store the component schema
-	components.Schemas[componentName] = componentSchema
-
-	// Return a reference to the component
-	return &Schema{
-		Ref: "#/components/schemas/" + componentName,
-	}
+	return registerComponent(componentName, bodyType, componentSchema, components.Schemas)
 }
 
 // generateRequestBodyComponentName generates a component name for a request body.

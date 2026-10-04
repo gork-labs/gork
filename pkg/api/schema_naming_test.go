@@ -26,96 +26,16 @@ type responseWithAnonBody struct {
 	}
 }
 
-func TestUniqueSchemaName_BaseAvailable(t *testing.T) {
-	reg := map[string]*Schema{}
-	typ := reflect.TypeOf(fooTestType{})
-	name := uniqueSchemaNameForType(typ, reg)
-	if name != "fooTestType" { // base simple name
-		t.Fatalf("expected base name, got %q", name)
-	}
-}
-
-func TestUniqueSchemaName_PrefixedOnCollision(t *testing.T) {
-	reg := map[string]*Schema{"fooTestType": {Type: "object"}}
-	typ := reflect.TypeOf(fooTestType{})
-	name := uniqueSchemaNameForType(typ, reg)
-	if name != "ApifooTestType" {
-		t.Fatalf("expected package-prefixed unique name 'ApifooTestType', got %q", name)
-	}
-}
-
-func TestUniqueSchemaName_SuffixOnDoubleCollision(t *testing.T) {
-	reg := map[string]*Schema{
-		"fooTestType":    {Type: "object"},
-		"ApifooTestType": {Type: "object"},
-	}
-	typ := reflect.TypeOf(fooTestType{})
-	name := uniqueSchemaNameForType(typ, reg)
-	if name == "fooTestType" || name == "ApifooTestType" {
-		t.Fatalf("expected a suffixed unique name, got %q", name)
-	}
-	if !strings.HasPrefix(name, "ApifooTestType") {
-		t.Fatalf("expected name to start with 'ApifooTestType', got %q", name)
-	}
-}
-
-func TestUniqueSchemaName_NoPkgNumericFallback(t *testing.T) {
-	// Builtin types like int have empty PkgPath -> triggers numeric fallback on base
-	reg := map[string]*Schema{"int": {Type: "integer"}}
-	name := uniqueSchemaNameForType(reflect.TypeOf(int(0)), reg)
-	if name != "int2" {
-		t.Fatalf("expected int2, got %q", name)
-	}
-}
-
-func TestUniqueSchemaName_AnonymousReturnsEmpty(t *testing.T) {
-	reg := map[string]*Schema{}
-	anon := struct{ A int }{}
-	name := uniqueSchemaNameForType(reflect.TypeOf(anon), reg)
-	if name != "" {
-		t.Fatalf("expected empty name for anonymous type, got %q", name)
-	}
-}
-
-func TestCheckExistingType_BaseAltAndNone(t *testing.T) {
+func TestCheckExistingType_BaseAndNone(t *testing.T) {
 	reg := map[string]*Schema{"fooTestType": {Type: "object"}}
 	if ref := checkExistingType(reflect.TypeOf(fooTestType{}), reg); ref == nil || ref.Ref != "#/components/schemas/fooTestType" {
 		t.Fatalf("expected ref to base, got %#v", ref)
-	}
-
-	// Only alternative prefixed exists
-	reg = map[string]*Schema{"ApifooTestType": {Type: "object"}}
-	if ref := checkExistingType(reflect.TypeOf(fooTestType{}), reg); ref == nil || ref.Ref != "#/components/schemas/ApifooTestType" {
-		t.Fatalf("expected ref to alternative, got %#v", ref)
 	}
 
 	// None exists
 	reg = map[string]*Schema{}
 	if ref := checkExistingType(reflect.TypeOf(fooTestType{}), reg); ref != nil {
 		t.Fatalf("expected nil ref when not found, got %#v", ref)
-	}
-}
-
-func TestHandleUnionType_UniqueNamingCollision(t *testing.T) {
-	reg := map[string]*Schema{"fooTestType": {Type: "object"}}
-	// Use a non-union struct; handleUnionType still produces a schema and stores it under a unique name
-	ref := handleUnionType(reflect.TypeOf(fooTestType{}), reg)
-	if ref == nil || ref.Ref == "" {
-		t.Fatalf("expected a ref from handleUnionType, got %#v", ref)
-	}
-	if _, ok := reg["fooTestType"]; !ok {
-		t.Fatalf("expected existing base name to remain present")
-	}
-	// Ensure a new entry under a different key was added
-	added := false
-	for k := range reg {
-		if k != "fooTestType" {
-			added = true
-			break
-		}
-	}
-	if !added {
-		t.Fatalf("expected a uniquely named schema to be added to the registry")
 	}
 }
 
