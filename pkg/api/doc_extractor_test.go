@@ -169,6 +169,38 @@ func TestStoreFieldDocByJSONTag_EmptyJSONName(t *testing.T) {
 	}
 }
 
+func TestStoreFieldDocByJSONTag_JSONName(t *testing.T) {
+	extractor := NewDocExtractor()
+	doc := &Documentation{Fields: make(map[string]FieldDoc)}
+
+	field := &ast.Field{
+		Names: []*ast.Ident{{Name: "TestField"}},
+		Tag:   &ast.BasicLit{Value: "`json:\"test_field,omitempty\"`"},
+	}
+
+	extractor.storeFieldDocByJSONTag(field, "test description", doc)
+
+	if fieldDoc := doc.Fields["test_field"]; fieldDoc.Description != "test description" {
+		t.Errorf("Expected description for 'test_field', got %v", doc.Fields)
+	}
+}
+
+func TestStoreFieldDocByJSONTag_SkippedJSONName(t *testing.T) {
+	extractor := NewDocExtractor()
+	doc := &Documentation{Fields: make(map[string]FieldDoc)}
+
+	field := &ast.Field{
+		Names: []*ast.Ident{{Name: "TestField"}},
+		Tag:   &ast.BasicLit{Value: "`json:\"-\"`"},
+	}
+
+	extractor.storeFieldDocByJSONTag(field, "test description", doc)
+
+	if len(doc.Fields) != 0 {
+		t.Errorf("Expected no fields stored, got %v", doc.Fields)
+	}
+}
+
 func TestProcessDirectoryEntry_NonDirectory(t *testing.T) {
 	extractor := NewDocExtractor()
 	fset := token.NewFileSet()

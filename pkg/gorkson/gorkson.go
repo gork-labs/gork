@@ -1,4 +1,5 @@
-// Package gorkson provides JSON marshaling/unmarshaling using gork tags.
+// Package gorkson provides JSON marshaling/unmarshaling using gork tags and
+// the type codec registry that pkg/api uses for all value conversion.
 package gorkson
 
 import (
@@ -18,7 +19,11 @@ func (m *Marshaler) MarshalToJSON(v any) ([]byte, error) {
 		return marshaler.MarshalJSON()
 	}
 
-	return json.Marshal(m.convertToGorkSON(v))
+	converted, err := m.convertToGorkSON(v)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(converted)
 }
 
 // UnmarshalFromJSON unmarshals JSON into a struct using gork tags for field names.
@@ -39,30 +44,53 @@ func (m *Marshaler) UnmarshalFromJSON(data []byte, v any) error {
 	return m.convertFromGorkSON(jsonMap, v)
 }
 
-// convertToGorkSON converts a struct to a map using gork tags for field names.
-func (m *Marshaler) convertToGorkSON(v any) any {
-	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Pointer {
+// convertToGorkSON converts a value to a JSON-ready value using gork tags for field names.
+func (m *Marshaler) convertToGorkSON(v any) (any, error) {
+	return m.convertValueToGorkSON(reflect.ValueOf(v))
+}
+
+// convertValueToGorkSON converts a reflected value, formatting codec types with their codec.
+func (m *Marshaler) convertValueToGorkSON(val reflect.Value) (any, error) {
+	if !val.IsValid() {
+		return nil, nil
+	}
+
+	if formatter, exists := globalCodecRegistry.Formatter(val.Type()); exists {
+		return formatJSONWithCodec(val, formatter)
+	}
+
+	kind := val.Kind()
+	if kind == reflect.Pointer || kind == reflect.Interface {
 		if val.IsNil() {
-			return nil
+			return nil, nil
 		}
-		val = val.Elem()
+		return m.convertValueToGorkSON(val.Elem())
 	}
+	if kind == reflect.Slice {
+		return m.convertSliceToGorkSON(val)
+	}
+	if kind == reflect.Struct {
+		return m.convertStructToGorkSON(val)
+	}
+	return val.Interface(), nil
+}
 
-	// Handle slices by converting each element
-	if val.Kind() == reflect.Slice {
-		result := make([]interface{}, val.Len())
-		for i := 0; i < val.Len(); i++ {
-			result[i] = m.convertToGorkSON(val.Index(i).Interface())
+// convertSliceToGorkSON converts a slice to gorkson format.
+func (m *Marshaler) convertSliceToGorkSON(val reflect.Value) ([]any, error) {
+	result := make([]any, val.Len())
+	for i := 0; i < val.Len(); i++ {
+		item, err := m.convertValueToGorkSON(val.Index(i))
+		if err != nil {
+			return nil, err
 		}
-		return result
+		result[i] = item
 	}
+	return result, nil
+}
 
-	if val.Kind() != reflect.Struct {
-		return v
-	}
-
-	result := make(map[string]interface{})
+// convertStructToGorkSON converts a struct to gorkson format using field tags.
+func (m *Marshaler) convertStructToGorkSON(val reflect.Value) (map[string]any, error) {
+	result := make(map[string]any)
 	typ := val.Type()
 
 	for i := 0; i < val.NumField(); i++ {
@@ -80,12 +108,14 @@ func (m *Marshaler) convertToGorkSON(v any) any {
 			continue
 		}
 
-		// Recursively convert nested structs
-		value := m.convertToGorkSON(fieldValue.Interface())
+		value, err := m.convertValueToGorkSON(fieldValue)
+		if err != nil {
+			return nil, err
+		}
 		result[fieldName] = value
 	}
 
-	return result
+	return result, nil
 }
 
 // convertFromGorkSON converts a JSON map back to a struct using gork tag mapping.
@@ -191,6 +221,10 @@ func (m *Marshaler) setFieldValue(field reflect.Value, value any) error {
 		return nil
 	}
 
+	if parser, exists := globalCodecRegistry.Parser(field.Type()); exists {
+		return setJSONValueWithCodec(field, parser, value)
+	}
+
 	kind := field.Kind()
 
 	// Check if it's a basic field type
@@ -204,6 +238,9 @@ func (m *Marshaler) setFieldValue(field reflect.Value, value any) error {
 	}
 	if kind == reflect.Pointer {
 		return m.setPtrField(field, value)
+	}
+	if items, isArray := value.([]any); isArray && kind == reflect.Slice {
+		return m.setSliceField(field, items)
 	}
 
 	// Handle all other types as generic fields
@@ -296,17 +333,23 @@ func (m *Marshaler) setStructField(field reflect.Value, value any) error {
 
 // setPtrField sets a pointer field value.
 func (m *Marshaler) setPtrField(field reflect.Value, value any) error {
-	if field.Type().Elem().Kind() == reflect.Struct {
-		data, err := json.Marshal(value)
-		if err != nil {
-			return err
-		}
-		newVal := reflect.New(field.Type().Elem())
-		if err := m.UnmarshalFromJSON(data, newVal.Interface()); err != nil {
-			return err
-		}
-		field.Set(newVal)
+	elem := reflect.New(field.Type().Elem())
+	if err := m.setFieldValue(elem.Elem(), value); err != nil {
+		return err
 	}
+	field.Set(elem)
+	return nil
+}
+
+// setSliceField sets a slice field item by item from a JSON array.
+func (m *Marshaler) setSliceField(field reflect.Value, items []any) error {
+	slice := reflect.MakeSlice(field.Type(), len(items), len(items))
+	for i, item := range items {
+		if err := m.setFieldValue(slice.Index(i), item); err != nil {
+			return err
+		}
+	}
+	field.Set(slice)
 	return nil
 }
 

@@ -1,11 +1,62 @@
 package api
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+
+	"github.com/gork-labs/gork/pkg/gorkson"
+)
 
 // TypeSchemaHandler handles schema generation for specific types.
 type TypeSchemaHandler interface {
 	CanHandle(t reflect.Type) bool
 	GenerateSchema(t reflect.Type, registry map[string]*Schema, makePointerNullable bool) *Schema
+}
+
+// CodecTypeHandler handles types with a registered gorkson codec.
+type CodecTypeHandler struct{}
+
+// CanHandle returns true if a gorkson codec is registered for the type.
+func (c *CodecTypeHandler) CanHandle(t reflect.Type) bool {
+	return gorkson.GetCodecRegistry().HasParser(t)
+}
+
+// GenerateSchema generates an inline schema from the codec schema.
+func (c *CodecTypeHandler) GenerateSchema(t reflect.Type, _ map[string]*Schema, _ bool) *Schema {
+	codecSchema, _ := gorkson.GetCodecRegistry().Schema(t)
+	return convertCodecSchema(codecSchema)
+}
+
+// convertCodecSchema converts a gorkson codec schema to an OpenAPI schema.
+func convertCodecSchema(codecSchema gorkson.OpenAPISchema) *Schema {
+	schema := &Schema{
+		Type:        codecSchema.Type,
+		Format:      codecSchema.Format,
+		Pattern:     codecSchema.Pattern,
+		Example:     codecSchema.Example,
+		Description: codecSchema.Description,
+		MinLength:   codecSchema.MinLength,
+		MaxLength:   codecSchema.MaxLength,
+		Minimum:     codecSchema.Minimum,
+		Maximum:     codecSchema.Maximum,
+	}
+
+	for _, val := range codecSchema.Enum {
+		schema.Enum = append(schema.Enum, fmt.Sprint(val))
+	}
+
+	if codecSchema.Properties != nil {
+		schema.Properties = make(map[string]*Schema, len(codecSchema.Properties))
+		for key, prop := range codecSchema.Properties {
+			schema.Properties[key] = convertCodecSchema(*prop)
+		}
+	}
+
+	if codecSchema.Items != nil {
+		schema.Items = convertCodecSchema(*codecSchema.Items)
+	}
+
+	return schema
 }
 
 // PointerTypeHandler handles pointer types.
@@ -108,6 +159,7 @@ type SchemaGenerator struct {
 func NewSchemaGenerator() *SchemaGenerator {
 	return &SchemaGenerator{
 		handlers: []TypeSchemaHandler{
+			&CodecTypeHandler{},
 			&PointerTypeHandler{},
 			&UnionTypeHandler{},
 			&StructTypeHandler{},

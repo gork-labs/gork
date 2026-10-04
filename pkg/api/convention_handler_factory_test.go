@@ -121,19 +121,6 @@ func TestNewConventionHandlerFactory(t *testing.T) {
 	}
 }
 
-func TestConventionHandlerFactory_RegisterTypeParser(t *testing.T) {
-	factory := NewConventionHandlerFactory()
-
-	// Test registering a type parser
-	err := factory.RegisterTypeParser(func(ctx context.Context, value string) (*time.Time, error) {
-		t, err := time.Parse(time.RFC3339, value)
-		return &t, err
-	})
-	if err != nil {
-		t.Errorf("RegisterTypeParser() error = %v", err)
-	}
-}
-
 func TestConventionHandlerFactory_CreateHandler(t *testing.T) {
 	factory := NewConventionHandlerFactory()
 
@@ -431,61 +418,6 @@ func TestConventionHandlerFactory_GetStringValue_JSONMarshalError(t *testing.T) 
 	// Channels can't be marshaled to JSON, so should return empty string
 	if result != "" {
 		t.Errorf("getStringValue(channel) = %q, want empty string", result)
-	}
-}
-
-func TestConventionHandlerFactory_IsSimpleKind(t *testing.T) {
-	factory := NewConventionHandlerFactory()
-
-	simpleKinds := []reflect.Kind{
-		reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Bool, reflect.Float32, reflect.Float64,
-	}
-
-	complexKinds := []reflect.Kind{
-		reflect.Slice, reflect.Map, reflect.Struct, reflect.Interface, reflect.Chan,
-		reflect.Func, reflect.Ptr, reflect.Array,
-	}
-
-	for _, kind := range simpleKinds {
-		if !factory.isSimpleKind(kind) {
-			t.Errorf("isSimpleKind(%v) = false, want true", kind)
-		}
-	}
-
-	for _, kind := range complexKinds {
-		if factory.isSimpleKind(kind) {
-			t.Errorf("isSimpleKind(%v) = true, want false", kind)
-		}
-	}
-}
-
-func TestConventionHandlerFactory_GetStringValueForKind(t *testing.T) {
-	factory := NewConventionHandlerFactory()
-
-	tests := []struct {
-		name     string
-		kind     reflect.Kind
-		value    interface{}
-		expected string
-	}{
-		{"string", reflect.String, "hello", "hello"},
-		{"string_empty", reflect.String, "", ""},
-		{"int", reflect.Int, int(65), "65"},
-		{"bool_true", reflect.Bool, true, "true"},
-		{"bool_false", reflect.Bool, false, "false"},
-		{"float32", reflect.Float32, float32(3.5), "3.5"},
-		{"unsupported_kind", reflect.Slice, []string{"a"}, ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := factory.getStringValueForKind(tt.kind, reflect.ValueOf(tt.value))
-			if result != tt.expected {
-				t.Errorf("getStringValueForKind(%v, %v) = %q, want %q", tt.kind, tt.value, result, tt.expected)
-			}
-		})
 	}
 }
 

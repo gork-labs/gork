@@ -494,7 +494,10 @@ func TestMarshaler_convertToGorkSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := m.convertToGorkSON(tt.input)
+			result, err := m.convertToGorkSON(tt.input)
+			if err != nil {
+				t.Fatalf("convertToGorkSON() error = %v", err)
+			}
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("convertToGorkSON() = %+v, want %+v", result, tt.expected)
 			}
@@ -854,7 +857,10 @@ func TestMarshaler_EdgeCases(t *testing.T) {
 		structVal.Field(0).SetString("exported_value")
 		// Cannot set unexported field
 
-		result := m.convertToGorkSON(structVal.Interface())
+		result, err := m.convertToGorkSON(structVal.Interface())
+		if err != nil {
+			t.Fatalf("convertToGorkSON() error = %v", err)
+		}
 		resultMap := result.(map[string]interface{})
 
 		// Should only contain the exported field

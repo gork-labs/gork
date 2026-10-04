@@ -448,10 +448,16 @@ func (g *ConventionOpenAPIGenerator) extractStructPropertiesToSchema(structType 
 			continue
 		}
 
-		// Get field name from gork tag or use field name
-		fieldName := field.Tag.Get("gork")
+		// Handle embedded structs - flatten their properties into parent schema
+		if field.Anonymous && field.Type.Kind() == reflect.Struct && field.Tag.Get("json") == "" {
+			g.extractStructPropertiesToSchema(field.Type, schema, components)
+			continue
+		}
+
+		// Get field name using proper tag parsing (gork -> json -> field name)
+		fieldName := getOpenAPIFieldName(field)
 		if fieldName == "" {
-			fieldName = field.Name
+			continue // Skip fields marked as "-"
 		}
 
 		// Generate schema for the field

@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
@@ -11,7 +12,21 @@ import (
 
 	"github.com/gork-labs/gork/examples"
 	"github.com/gork-labs/gork/pkg/api"
+	"github.com/gork-labs/gork/pkg/rules"
 )
+
+// contextVariablesMiddleware sets up context variables for rule evaluation.
+// In a real application, this would extract user info from JWT tokens, sessions, etc.
+func contextVariablesMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// For demo purposes, set a fixed current_user
+		// In production, extract this from JWT token, session, etc.
+		ctx := rules.WithContextVars(r.Context(), rules.ContextVars{
+			"current_user": "alice", // Set the current user for rule evaluation
+		})
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 func main() {
 	mux := http.NewServeMux()
@@ -22,10 +37,11 @@ func main() {
 	// Export OpenAPI spec and exit if this is a CLI generation run
 	// The CLI tool will set GORK_EXPORT=1 when it needs the spec
 	if os.Getenv("GORK_EXPORT") == "1" {
-		router.ExportOpenAPIAndExit(
-			api.WithTitle("Examples API"),
-			api.WithVersion("0.1.0"),
-		)
+		spec := api.GenerateOpenAPI(router.GetRegistry(), api.WithTitle("Examples API"), api.WithVersion("0.1.0"))
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(spec)
+		return
 	}
 
 	// Serve API documentation at /docs (Stoplight UI by default)
@@ -37,7 +53,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":8800",
-		Handler:      mux,
+		Handler:      contextVariablesMiddleware(mux), // Add middleware to set context variables
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  15 * time.Second,

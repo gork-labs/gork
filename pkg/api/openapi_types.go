@@ -161,6 +161,7 @@ type Schema struct {
 	Enum          []string           `json:"enum,omitempty"`
 	Items         *Schema            `json:"items,omitempty"`
 	Format        string             `json:"format,omitempty"`
+	Example       interface{}        `json:"example,omitempty"`
 
 	Const            string  `json:"const,omitempty"`
 	ContentMediaType string  `json:"contentMediaType,omitempty"`

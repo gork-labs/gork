@@ -149,25 +149,24 @@ func TestWebhookReflectionOpenAPIGeneration(t *testing.T) {
 			t.Fatalf("Schema properties should exist. Schema: %+v, WebhookHandler: %+v", jsonContent.Schema, info.WebhookHandler)
 		}
 
-		// Verify custom success response fields (note: using struct field names, not JSON tags)
-		// The schema generator uses struct field names, not JSON tag names
-		statusField, exists := jsonContent.Schema.Properties["Status"]
+		// Verify custom success response fields (JSON tag names, as encoding/json writes them)
+		statusField, exists := jsonContent.Schema.Properties["status"]
 		if !exists {
-			t.Error("Expected 'Status' field in success response schema")
+			t.Error("Expected 'status' field in success response schema")
 		} else if statusField.Type != "string" {
 			t.Errorf("Expected Status field to be string, got %s", statusField.Type)
 		}
 
-		processedAtField, exists := jsonContent.Schema.Properties["ProcessedAt"]
+		processedAtField, exists := jsonContent.Schema.Properties["processed_at"]
 		if !exists {
-			t.Error("Expected 'ProcessedAt' field in success response schema")
+			t.Error("Expected 'processed_at' field in success response schema")
 		} else if processedAtField.Type != "string" {
 			t.Errorf("Expected ProcessedAt field to be string, got %s", processedAtField.Type)
 		}
 
-		webhookIdField, exists := jsonContent.Schema.Properties["WebhookID"]
+		webhookIdField, exists := jsonContent.Schema.Properties["webhook_id"]
 		if !exists {
-			t.Error("Expected 'WebhookID' field in success response schema")
+			t.Error("Expected 'webhook_id' field in success response schema")
 		} else if webhookIdField.Type != "string" {
 			t.Errorf("Expected WebhookID field to be string, got %s", webhookIdField.Type)
 		}
@@ -213,24 +212,24 @@ func TestWebhookReflectionOpenAPIGeneration(t *testing.T) {
 			t.Fatal("Error schema properties should exist")
 		}
 
-		// Verify custom error response fields (using struct field names)
-		errorStatusField, exists := errorJsonContent.Schema.Properties["Status"]
+		// Verify custom error response fields (JSON tag names)
+		errorStatusField, exists := errorJsonContent.Schema.Properties["status"]
 		if !exists {
-			t.Error("Expected 'Status' field in error response schema")
+			t.Error("Expected 'status' field in error response schema")
 		} else if errorStatusField.Type != "string" {
 			t.Errorf("Expected error Status field to be string, got %s", errorStatusField.Type)
 		}
 
-		errorCodeField, exists := errorJsonContent.Schema.Properties["ErrorCode"]
+		errorCodeField, exists := errorJsonContent.Schema.Properties["error_code"]
 		if !exists {
-			t.Error("Expected 'ErrorCode' field in error response schema")
+			t.Error("Expected 'error_code' field in error response schema")
 		} else if errorCodeField.Type != "integer" {
 			t.Errorf("Expected ErrorCode field to be integer, got %s", errorCodeField.Type)
 		}
 
-		messageField, exists := errorJsonContent.Schema.Properties["Message"]
+		messageField, exists := errorJsonContent.Schema.Properties["message"]
 		if !exists {
-			t.Error("Expected 'Message' field in error response schema")
+			t.Error("Expected 'message' field in error response schema")
 		} else if messageField.Type != "string" {
 			t.Errorf("Expected Message field to be string, got %s", messageField.Type)
 		}

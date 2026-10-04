@@ -1,8 +1,8 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"reflect"
 
@@ -28,11 +28,6 @@ func NewConventionHandlerFactory() *ConventionHandlerFactory {
 		gorkMarshaler: gorkson.Marshal,
 		stdMarshaler:  json.Marshal,
 	}
-}
-
-// RegisterTypeParser registers a type parser for complex types.
-func (f *ConventionHandlerFactory) RegisterTypeParser(parserFunc any) error {
-	return f.parser.RegisterTypeParser(parserFunc)
 }
 
 // CreateHandler creates an HTTP handler using the Convention Over Configuration approach.
@@ -317,64 +312,11 @@ func (f *ConventionHandlerFactory) setResponseCookies(w http.ResponseWriter, coo
 }
 
 // getStringValue converts a reflect.Value to string representation.
+// It returns an empty string when the value cannot be formatted.
 func (f *ConventionHandlerFactory) getStringValue(value reflect.Value) string {
-	kind := value.Kind()
-	if f.isSimpleKind(kind) {
-		return f.getStringValueForKind(kind, value)
-	}
-
-	// For complex types, use JSON encoding
-	if marshaled, err := json.Marshal(value.Interface()); err == nil {
-		return string(marshaled)
-	}
-	return ""
-}
-
-// isSimpleKind checks if the kind is a simple type that can be converted directly.
-func (f *ConventionHandlerFactory) isSimpleKind(kind reflect.Kind) bool {
-	return kind == reflect.String ||
-		kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 ||
-		kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 ||
-		kind == reflect.Bool || kind == reflect.Float32 || kind == reflect.Float64
-}
-
-// getStringValueForKind converts a reflect.Value to string for specific kinds.
-func (f *ConventionHandlerFactory) getStringValueForKind(kind reflect.Kind, value reflect.Value) string {
-	switch {
-	case kind == reflect.String:
-		return value.String()
-	case f.isIntKind(kind):
-		return fmt.Sprintf("%d", value.Int())
-	case f.isUintKind(kind):
-		return fmt.Sprintf("%d", value.Uint())
-	case kind == reflect.Bool:
-		return f.boolToString(value.Bool())
-	case f.isFloatKind(kind):
-		return fmt.Sprintf("%g", value.Float())
-	default:
+	formatted, err := gorkson.FormatFieldValueToString(context.Background(), value.Interface())
+	if err != nil {
 		return ""
 	}
-}
-
-// isIntKind checks if kind is a signed integer type.
-func (f *ConventionHandlerFactory) isIntKind(kind reflect.Kind) bool {
-	return kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64
-}
-
-// isUintKind checks if kind is an unsigned integer type.
-func (f *ConventionHandlerFactory) isUintKind(kind reflect.Kind) bool {
-	return kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64
-}
-
-// isFloatKind checks if kind is a floating-point type.
-func (f *ConventionHandlerFactory) isFloatKind(kind reflect.Kind) bool {
-	return kind == reflect.Float32 || kind == reflect.Float64
-}
-
-// boolToString converts a boolean to string.
-func (f *ConventionHandlerFactory) boolToString(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
+	return formatted
 }

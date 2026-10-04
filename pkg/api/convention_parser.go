@@ -6,9 +6,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gork-labs/gork/pkg/gorkson"
@@ -34,15 +32,13 @@ var AllowedSections = map[string]bool{
 
 // ConventionParser handles parsing requests using the Convention Over Configuration approach.
 type ConventionParser struct {
-	typeRegistry *TypeParserRegistry
-	validator    *validator.Validate
+	validator *validator.Validate
 }
 
 // NewConventionParser creates a new convention parser.
 func NewConventionParser() *ConventionParser {
 	return &ConventionParser{
-		typeRegistry: NewTypeParserRegistry(),
-		validator:    validator.New(),
+		validator: validator.New(),
 	}
 }
 
@@ -97,11 +93,6 @@ func (d *DefaultParameterAdapter) Cookie(r *http.Request, key string) (string, b
 		return "", false
 	}
 	return cookie.Value, true
-}
-
-// RegisterTypeParser registers a type parser function.
-func (p *ConventionParser) RegisterTypeParser(parserFunc interface{}) error {
-	return p.typeRegistry.Register(parserFunc)
 }
 
 // ParseRequest parses an HTTP request into the given request struct using convention over configuration.
@@ -240,7 +231,7 @@ func (p *ConventionParser) parsePathSection(ctx context.Context, sectionValue re
 
 		paramName := parseGorkTag(gorkTag).Name
 		if val, ok := adapter.Path(r, paramName); ok {
-			if err := p.setFieldValue(ctx, fieldValue, field, val); err != nil {
+			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, val); err != nil {
 				return fmt.Errorf("failed to set path parameter %s: %w", paramName, err)
 			}
 		}
@@ -266,7 +257,7 @@ func (p *ConventionParser) parseQuerySection(ctx context.Context, sectionValue r
 
 		paramName := parseGorkTag(gorkTag).Name
 		if val, ok := adapter.Query(r, paramName); ok {
-			if err := p.setFieldValue(ctx, fieldValue, field, val); err != nil {
+			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, val); err != nil {
 				return fmt.Errorf("failed to set query parameter %s: %w", paramName, err)
 			}
 		}
@@ -292,7 +283,7 @@ func (p *ConventionParser) parseHeadersSection(ctx context.Context, sectionValue
 
 		headerName := parseGorkTag(gorkTag).Name
 		if val, ok := adapter.Header(r, headerName); ok {
-			if err := p.setFieldValue(ctx, fieldValue, field, val); err != nil {
+			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, val); err != nil {
 				return fmt.Errorf("failed to set header %s: %w", headerName, err)
 			}
 		}
@@ -318,146 +309,12 @@ func (p *ConventionParser) parseCookiesSection(ctx context.Context, sectionValue
 
 		cookieName := parseGorkTag(gorkTag).Name
 		if val, ok := adapter.Cookie(r, cookieName); ok {
-			if err := p.setFieldValue(ctx, fieldValue, field, val); err != nil {
+			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, val); err != nil {
 				return fmt.Errorf("failed to set cookie %s: %w", cookieName, err)
 			}
 		}
 	}
 
-	return nil
-}
-
-// setFieldValue sets a field value with type conversion and complex type parsing.
-func (p *ConventionParser) setFieldValue(ctx context.Context, fieldValue reflect.Value, field reflect.StructField, value string) error {
-	// First try complex type parsing
-	if parser := p.typeRegistry.GetParser(field.Type); parser != nil {
-		result, err := parser(ctx, value)
-		if err != nil {
-			return err
-		}
-		fieldValue.Set(reflect.ValueOf(result).Elem())
-		return nil
-	}
-
-	// Fall back to basic type conversion
-	return p.setBasicFieldValue(fieldValue, field, value)
-}
-
-// setBasicFieldValue handles basic type conversions.
-func (p *ConventionParser) setBasicFieldValue(fieldValue reflect.Value, field reflect.StructField, value string) error {
-	kind := field.Type.Kind()
-	if p.isBasicKind(kind) {
-		return p.setBasicFieldValueForKind(fieldValue, kind, value)
-	}
-
-	// Handle special cases
-	if kind == reflect.Slice {
-		return p.setSliceFieldValue(fieldValue, field, value)
-	}
-
-	return p.setSpecialFieldValue(fieldValue, field, value)
-}
-
-// isBasicKind checks if the kind is a basic type that can be converted directly.
-func (p *ConventionParser) isBasicKind(kind reflect.Kind) bool {
-	return kind == reflect.String ||
-		kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 ||
-		kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 ||
-		kind == reflect.Bool || kind == reflect.Float32 || kind == reflect.Float64
-}
-
-// setBasicFieldValueForKind handles basic type conversions for specific kinds.
-func (p *ConventionParser) setBasicFieldValueForKind(fieldValue reflect.Value, kind reflect.Kind, value string) error {
-	if kind == reflect.String {
-		fieldValue.SetString(value)
-		return nil
-	}
-	if kind == reflect.Int || kind == reflect.Int8 || kind == reflect.Int16 || kind == reflect.Int32 || kind == reflect.Int64 {
-		return p.setIntFieldValue(fieldValue, value)
-	}
-	if kind == reflect.Uint || kind == reflect.Uint8 || kind == reflect.Uint16 || kind == reflect.Uint32 || kind == reflect.Uint64 {
-		return p.setUintFieldValue(fieldValue, value)
-	}
-	if kind == reflect.Bool {
-		return p.setBoolFieldValue(fieldValue, value)
-	}
-	if kind == reflect.Float32 || kind == reflect.Float64 {
-		return p.setFloatFieldValue(fieldValue, value)
-	}
-	return fmt.Errorf("unsupported field type: %s", kind)
-}
-
-// setIntFieldValue handles integer field conversions.
-func (p *ConventionParser) setIntFieldValue(fieldValue reflect.Value, value string) error {
-	iv, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid integer value: %s", value)
-	}
-	fieldValue.SetInt(iv)
-	return nil
-}
-
-// setUintFieldValue handles unsigned integer field conversions.
-func (p *ConventionParser) setUintFieldValue(fieldValue reflect.Value, value string) error {
-	uv, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid unsigned integer value: %s", value)
-	}
-	fieldValue.SetUint(uv)
-	return nil
-}
-
-// setBoolFieldValue handles boolean field conversions.
-func (p *ConventionParser) setBoolFieldValue(fieldValue reflect.Value, value string) error {
-	bv, err := strconv.ParseBool(value)
-	if err != nil {
-		return fmt.Errorf("invalid boolean value: %s", value)
-	}
-	fieldValue.SetBool(bv)
-	return nil
-}
-
-// setFloatFieldValue handles float field conversions.
-func (p *ConventionParser) setFloatFieldValue(fieldValue reflect.Value, value string) error {
-	fv, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return fmt.Errorf("invalid float value: %s", value)
-	}
-	fieldValue.SetFloat(fv)
-	return nil
-}
-
-// setSpecialFieldValue handles special types like time.Time.
-func (p *ConventionParser) setSpecialFieldValue(fieldValue reflect.Value, field reflect.StructField, value string) error {
-	// Try to handle time.Time specially
-	if field.Type == reflect.TypeOf(time.Time{}) {
-		t, err := time.Parse(time.RFC3339, value)
-		if err != nil {
-			return fmt.Errorf("invalid time format: %s", value)
-		}
-		fieldValue.Set(reflect.ValueOf(t))
-		return nil
-	}
-	return fmt.Errorf("unsupported field type: %s", field.Type.Kind())
-}
-
-// setSliceFieldValue handles slice field conversions - simplified for string slices only.
-func (p *ConventionParser) setSliceFieldValue(fieldValue reflect.Value, field reflect.StructField, value string) error {
-	if field.Type.Elem().Kind() != reflect.String {
-		return fmt.Errorf("only string slices are supported in query/path/header parameters")
-	}
-
-	if value == "" {
-		return nil // Empty value, leave slice as zero value
-	}
-
-	// Simple comma-separated parsing
-	parts := strings.Split(value, ",")
-	sliceVal := reflect.MakeSlice(field.Type, len(parts), len(parts))
-	for idx, part := range parts {
-		sliceVal.Index(idx).SetString(strings.TrimSpace(part))
-	}
-	fieldValue.Set(sliceVal)
 	return nil
 }
 
