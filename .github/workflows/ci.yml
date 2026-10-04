@@ -7,48 +7,22 @@ on:
     branches: [ main ]
 
 jobs:
-  # First job to dynamically determine modules
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      modules: ${{ steps.set-modules.outputs.modules }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: set-modules
-        name: Get modules from go.work
-        run: |
-          # Get modules from Makefile in JSON format
-          MODULES=$(make list-modules FORMAT=json)
-          echo "modules=$MODULES" >> $GITHUB_OUTPUT
-          echo "Found modules: $MODULES"
-
   test:
-    needs:
-      - setup
-      - build
+    needs: build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJson(needs.setup.outputs.modules) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27'
 
-      - name: Test and check coverage for ${{ matrix.module }}
-        run: |
-          # Use the centralized script for both testing and coverage check
-          ./scripts/check-coverage.sh ${{ matrix.module }} 100
+      - name: Test and check coverage
+        run: ./scripts/check-coverage.sh
 
       - name: Upload coverage
-        if: matrix.module != 'examples'
         uses: codecov/codecov-action@v5
         with:
-          files: ./${{ matrix.module }}/coverage.out
-          flags: ${{ matrix.module }}
+          files: ./coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
@@ -69,23 +43,17 @@ jobs:
           path: bin/
 
   lint:
-    needs: setup
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJson(needs.setup.outputs.modules) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27'
 
-      - name: golangci-lint ${{ matrix.module }}
+      - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.14.0
-          working-directory: ${{ matrix.module }}
           args: --timeout=5m
 
   validate-openapi:
