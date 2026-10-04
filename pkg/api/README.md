@@ -191,6 +191,48 @@ Where:
 - `ResponseType` is your response type with convention sections (pointer)
 - `error` is for error handling
 
+## Stream Handlers (Server-Sent Events)
+
+A handler with a third parameter `*api.Stream[E]` sends Server-Sent Events. Register it with the usual router methods.
+
+```go
+// LiveEvents lists the events of the stream. Each field is one event type.
+type LiveEvents struct {
+    Feed  *FeedRow  `gork:"feed"`
+    Reset *struct{} `gork:"reset"` // event without payload
+}
+
+func Live(ctx context.Context, req LiveRequest, stream *api.Stream[LiveEvents]) error {
+    if err := stream.Send(LiveEvents{Reset: &struct{}{}}); err != nil {
+        return err
+    }
+    for {
+        select {
+        case <-ctx.Done():
+            return nil
+        case row := <-feed:
+            if err := stream.Send(LiveEvents{Feed: &row}); err != nil {
+                return err
+            }
+        }
+    }
+}
+
+router.Get("/live", Live)
+```
+
+Rules:
+- Each field of the event struct must be an exported pointer with a `gork` tag. The tag is the SSE `event:` name. Gork checks the struct at registration and panics when it breaks a rule.
+- `Send` writes `event: <tag>` and `data: <json>` and flushes. Set exactly one field for each call. Otherwise `Send` returns an error.
+- Gork parses and validates the request before the stream starts. An invalid request gets the usual JSON error response.
+- Then Gork sends status 200 with `Content-Type: text/event-stream`. An error from the handler only ends the stream.
+- Gork sends a `: ping` comment every 15 seconds while the handler runs.
+- Gork clears the write deadline of the connection, so `http.Server.WriteTimeout` does not stop the stream.
+- When the client disconnects, `ctx` is done. Return from the handler.
+- Call `Send` only from the handler goroutine.
+- The OpenAPI spec shows the route as `text/event-stream` with an `itemSchema`. The spec has `openapi: 3.2.0` when it has a stream route.
+- The Fiber adapter does not support stream handlers.
+
 ## OpenAPI Integration
 
 This adapter automatically generates OpenAPI specifications from convention-based request/response structures using the gork CLI tool.

@@ -126,6 +126,7 @@ gork/
 - **OpenAPI 3.1.0**: Full specification generation from Go source code
 - **Validator Integration**: `go-playground/validator` tags become OpenAPI constraints
 - **Union Types**: Type-safe variants with `oneOf` schemas and discriminators
+- **Server-Sent Events**: Stream handlers send typed events, documented with the OpenAPI 3.2 `itemSchema`
 - **Multi-Framework**: Works with Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib
 
 ### Developer Experience
@@ -532,11 +533,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **100% Test Coverage**: Quality-first development approach
 - **Interactive Documentation**: Built-in docs serving
 - **Webhook Utilities**: Typed event handlers, signature verification (Stripe), OpenAPI extensions
+- **Server-Sent Events**: Stream handlers with typed events (all adapters except Fiber)
 
 ### 🚀 Coming Soon
 - **⚡ Ahead-of-Time Compilation**: Eliminate runtime reflection for better performance
 - **📝 Enhanced Documentation**: Improved OpenAPI spec generation
-- **🌊 Event Streams**: WebSocket and SSE support  
+- **🌊 Event Streams**: WebSocket support
 - **🎯 Advanced Validation**: Build-time validation generation
 - **📏 Simple Rule Engine**: Input validation with business rules (e.g., `rule:owned_by($current_user)`)
 - **🔗 Variable-Length Unions**: User-defined union types with custom properties
