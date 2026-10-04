@@ -7,6 +7,21 @@
 
 **Gork** is an opinionated convention over configuration OpenAPI framework for Go that provides type-safe HTTP handlers, automatic OpenAPI 3.1.0 generation, and union types. Built for developer productivity and business development efficiency.
 
+## 📥 Installation
+
+Gork is one Go module. Add it to your module:
+
+```bash
+go get github.com/gork-labs/gork@latest
+```
+
+Install the CLI tools:
+
+```bash
+go install github.com/gork-labs/gork/cmd/gork@latest
+go install github.com/gork-labs/gork/cmd/lintgork@latest
+```
+
 ## 🚀 Quick Start
 
 Here's a simple example showing how to create a type-safe API with automatic OpenAPI generation:
@@ -484,15 +499,17 @@ func CustomHandler(ctx context.Context, req MyRequest) (*MyResponse, error) {
 
 ## 📚 Libraries
 
+All libraries are packages of the module `github.com/gork-labs/gork`. The command `go get github.com/gork-labs/gork@latest` adds all of them. Your build compiles only the packages that you import.
+
 ### Core API Library
-```bash
-go get github.com/gork-labs/gork/pkg/api
+```go
+import "github.com/gork-labs/gork/pkg/api"
 ```
 Framework-agnostic API handlers with automatic OpenAPI metadata extraction and type-safe request/response handling.
 
 ### Webhooks
-```bash
-go get github.com/gork-labs/gork/pkg/webhooks/stripe
+```go
+import "github.com/gork-labs/gork/pkg/webhooks/stripe"
 ```
 - **Typed Webhook Handling**: Define a provider handler and register event-specific functions with compile-time checked signatures.
 - **Signature Verification**: Provider verifies signatures (Stripe via official SDK) and extracts provider payload + optional user metadata.
@@ -538,42 +555,39 @@ Notes:
 - Stripe provider maps common event families to concrete types (e.g., `*stripe.PaymentIntent`, `*stripe.Invoice`) and forwards `Metadata` as `meta`.
 
 ### Union Types
-```bash  
-go get github.com/gork-labs/gork/pkg/unions
+```go
+import "github.com/gork-labs/gork/pkg/unions"
 ```
 Type-safe union types (`Union2`, `Union3`, `Union4`) with JSON marshaling and validation support for modeling API variants.
 
 ### Framework Adapters
 Choose your web framework:
-```bash
-go get github.com/gork-labs/gork/pkg/adapters/gin      # Gin
-go get github.com/gork-labs/gork/pkg/adapters/echo     # Echo  
-go get github.com/gork-labs/gork/pkg/adapters/chi      # Chi
-go get github.com/gork-labs/gork/pkg/adapters/fiber    # Fiber
-go get github.com/gork-labs/gork/pkg/adapters/gorilla  # Gorilla Mux
-go get github.com/gork-labs/gork/pkg/adapters/stdlib   # Standard library
+```go
+import "github.com/gork-labs/gork/pkg/adapters/gin"      // Gin
+import "github.com/gork-labs/gork/pkg/adapters/echo"     // Echo
+import "github.com/gork-labs/gork/pkg/adapters/chi"      // Chi
+import "github.com/gork-labs/gork/pkg/adapters/fiber"    // Fiber
+import "github.com/gork-labs/gork/pkg/adapters/gorilla"  // Gorilla Mux
+import "github.com/gork-labs/gork/pkg/adapters/stdlib"   // Standard library
 ```
 
 ## Development
 
-This repository uses Go workspaces for local development. To get started:
+This repository is one Go module with one `go.mod` file at the root. To get started:
 
 ```bash
 # Clone the repository
 git clone https://github.com/gork-labs/gork.git
 cd gork
 
-# Run tests for all modules
+# Run all tests
 make test
 
 # Build CLI tools
 make build
 
-# Generate coverage reports (requires 100% coverage)
+# Check coverage (requires 100% coverage) and write coverage.html
 make coverage
-
-# Generate HTML coverage reports
-make coverage-html
 
 # Run linting
 make lint
@@ -599,15 +613,13 @@ make clean
 
 - Go 1.24 or higher
 - Make (for using the Makefile)
-- Go workspace support
 
 ### Project Structure
 
-Each module in this monorepo:
-- Has its own `go.mod` file
-- Can be versioned independently
-- Can be imported separately by users
-- Shares common development tooling
+The repository has one module, `github.com/gork-labs/gork`:
+- The root `go.mod` file declares all dependencies
+- The `cmd/`, `internal/`, `pkg/` and `examples/` directories are packages of this module
+- Every package outside `examples/` must have 100% test coverage
 
 ## Contributing
 
@@ -624,11 +636,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## Versioning
 
-This monorepo uses independent versioning for each module:
+The module uses semantic versioning:
 
-- Module versions follow semantic versioning
-- Tags use the format: `<module-path>/v<version>`
-- Example: `pkg/unions/v1.0.0`, `openapi-gen/v2.1.0`
+- One tag `vX.Y.Z` releases the whole repository
+- There are no tags for each package or directory
+- Example: `v0.1.0`
 
 ## License
 
