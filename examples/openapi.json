@@ -1029,13 +1029,18 @@
             "type": "object",
             "properties": {
               "data": {
+                "type": "string",
                 "contentMediaType": "application/json",
                 "contentSchema": {
                   "$ref": "#/components/schemas/UserActivity"
                 }
               },
               "event": {
+                "type": "string",
                 "const": "activity"
+              },
+              "id": {
+                "type": "string"
               }
             },
             "required": [
@@ -1047,13 +1052,18 @@
             "type": "object",
             "properties": {
               "data": {
+                "type": "string",
                 "contentMediaType": "application/json",
                 "contentSchema": {
                   "type": "object"
                 }
               },
               "event": {
+                "type": "string",
                 "const": "reset"
+              },
+              "id": {
+                "type": "string"
               }
             },
             "required": [

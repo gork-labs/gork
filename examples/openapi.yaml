@@ -294,8 +294,12 @@ components:
                         contentMediaType: application/json
                         contentSchema:
                             $ref: '#/components/schemas/UserActivity'
+                        type: string
                     event:
                         const: activity
+                        type: string
+                    id:
+                        type: string
                   required:
                     - event
                     - data
@@ -305,8 +309,12 @@ components:
                         contentMediaType: application/json
                         contentSchema:
                             type: object
+                        type: string
                     event:
                         const: reset
+                        type: string
+                    id:
+                        type: string
                   required:
                     - event
                     - data

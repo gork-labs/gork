@@ -286,6 +286,7 @@ Rules:
 - Call `Send` only from the handler goroutine.
 - The OpenAPI spec shows the route as `text/event-stream` with an `itemSchema`. The spec has `openapi: 3.2.0` when it has a stream route.
 - The `itemSchema` is a `$ref` to a component with the name of the event type, for example `LiveEvents`. The component is a `oneOf` with one entry for each event field. Thus a tool that does not read `itemSchema`, such as openapi-typescript, still generates a type for the events.
+- Each `oneOf` entry describes one event as OpenAPI 3.2 shows it for `text/event-stream`. `event` is a string with the tag as `const`. `data` is a string with `contentMediaType: application/json` and a `contentSchema` for the payload. `id` is an optional string, because any handler can call `SendWithID`. The spec ignores comments, so the `: ping` lines are not in the schema.
 - The Fiber adapter does not support stream handlers.
 
 ### Resume After a Reconnect

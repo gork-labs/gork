@@ -48,12 +48,15 @@ func TestStreamOpenAPIResponse(t *testing.T) {
 	if row.Type != "object" || !reflect.DeepEqual(row.Required, []string{"event", "data"}) {
 		t.Errorf("unexpected event schema: %+v", row)
 	}
-	if row.Properties["event"].Const != "row" {
-		t.Errorf("expected event const row, got %q", row.Properties["event"].Const)
+	if row.Properties["event"].Type != "string" || row.Properties["event"].Const != "row" {
+		t.Errorf("expected event string const row, got %+v", row.Properties["event"])
 	}
 	data := row.Properties["data"]
-	if data.ContentMediaType != "application/json" || data.ContentSchema.Ref != "#/components/schemas/streamTestRow" {
+	if data.Type != "string" || data.ContentMediaType != "application/json" || data.ContentSchema.Ref != "#/components/schemas/streamTestRow" {
 		t.Errorf("unexpected data schema: %+v", data)
+	}
+	if row.Properties["id"].Type != "string" {
+		t.Errorf("expected optional string id, got %+v", row.Properties["id"])
 	}
 	if spec.Components.Schemas["streamTestRow"] == nil {
 		t.Error("expected the payload type as a component schema")
@@ -104,11 +107,13 @@ func TestStreamOpenAPIJSON(t *testing.T) {
 		`{"itemSchema":{"$ref":"#/components/schemas/streamTestEvents"}}`)
 	assertJSONEqual(t, doc.Components.Schemas["streamTestEvents"], `{"title":"streamTestEvents","oneOf":[
 		{"type":"object","required":["event","data"],"properties":{
-			"event":{"const":"row"},
-			"data":{"contentMediaType":"application/json","contentSchema":{"$ref":"#/components/schemas/streamTestRow"}}}},
+			"event":{"type":"string","const":"row"},
+			"data":{"type":"string","contentMediaType":"application/json","contentSchema":{"$ref":"#/components/schemas/streamTestRow"}},
+			"id":{"type":"string"}}},
 		{"type":"object","required":["event","data"],"properties":{
-			"event":{"const":"done"},
-			"data":{"contentMediaType":"application/json","contentSchema":{"type":"object"}}}}
+			"event":{"type":"string","const":"done"},
+			"data":{"type":"string","contentMediaType":"application/json","contentSchema":{"type":"object"}},
+			"id":{"type":"string"}}}
 	]}`)
 }
 

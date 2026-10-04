@@ -304,7 +304,8 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 // buildStreamResponse builds a text/event-stream response. The item schema is a
 // oneOf with one entry for each event field. For a named event type, the oneOf
 // is a component, because some tools, such as openapi-typescript, do not read
-// itemSchema but read all components.
+// itemSchema but read all components. Each entry has an optional id, because
+// any stream handler can call SendWithID.
 func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type, components *Components) *Response {
 	events := make([]*Schema, 0, eventType.NumField())
 	for i := 0; i < eventType.NumField(); i++ {
@@ -315,11 +316,13 @@ func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type,
 			Type:     "object",
 			Required: []string{"event", "data"},
 			Properties: map[string]*Schema{
-				"event": {Const: parseGorkTag(field.Tag.Get("gork")).Name},
+				"event": {Type: "string", Const: parseGorkTag(field.Tag.Get("gork")).Name},
 				"data": {
+					Type:             "string",
 					ContentMediaType: "application/json",
 					ContentSchema:    data,
 				},
+				"id": {Type: "string"},
 			},
 		})
 	}
