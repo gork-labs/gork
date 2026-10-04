@@ -55,7 +55,7 @@ type LiveEvent struct {
 
 Gork writes the headers at stream start, not at the first `Send`. This is the simpler option: the keep-alive writer does not have to start the response, and the client gets the headers immediately.
 
-There is no `id:` or `Last-Event-ID` support.
+`Stream.SendWithID` writes an `id:` line. A handler reads the `Last-Event-ID` header with a field of the `Headers` section.
 
 ## OpenAPI
 
@@ -67,10 +67,12 @@ itemSchema:
     - type: object
       required: [event, data]
       properties:
-        event: { const: agent }
+        event: { type: string, const: agent }
         data:
+          type: string
           contentMediaType: application/json
           contentSchema: { $ref: '#/components/schemas/AgentNode' }
+        id: { type: string }
 ```
 
 - Each payload type is a usual component schema.
