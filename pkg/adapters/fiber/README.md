@@ -5,7 +5,7 @@ This adapter provides integration between [Fiber](https://gofiber.io/) and the G
 ## Installation
 
 ```bash
-go get github.com/gork-labs/gork/pkg/adapters/fiber
+go get github.com/gork-labs/gork@latest
 ```
 
 ## Basic Usage

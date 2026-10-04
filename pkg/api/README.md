@@ -1,13 +1,13 @@
 # pkg/api - Convention Over Configuration HTTP Handler
 
-[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fapi)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/api)
 
 This package provides a Convention Over Configuration HTTP handler adapter that uses structured request types to eliminate the need for parameter location tags.
 
 ## Installation
 
 ```bash
-go get github.com/gork-labs/gork/pkg/api
+go get github.com/gork-labs/gork@latest
 ```
 
 ## Convention Over Configuration

@@ -1,13 +1,13 @@
 # pkg/gorkson - JSON Encoding and Type Codecs
 
-[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg?flag=pkg%2Fgorkson)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/gorkson)
+[![codecov](https://codecov.io/gh/gork-labs/gork/branch/main/graph/badge.svg)](https://codecov.io/gh/gork-labs/gork/tree/main/pkg/gorkson)
 
 This package is the type conversion layer of Gork. It encodes and decodes JSON with `gork` tags, and it keeps the global registry of type codecs. `pkg/api` uses it for parameters, request bodies, responses and stream events.
 
 ## Installation
 
 ```bash
-go get github.com/gork-labs/gork/pkg/gorkson
+go get github.com/gork-labs/gork@latest
 ```
 
 ## JSON with gork Tags
