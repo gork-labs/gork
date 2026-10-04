@@ -1,7 +1,12 @@
 // Package handlers contains HTTP handler functions for the example API.
 package handlers
 
-import "context"
+import (
+	"context"
+	"net/http"
+
+	"github.com/gork-labs/gork/pkg/api"
+)
 
 // LoginRequest represents the request body for the login endpoint.
 type LoginRequest struct {
@@ -23,8 +28,10 @@ type LoginResponse struct {
 }
 
 // Login handles user login requests.
-func Login(_ context.Context, _ *LoginRequest) (*LoginResponse, error) {
-	// Handle login logic here
+func Login(_ context.Context, req LoginRequest) (*LoginResponse, error) {
+	if req.Body.Password != "example-password" {
+		return nil, api.NewHTTPError(http.StatusUnauthorized, "The username or the password is wrong.")
+	}
 	return &LoginResponse{
 		Body: struct {
 			Token string `gork:"token"`

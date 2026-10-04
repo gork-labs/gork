@@ -421,14 +421,12 @@ func TestConventionHandlerFactory_GetStringValue_JSONMarshalError(t *testing.T) 
 	}
 }
 
-func TestConventionHandlerFactory_HandleValidationError_NonValidationError(t *testing.T) {
-	factory := NewConventionHandlerFactory()
-
+func TestWriteHandlerError_NonValidationError(t *testing.T) {
 	// Create a non-validation error
 	testError := &TestError{Message: "server error"}
 
 	rr := httptest.NewRecorder()
-	factory.handleValidationError(rr, testError)
+	writeHandlerError(rr, testError)
 
 	// Should return 500 for non-validation errors
 	if rr.Code != http.StatusInternalServerError {

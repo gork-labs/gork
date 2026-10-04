@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"reflect"
 
@@ -71,7 +72,7 @@ func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWrite
 
 	// Validate request using Convention Over Configuration
 	if err := f.validator.ValidateRequest(r.Context(), reqPtr.Interface()); err != nil {
-		f.handleValidationError(w, err)
+		writeHandlerError(w, err)
 		return
 	}
 
@@ -84,16 +85,18 @@ func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWrite
 	f.processConventionResponse(w, r, handlerValue, reqPtr)
 }
 
-// handleValidationError handles validation errors with proper HTTP status codes.
-func (f *ConventionHandlerFactory) handleValidationError(w http.ResponseWriter, err error) {
-	if IsValidationError(err) {
-		// Client validation error - HTTP 400 Bad Request
+// writeHandlerError writes the response for an error from request validation or from a handler.
+func writeHandlerError(w http.ResponseWriter, err error) {
+	var httpErr *HTTPError
+	switch {
+	case errors.As(err, &httpErr):
+		writeError(w, httpErr.Status, httpErr.Message)
+	case IsValidationError(err):
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(err)
-	} else {
-		// Server error - HTTP 500 Internal Server Error
-		writeError(w, http.StatusInternalServerError, "Request validation failed due to server error")
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
 	}
 }
 
@@ -111,7 +114,7 @@ func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWrit
 		errInterface := results[0].Interface()
 		if errInterface != nil {
 			if errVal, ok := errInterface.(error); ok {
-				writeError(w, http.StatusInternalServerError, errVal.Error())
+				writeHandlerError(w, errVal)
 				return
 			}
 		}
@@ -126,7 +129,7 @@ func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWrit
 
 	if errInterface != nil {
 		if errVal, ok := errInterface.(error); ok {
-			writeError(w, http.StatusInternalServerError, errVal.Error())
+			writeHandlerError(w, errVal)
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "unknown error")

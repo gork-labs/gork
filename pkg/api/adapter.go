@@ -12,14 +12,16 @@ import (
 
 // HandlerOption represents an option for configuring a handler.
 type HandlerOption struct {
-	Tags     []string
-	Security []SecurityRequirement
+	Tags           []string
+	Security       []SecurityRequirement
+	ErrorResponses []int
 }
 
 // SecurityRequirement represents a security requirement for an operation.
 type SecurityRequirement struct {
-	Type   string   // "basic", "bearer", "apiKey"
+	Type   string   // "basic", "bearer", "apiKey", "cookie"
 	Scopes []string // For OAuth2
+	Name   string   // Cookie name for "cookie"
 }
 
 // Option is a function that modifies HandlerOption.
@@ -57,6 +59,24 @@ func WithAPIKeyAuth() Option {
 		h.Security = append(h.Security, SecurityRequirement{
 			Type: "apiKey",
 		})
+	}
+}
+
+// WithCookieAuth adds an API key requirement that the client sends in the cookie with this name.
+func WithCookieAuth(name string) Option {
+	return func(h *HandlerOption) {
+		h.Security = append(h.Security, SecurityRequirement{
+			Type: "cookie",
+			Name: name,
+		})
+	}
+}
+
+// WithErrorResponses adds responses with the ErrorResponse schema for these
+// HTTP statuses to the OpenAPI operation. A handler sends them with HTTPError.
+func WithErrorResponses(statuses ...int) Option {
+	return func(h *HandlerOption) {
+		h.ErrorResponses = append(h.ErrorResponses, statuses...)
 	}
 }
 

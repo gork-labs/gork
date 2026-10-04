@@ -179,6 +179,19 @@ components:
                   title: '[]UserType'
                   type: array
             title: ListUsersResponse
+        LoginBody:
+            properties:
+                password:
+                    description: Password is the user's password
+                    type: string
+                username:
+                    description: Username is the user's username
+                    type: string
+            required:
+                - username
+                - password
+            title: LoginBody
+            type: object
         LoginResponse:
             description: LoginResponse represents the response body for the login endpoint.
             properties:
@@ -362,6 +375,10 @@ components:
         BearerAuth:
             scheme: bearer
             type: http
+        session_id:
+            in: cookie
+            name: session_id
+            type: apiKey
 info:
     title: Example API
     version: 1.0.0
@@ -371,6 +388,12 @@ paths:
         post:
             description: Login handles user login requests.
             operationId: Login
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/LoginBody'
+                required: true
             responses:
                 "200":
                     content:
@@ -380,6 +403,12 @@ paths:
                     description: Success
                 "400":
                     $ref: '#/components/responses/BadRequest'
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                    description: Unauthorized
                 "422":
                     $ref: '#/components/responses/UnprocessableEntity'
                 "500":
@@ -560,6 +589,8 @@ paths:
                     $ref: '#/components/responses/UnprocessableEntity'
                 "500":
                     $ref: '#/components/responses/InternalServerError'
+            security:
+                - session_id: []
             tags:
                 - users
         get:
