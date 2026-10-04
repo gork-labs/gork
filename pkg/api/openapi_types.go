@@ -166,6 +166,9 @@ type Schema struct {
 	Const            string  `json:"const,omitempty"`
 	ContentMediaType string  `json:"contentMediaType,omitempty"`
 	ContentSchema    *Schema `json:"contentSchema,omitempty"`
+
+	// writtenFields lists the properties of a struct schema that gorkson.Marshal always writes.
+	writtenFields []string
 }
 
 // MarshalJSON implements custom JSON marshaling for Schema to handle the type field correctly.

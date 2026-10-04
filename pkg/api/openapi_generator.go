@@ -3,6 +3,7 @@ package api
 import (
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -275,6 +276,10 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 
 	fieldSchema := reflectTypeToSchemaInternal(f.Type, registry, true)
 
+	if gorksonWrites(f) {
+		s.writtenFields = append(s.writtenFields, fieldName)
+	}
+
 	// Handle discriminator values
 	if discVal, ok := parseDiscriminator(f.Tag.Get("gork")); ok {
 		fieldSchema.Enum = []string{discVal}
@@ -287,6 +292,44 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 	}
 
 	s.Properties[fieldName] = fieldSchema
+}
+
+// gorksonWrites reports whether gorkson.Marshal writes the field. gorkson writes
+// each field that has a gork or json name, and it writes a nil value as null.
+func gorksonWrites(f reflect.StructField) bool {
+	name := parseGorkTag(f.Tag.Get("gork")).Name
+	if name == "" {
+		name = strings.Split(f.Tag.Get("json"), ",")[0]
+	}
+	return name != "" && name != "-"
+}
+
+// requireWrittenFields adds the written fields of each struct schema that the
+// response schema reaches to its required list.
+func requireWrittenFields(s *Schema, schemas map[string]*Schema) {
+	if s == nil {
+		return
+	}
+	if s.Ref != "" {
+		requireWrittenFields(schemas[strings.TrimPrefix(s.Ref, "#/components/schemas/")], schemas)
+		return
+	}
+
+	for _, name := range s.writtenFields {
+		if !slices.Contains(s.Required, name) {
+			s.Required = append(s.Required, name)
+		}
+	}
+	for _, prop := range s.Properties {
+		requireWrittenFields(prop, schemas)
+	}
+	requireWrittenFields(s.Items, schemas)
+	for _, member := range s.OneOf {
+		requireWrittenFields(member, schemas)
+	}
+	for _, member := range s.AnyOf {
+		requireWrittenFields(member, schemas)
+	}
 }
 
 func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
