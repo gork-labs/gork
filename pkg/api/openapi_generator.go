@@ -582,8 +582,15 @@ func applyLenConstraint(fieldSchema *Schema, val string, fieldType reflect.Type)
 	}
 }
 
+// oneofValue is the rule of go-playground/validator for the values of oneof: a value in
+// single quotes can contain spaces.
+var oneofValue = regexp.MustCompile(`'[^']*'|\S+`)
+
 func applyOneOfConstraint(fieldSchema *Schema, val string) {
-	opts := strings.Fields(val)
+	opts := oneofValue.FindAllString(val, -1)
+	for i, opt := range opts {
+		opts[i] = strings.ReplaceAll(opt, "'", "")
+	}
 	if len(opts) > 0 {
 		fieldSchema.Enum = opts
 	}
