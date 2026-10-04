@@ -285,6 +285,7 @@ Rules:
 - When the client disconnects, `ctx` is done. Return from the handler.
 - Call `Send` only from the handler goroutine.
 - The OpenAPI spec shows the route as `text/event-stream` with an `itemSchema`. The spec has `openapi: 3.2.0` when it has a stream route.
+- The `itemSchema` is a `$ref` to a component with the name of the event type, for example `LiveEvents`. The component is a `oneOf` with one entry for each event field. Thus a tool that does not read `itemSchema`, such as openapi-typescript, still generates a type for the events.
 - The Fiber adapter does not support stream handlers.
 
 ### Resume After a Reconnect

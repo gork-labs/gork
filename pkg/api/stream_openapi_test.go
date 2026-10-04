@@ -36,10 +36,10 @@ func TestStreamOpenAPIResponse(t *testing.T) {
 	}
 
 	media := op.Responses["200"].Content["text/event-stream"]
-	if media == nil || media.Schema != nil || media.ItemSchema == nil {
-		t.Fatalf("expected text/event-stream with itemSchema, got %+v", op.Responses["200"].Content)
+	if media == nil || media.Schema != nil || media.ItemSchema == nil || media.ItemSchema.Ref != "#/components/schemas/streamTestEvents" {
+		t.Fatalf("expected text/event-stream with an itemSchema ref to streamTestEvents, got %+v", op.Responses["200"].Content)
 	}
-	events := media.ItemSchema.OneOf
+	events := spec.Components.Schemas["streamTestEvents"].OneOf
 	if len(events) != 2 {
 		t.Fatalf("expected 2 event schemas, got %d", len(events))
 	}
@@ -92,28 +92,36 @@ func TestStreamOpenAPIJSON(t *testing.T) {
 				Content map[string]json.RawMessage `json:"content"`
 			} `json:"responses"`
 		} `json:"paths"`
+		Components struct {
+			Schemas map[string]json.RawMessage `json:"schemas"`
+		} `json:"components"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
 		t.Fatalf("unmarshal spec: %v", err)
 	}
 
-	want := `{"itemSchema":{"oneOf":[
+	assertJSONEqual(t, doc.Paths["/routea"]["get"].Responses["200"].Content["text/event-stream"],
+		`{"itemSchema":{"$ref":"#/components/schemas/streamTestEvents"}}`)
+	assertJSONEqual(t, doc.Components.Schemas["streamTestEvents"], `{"title":"streamTestEvents","oneOf":[
 		{"type":"object","required":["event","data"],"properties":{
 			"event":{"const":"row"},
 			"data":{"contentMediaType":"application/json","contentSchema":{"$ref":"#/components/schemas/streamTestRow"}}}},
 		{"type":"object","required":["event","data"],"properties":{
 			"event":{"const":"done"},
 			"data":{"contentMediaType":"application/json","contentSchema":{"type":"object"}}}}
-	]}}`
+	]}`)
+}
+
+func assertJSONEqual(t *testing.T, got json.RawMessage, want string) {
+	t.Helper()
 	var gotValue, wantValue interface{}
-	got := doc.Paths["/routea"]["get"].Responses["200"].Content["text/event-stream"]
 	if err := json.Unmarshal(got, &gotValue); err != nil {
-		t.Fatalf("unmarshal media type: %v", err)
+		t.Fatalf("unmarshal %s: %v", got, err)
 	}
 	if err := json.Unmarshal([]byte(want), &wantValue); err != nil {
-		t.Fatalf("unmarshal expected media type: %v", err)
+		t.Fatalf("unmarshal expected %s: %v", want, err)
 	}
 	if !reflect.DeepEqual(gotValue, wantValue) {
-		t.Errorf("unexpected text/event-stream media type:\n%s\nwant:\n%s", got, want)
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }

@@ -435,44 +435,7 @@
             "content": {
               "text/event-stream": {
                 "itemSchema": {
-                  "oneOf": [
-                    {
-                      "properties": {
-                        "data": {
-                          "contentMediaType": "application/json",
-                          "contentSchema": {
-                            "$ref": "#/components/schemas/UserActivity"
-                          }
-                        },
-                        "event": {
-                          "const": "activity"
-                        }
-                      },
-                      "required": [
-                        "event",
-                        "data"
-                      ],
-                      "type": "object"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "contentMediaType": "application/json",
-                          "contentSchema": {
-                            "type": "object"
-                          }
-                        },
-                        "event": {
-                          "const": "reset"
-                        }
-                      },
-                      "required": [
-                        "event",
-                        "data"
-                      ],
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/UserActivityEvents"
                 }
               }
             },
@@ -1058,6 +1021,48 @@
           "action"
         ],
         "description": "UserActivity describes one action of a user."
+      },
+      "UserActivityEvents": {
+        "title": "UserActivityEvents",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "contentMediaType": "application/json",
+                "contentSchema": {
+                  "$ref": "#/components/schemas/UserActivity"
+                }
+              },
+              "event": {
+                "const": "activity"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "contentMediaType": "application/json",
+                "contentSchema": {
+                  "type": "object"
+                }
+              },
+              "event": {
+                "const": "reset"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ]
+          }
+        ],
+        "description": "UserActivityEvents lists the events of the user activity stream."
       },
       "UserType": {
         "type": "object",
