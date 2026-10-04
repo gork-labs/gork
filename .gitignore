@@ -46,5 +46,8 @@ coverage.out
 !.gorka/storage/thinking/.gitkeep
 !.gorka/storage/thinking/.gitignore
 /gork
+/lintgork
+/cmd/gork/gork
+/cmd/lintgork/lintgork
 .gocache
 .gotmp
