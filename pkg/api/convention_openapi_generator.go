@@ -54,9 +54,11 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 		operation.Responses["200"] = g.buildStreamResponse(route.StreamType, components)
 	case route.ResponseType != nil:
 		g.processResponseSections(route.ResponseType, operation, components, route)
+		g.applyStatus(operation, route)
 	default:
 		// Error-only handlers generate 204 No Content
 		operation.Responses["204"] = g.generateNoContentResponse()
+		g.applyStatus(operation, route)
 	}
 
 	g.addRouteErrorResponses(operation, route)
@@ -804,6 +806,20 @@ func (g *ConventionOpenAPIGenerator) hasBodyField(t reflect.Type) bool {
 func (g *ConventionOpenAPIGenerator) generateNoContentResponse() *Response {
 	return &Response{
 		Description: "No Content",
+	}
+}
+
+// applyStatus moves the success response to the status of WithStatus.
+func (g *ConventionOpenAPIGenerator) applyStatus(operation *Operation, route *RouteInfo) {
+	if route.Options == nil || route.Options.Status == 0 {
+		return
+	}
+	for _, code := range []string{"200", "204"} {
+		if response, ok := operation.Responses[code]; ok {
+			delete(operation.Responses, code)
+			response.Description = http.StatusText(route.Options.Status)
+			operation.Responses[strconv.Itoa(route.Options.Status)] = response
+		}
 	}
 }
 

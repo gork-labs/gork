@@ -16,6 +16,7 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 
 	// Auth
 	r.Post("/api/v1/auth/login", handlers.Login, api.WithTags("auth"), api.WithErrorResponses(http.StatusUnauthorized))
+	r.Get("/api/v1/auth/callback", handlers.OAuthCallback, api.WithTags("auth"), api.WithStatus(http.StatusSeeOther), api.WithErrorResponses(http.StatusForbidden))
 
 	// Users CRUD
 	r.Get("/api/v1/users", handlers.ListUsers, api.WithTags("users"), api.WithBearerTokenAuth("read:users"))

@@ -249,6 +249,50 @@ func Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 
 The OpenAPI document does not show response cookies.
 
+### Response Status and Redirects
+
+Gork sends 200 for a response with a `Body` and 204 for a response without a `Body`. To send a different status, add the route option `api.WithStatus(status)`. The OpenAPI operation then shows the success response with this status and its status text as the description. A stream handler always sends 200.
+
+For a redirect, use a response without a `Body` that sets the `Location` header in the `Headers` section, and add `api.WithStatus` with a 3xx status:
+
+```go
+type GitHubCallbackRequest struct {
+    Query struct {
+        Code  string `gork:"code" validate:"required"`
+        State string `gork:"state" validate:"required"`
+    }
+}
+
+type GitHubCallbackResponse struct {
+    Headers struct {
+        // Location is the page that the browser opens next
+        Location string `gork:"Location"`
+    }
+}
+
+func GitHubCallback(ctx context.Context, req GitHubCallbackRequest) (*GitHubCallbackResponse, error) {
+    if !validState(req.Query.State) {
+        return nil, api.NewHTTPError(http.StatusForbidden, "The state is not valid.") // 403 {"error":"The state is not valid."}
+    }
+    resp := &GitHubCallbackResponse{}
+    resp.Headers.Location = "/github"
+    return resp, nil // 303 See Other, Location: /github, no body
+}
+
+router.Get("/github/callback", GitHubCallback, api.WithStatus(http.StatusSeeOther), api.WithErrorResponses(http.StatusForbidden))
+```
+
+An error from the handler gives the usual JSON error response. The OpenAPI operation shows the redirect without content:
+
+```json
+"303": {
+  "description": "See Other",
+  "headers": {
+    "Location": {"description": "Response header", "schema": {"type": "string"}}
+  }
+}
+```
+
 ### Context Usage
 
 The adapter passes through the HTTP request context:

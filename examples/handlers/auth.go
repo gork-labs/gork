@@ -40,3 +40,32 @@ func Login(_ context.Context, req LoginRequest) (*LoginResponse, error) {
 		},
 	}, nil
 }
+
+// OAuthCallbackRequest represents the query of the page where the identity provider sends the browser.
+type OAuthCallbackRequest struct {
+	Query struct {
+		// Code is the authorization code from the identity provider
+		Code string `gork:"code" validate:"required"`
+
+		// State is the value that the login page gave to the identity provider
+		State string `gork:"state" validate:"required"`
+	}
+}
+
+// OAuthCallbackResponse sends the browser to the next page.
+type OAuthCallbackResponse struct {
+	Headers struct {
+		// Location is the page that the browser opens next
+		Location string `gork:"Location"`
+	}
+}
+
+// OAuthCallback completes a login with an identity provider and sends the browser to the home page.
+func OAuthCallback(_ context.Context, req OAuthCallbackRequest) (*OAuthCallbackResponse, error) {
+	if req.Query.State != "example-state" {
+		return nil, api.NewHTTPError(http.StatusForbidden, "The login state is not valid.")
+	}
+	resp := &OAuthCallbackResponse{}
+	resp.Headers.Location = "/"
+	return resp, nil
+}
