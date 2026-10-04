@@ -45,7 +45,7 @@ func TestEnrichSchemaWithTypeDocComprehensive(t *testing.T) {
 			Description: "test description",
 			Fields: map[string]FieldDoc{
 				"field1": {Description: "field1 doc"},
-				"field2": {Description: "field2 doc"}, // This should not overwrite existing
+				"field2": {Description: "field2 doc"},
 				"field3": {Description: "field3 doc"}, // This field doesn't exist in schema
 			},
 		}
@@ -57,9 +57,9 @@ func TestEnrichSchemaWithTypeDocComprehensive(t *testing.T) {
 			t.Errorf("Expected field1 description to be 'field1 doc', got '%s'", schema.Properties["field1"].Description)
 		}
 
-		// field2 should keep existing description
-		if schema.Properties["field2"].Description != "existing" {
-			t.Errorf("Expected field2 description to remain 'existing', got '%s'", schema.Properties["field2"].Description)
+		// field2 gets the field doc instead of the existing description
+		if schema.Properties["field2"].Description != "field2 doc" {
+			t.Errorf("Expected field2 description to be 'field2 doc', got '%s'", schema.Properties["field2"].Description)
 		}
 	})
 

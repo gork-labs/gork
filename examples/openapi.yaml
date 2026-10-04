@@ -131,7 +131,7 @@ components:
                 message:
                     type: string
                 priority:
-                    description: Task priority level (internal iota, external string)
+                    description: Will be formatted back to string
                     enum:
                         - low
                         - medium
@@ -139,7 +139,7 @@ components:
                     example: medium
                     type: string
                 task:
-                    description: Task ID that resolves to full task information
+                    description: Will be formatted back to ID
                     example: 1
                     format: int32
                     minimum: 1
