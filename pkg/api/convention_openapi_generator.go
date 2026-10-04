@@ -453,7 +453,7 @@ func (g *ConventionOpenAPIGenerator) extractStructPropertiesToSchema(structType 
 		}
 
 		// Handle embedded structs - flatten their properties into parent schema
-		if field.Anonymous && field.Type.Kind() == reflect.Struct && field.Tag.Get("json") == "" {
+		if field.Anonymous && field.Type.Kind() == reflect.Struct && field.Tag.Get("gork") == "" && field.Tag.Get("json") == "" {
 			g.extractStructPropertiesToSchema(field.Type, schema, components)
 			continue
 		}

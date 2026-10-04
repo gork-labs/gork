@@ -96,7 +96,7 @@ func TestResponseFieldsRequiredWhenWritten(t *testing.T) {
 	schemas := GenerateOpenAPI(registry).Components.Schemas
 
 	item := schemas["requiredItem"]
-	if want := []string{"name", "note", "json_name", "address", "parent", "children", "extra"}; !reflect.DeepEqual(item.Required, want) {
+	if want := []string{"name", "note", "json_name", "Untagged", "address", "parent", "children", "extra"}; !reflect.DeepEqual(item.Required, want) {
 		t.Errorf("requiredItem required = %v, want %v", item.Required, want)
 	}
 	if parent := item.Properties["parent"].AnyOf[0]; !reflect.DeepEqual(parent.Required, []string{"id"}) {

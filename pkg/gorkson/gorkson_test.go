@@ -122,7 +122,7 @@ func TestMarshal(t *testing.T) {
 				Ignored:   "ignored_value",
 			},
 			checkFunc: func(t *testing.T, result []byte) {
-				expected := `{"gork_field":"gork_value","json_field":"json_value"}`
+				expected := `{"NoTag":"no_tag_value","gork_field":"gork_value","json_field":"json_value"}`
 				if string(result) != expected {
 					t.Errorf("Marshal() = %s, want %s", string(result), expected)
 				}
@@ -488,6 +488,7 @@ func TestMarshaler_convertToGorkSON(t *testing.T) {
 			expected: map[string]interface{}{
 				"gork_field": "gork_value",
 				"json_field": "json_value",
+				"NoTag":      "no_tag_value",
 			},
 		},
 	}
@@ -618,7 +619,7 @@ func TestMarshaler_getFieldName(t *testing.T) {
 				Name: "TestField",
 				Tag:  `json:"-"`,
 			},
-			expected: "",
+			expected: "-",
 		},
 		{
 			name: "no tags",
@@ -626,7 +627,7 @@ func TestMarshaler_getFieldName(t *testing.T) {
 				Name: "TestField",
 				Tag:  ``,
 			},
-			expected: "",
+			expected: "TestField",
 		},
 		{
 			name: "empty gork tag",
@@ -634,7 +635,7 @@ func TestMarshaler_getFieldName(t *testing.T) {
 				Name: "TestField",
 				Tag:  `gork:""`,
 			},
-			expected: "",
+			expected: "TestField",
 		},
 	}
 

@@ -268,6 +268,7 @@ func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string
 	if len(embeddedSchema.Required) > 0 {
 		s.Required = append(s.Required, embeddedSchema.Required...)
 	}
+	s.writtenFields = append(s.writtenFields, embeddedSchema.writtenFields...)
 }
 
 func processStructField(f reflect.StructField, s *Schema, registry map[string]*Schema) {
@@ -277,10 +278,7 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 	}
 
 	fieldSchema := reflectTypeToSchemaInternal(f.Type, registry, true)
-
-	if gorksonWrites(f) {
-		s.writtenFields = append(s.writtenFields, fieldName)
-	}
+	s.writtenFields = append(s.writtenFields, fieldName)
 
 	// Handle discriminator values
 	if discVal, ok := parseDiscriminator(f.Tag.Get("gork")); ok {
@@ -294,16 +292,6 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 	}
 
 	s.Properties[fieldName] = fieldSchema
-}
-
-// gorksonWrites reports whether gorkson.Marshal writes the field. gorkson writes
-// each field that has a gork or json name, and it writes a nil value as null.
-func gorksonWrites(f reflect.StructField) bool {
-	name := parseGorkTag(f.Tag.Get("gork")).Name
-	if name == "" {
-		name = strings.Split(f.Tag.Get("json"), ",")[0]
-	}
-	return name != "" && name != "-"
 }
 
 // requireWrittenFields adds the written fields of each struct schema that the
@@ -594,11 +582,9 @@ func parseDiscriminator(tag string) (value string, ok bool) {
 	return "", false
 }
 
-// getOpenAPIFieldName extracts the field name from struct tags, with fallback priority:
-// 1. gork tag
-// 2. json tag
-// 3. struct field name
-// Returns empty string if field should be skipped (e.g., "-" tag value).
+// getOpenAPIFieldName returns the name that gorkson gives the field: the gork tag
+// name, else the json tag name, else the struct field name. It returns an empty
+// string for the name "-", because gorkson does not encode the field.
 func getOpenAPIFieldName(field reflect.StructField) string {
 	// Try gork tag first
 	if gorkTag := field.Tag.Get("gork"); gorkTag != "" {

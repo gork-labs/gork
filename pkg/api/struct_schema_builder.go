@@ -60,7 +60,7 @@ func (b *StructSchemaBuilder) BuildSchema(t reflect.Type, registry map[string]*S
 		}
 
 		// Handle embedded structs
-		if f.Anonymous && f.Type.Kind() == reflect.Struct && f.Tag.Get("json") == "" {
+		if f.Anonymous && f.Type.Kind() == reflect.Struct && f.Tag.Get("gork") == "" && f.Tag.Get("json") == "" {
 			if err := b.embeddedStructProcessor.ProcessEmbedded(f, s, registry); err != nil {
 				// Log error but continue processing other fields
 				continue
