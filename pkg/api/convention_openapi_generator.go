@@ -28,6 +28,9 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 		OperationID: route.HandlerName,
 		Parameters:  []Parameter{},
 		Responses:   map[string]*Response{},
+
+		handlerDocKey:   route.handlerDocKey,
+		sectionDocTypes: map[string]string{},
 	}
 
 	// Add tags if options are provided
@@ -45,9 +48,6 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 
 	// Process request sections for regular handlers
 	if route.RequestType.Kind() == reflect.Struct {
-		if route.RequestType.Name() != "" {
-			operation.docType = docKey(route.RequestType)
-		}
 		g.processRequestSections(route.RequestType, operation, components)
 	}
 
@@ -76,6 +76,7 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 func (g *ConventionOpenAPIGenerator) processRequestSections(reqType reflect.Type, operation *Operation, components *Components) {
 	for i := 0; i < reqType.NumField(); i++ {
 		field := reqType.Field(i)
+		operation.sectionDocTypes[field.Name] = sectionDocKey(reqType, field)
 
 		switch field.Name {
 		case SectionQuery:
@@ -279,6 +280,7 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 			}
 		case SchemaSuffixHeaders.String():
 			g.processResponseHeaders(field.Type, response, components)
+			response.headersDocType = sectionDocKey(respType, field)
 		case SchemaSuffixCookies.String():
 			// Cookies are typically not documented in OpenAPI responses
 			// They are set via Set-Cookie header
@@ -292,6 +294,7 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 		// Copy processed headers to the 204 response
 		if len(response.Headers) > 0 {
 			noContentResponse.Headers = response.Headers
+			noContentResponse.headersDocType = response.headersDocType
 		}
 		operation.Responses["204"] = noContentResponse
 		return
@@ -1346,19 +1349,19 @@ func (g *ConventionOpenAPIGenerator) buildSingleEventMetadata(meta RegisteredEve
 		"operationId": meta.HandlerName,
 	}
 
-	g.addDescriptionToEntry(entry, meta.HandlerName)
+	g.addDescriptionToEntry(entry, meta.HandlerFunc)
 	g.addUserMetadataSchemaToEntry(entry, meta.UserMetadataType, components)
 
 	return entry
 }
 
 // addDescriptionToEntry adds description from function docs if available.
-func (g *ConventionOpenAPIGenerator) addDescriptionToEntry(entry map[string]interface{}, handlerName string) {
-	if g.extractor == nil || handlerName == "" {
+func (g *ConventionOpenAPIGenerator) addDescriptionToEntry(entry map[string]interface{}, handler EventHandlerFunc) {
+	if g.extractor == nil || handler == nil {
 		return
 	}
 
-	fd := g.extractor.ExtractFunctionDoc(handlerName)
+	fd := g.extractor.ExtractFunctionDoc(handlerDocKey(handler))
 	if fd.Description != "" {
 		entry["description"] = fd.Description
 	}

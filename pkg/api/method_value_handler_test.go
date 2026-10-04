@@ -10,8 +10,8 @@ type methodValueHandlers struct{}
 func (methodValueHandlers) ListWorkstreams(context.Context, struct{}) error { return nil }
 
 func TestMethodValueHandlerNameAndDescription(t *testing.T) {
-	source := "package x\n\n// ListWorkstreams lists the workstreams.\nfunc (h *Handlers) ListWorkstreams() {}\n"
-	extractor := parseFixtures(t, map[string]string{"handlers.go": source})
+	source := "package api\n\n// ListWorkstreams lists the workstreams.\nfunc (methodValueHandlers) ListWorkstreams() {}\n"
+	extractor := parseFixtures(t, map[string]string{"pkg/api/handlers.go": source})
 
 	registry := NewRouteRegistry()
 	router := NewTypedRouter[*struct{}](nil, registry, "", nil, &HTTPParameterAdapter{}, nil)

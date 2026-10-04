@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io/fs"
 	"os"
 	"path"
@@ -37,7 +38,9 @@ type FieldDoc struct {
 // The key of a type is "<import path>.<type name>", for example
 // "example.com/app/api.User". A field with an inline struct type adds
 // ".<field name>" to the key of its struct, for example
-// "example.com/app/api.CreateUserRequest.Body". The key of a function is its name.
+// "example.com/app/api.CreateUserRequest.Body". The key of a function is
+// "<import path>.<function name>", and the key of a method is
+// "<import path>.<receiver type>.<method name>".
 type DocExtractor struct {
 	docs map[string]Documentation
 }
@@ -131,19 +134,25 @@ func (d *DocExtractor) inspectNode(n ast.Node, pkgPath string) bool {
 	case *ast.GenDecl:
 		d.processGenDecl(decl, pkgPath)
 	case *ast.FuncDecl:
-		d.processFuncDecl(decl)
+		d.processFuncDecl(decl, pkgPath)
 	}
 	return true // continue traversing children
 }
 
+// processGenDecl stores the docs of each type in decl. A type in a group such
+// as "type ( ... )" has its doc comment in the TypeSpec.
 func (d *DocExtractor) processGenDecl(decl *ast.GenDecl, pkgPath string) {
-	if decl.Doc == nil || decl.Tok != token.TYPE {
+	if decl.Tok != token.TYPE {
 		return
 	}
 
 	for _, spec := range decl.Specs {
 		if ts, ok := spec.(*ast.TypeSpec); ok {
-			d.processTypeSpec(ts, decl.Doc, pkgPath)
+			docComment := ts.Doc
+			if docComment == nil {
+				docComment = decl.Doc
+			}
+			d.processTypeSpec(ts, docComment, pkgPath)
 		}
 	}
 }
@@ -238,12 +247,17 @@ func (d *DocExtractor) storeFieldDocByJSONTag(fld *ast.Field, desc string, doc *
 	}
 }
 
-func (d *DocExtractor) processFuncDecl(decl *ast.FuncDecl) {
-	if decl.Doc != nil {
-		name := decl.Name.Name
-		d.docs[name] = Documentation{
-			Description: extractDescription(decl.Doc.Text()),
-		}
+func (d *DocExtractor) processFuncDecl(decl *ast.FuncDecl, pkgPath string) {
+	if decl.Doc == nil {
+		return
+	}
+	key := pkgPath + "." + decl.Name.Name
+	if decl.Recv != nil {
+		receiver, _, _ := strings.Cut(strings.TrimPrefix(types.ExprString(decl.Recv.List[0].Type), "*"), "[")
+		key = pkgPath + "." + receiver + "." + decl.Name.Name
+	}
+	d.docs[key] = Documentation{
+		Description: extractDescription(decl.Doc.Text()),
 	}
 }
 
@@ -255,9 +269,9 @@ func (d *DocExtractor) ExtractTypeDoc(key string) Documentation {
 	return Documentation{}
 }
 
-// ExtractFunctionDoc returns the extracted documentation for the given function name.
-func (d *DocExtractor) ExtractFunctionDoc(funcName string) Documentation {
-	if doc, ok := d.docs[funcName]; ok {
+// ExtractFunctionDoc returns the extracted documentation for the function or method with the given key.
+func (d *DocExtractor) ExtractFunctionDoc(key string) Documentation {
+	if doc, ok := d.docs[key]; ok {
 		return doc
 	}
 	return Documentation{}

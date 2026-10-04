@@ -74,8 +74,11 @@ type Operation struct {
 	XWebhookProvider map[string]string        `json:"x-webhook-provider,omitempty"`
 	XWebhookEvents   []map[string]interface{} `json:"x-webhook-events,omitempty"`
 
-	// docType is the DocExtractor key of the request type.
-	docType string
+	// handlerDocKey is the DocExtractor key of the handler.
+	handlerDocKey string
+
+	// sectionDocTypes maps a request section, such as Query, to the DocExtractor key of its type.
+	sectionDocTypes map[string]string
 }
 
 // MarshalJSON ensures Operation.Extensions are emitted as top-level x-* fields.
@@ -134,6 +137,9 @@ type Response struct {
 	Description string                `json:"description,omitempty"`
 	Content     map[string]*MediaType `json:"content,omitempty"`
 	Headers     map[string]*Header    `json:"headers,omitempty"`
+
+	// headersDocType is the DocExtractor key of the type of the Headers section.
+	headersDocType string
 }
 
 // Header represents an OpenAPI header object.

@@ -31,6 +31,9 @@ type RouteInfo struct {
 	// simply keep them as raw Option values so that future work can refine the
 	// representation without breaking the API.
 	Middleware []Option
+
+	// handlerDocKey is the DocExtractor key of the handler function or method.
+	handlerDocKey string
 }
 
 // RouteRegistry stores route metadata for a single router instance. It is

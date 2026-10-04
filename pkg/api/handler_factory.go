@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -221,7 +222,16 @@ func buildRouteInfo(handler interface{}, reqType, respType reflect.Type, opts []
 		ResponseType: respType,
 		StreamType:   streamEventType(reflect.TypeOf(handler)),
 		Options:      optionCfg,
+
+		handlerDocKey: handlerDocKey(handler),
 	}
+}
+
+// handlerDocKey returns the DocExtractor key of a handler function or method.
+// The runtime name of a method value such as h.List is "<import path>.(*T).List-fm".
+func handlerDocKey(handler interface{}) string {
+	name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+	return strings.NewReplacer("(*", "", ")", "", "[...]", "", "-fm", "").Replace(name)
 }
 
 // validateBodyUsageForMethod checks that Body sections are not used with read-only HTTP methods.

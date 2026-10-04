@@ -41,7 +41,7 @@ func GetFoo() {}
 	if td.Description != "Foo represents something." {
 		t.Errorf("got desc %q", td.Description)
 	}
-	fd := d.ExtractFunctionDoc("GetFoo")
+	fd := d.ExtractFunctionDoc("example.com/fixtures.GetFoo")
 	if fd.Description != "GetFoo returns foo. It does a thing." {
 		t.Errorf("function desc mismatch: %q", fd.Description)
 	}
@@ -388,7 +388,7 @@ func MyFunc() {}
 	}
 
 	// Verify that only the valid file's documentation was extracted
-	doc := extractor.ExtractFunctionDoc("MyFunc")
+	doc := extractor.ExtractFunctionDoc("example.com/fixtures.MyFunc")
 	if doc.Description != "MyFunc is a valid function" {
 		t.Errorf("Expected 'MyFunc is a valid function', got %q", doc.Description)
 	}
@@ -402,15 +402,17 @@ func TestProcessGenDecl_NoDocComment(t *testing.T) {
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
 				Name: ast.NewIdent("MyType"),
-				Type: &ast.StructType{},
+				Type: &ast.StructType{Fields: &ast.FieldList{List: []*ast.Field{{
+					Names: []*ast.Ident{ast.NewIdent("ID")},
+					Doc:   &ast.CommentGroup{List: []*ast.Comment{{Text: "// ID is the id"}}},
+				}}}},
 			},
 		},
 	}
 
-	// Expect no panic or error, and no documentation stored
 	extractor.processGenDecl(decl, "example.com/fixtures")
-	if _, ok := extractor.docs["example.com/fixtures.MyType"]; ok {
-		t.Error("Expected no documentation to be stored for a type without a doc comment")
+	if got := extractor.docs["example.com/fixtures.MyType"].Fields["ID"].Description; got != "ID is the id" {
+		t.Errorf("field doc = %q, want the doc of the field of a type without a doc comment", got)
 	}
 }
 
@@ -507,5 +509,23 @@ func TestDocExtractor_ImportPathOfSubdirectory(t *testing.T) {
 	})
 	if got := extractor.ExtractTypeDoc("github.com/gork-labs/gork/internal/store.Row").Description; got != "Row is a row." {
 		t.Errorf("description = %q, want the doc of Row", got)
+	}
+}
+
+func TestProcessFuncDecl_Keys(t *testing.T) {
+	extractor := parseFixtures(t, map[string]string{"pkg/box/box.go": `package box
+
+type Box[T any] struct{}
+
+// Get returns the value.
+func (b *Box[T]) Get() {}
+
+func Undocumented() {}
+`})
+	if got := extractor.ExtractFunctionDoc("github.com/gork-labs/gork/pkg/box.Box.Get").Description; got != "Get returns the value." {
+		t.Errorf("method of a generic type: description = %q", got)
+	}
+	if _, ok := extractor.docs["github.com/gork-labs/gork/pkg/box.Undocumented"]; ok {
+		t.Error("expected no doc for a function without a doc comment")
 	}
 }

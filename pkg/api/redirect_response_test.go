@@ -127,6 +127,7 @@ func TestWithStatusInSpec(t *testing.T) {
 		Headers: map[string]*Header{
 			"Location": {Description: "Response header", Schema: &Schema{Type: "string"}},
 		},
+		headersDocType: "github.com/gork-labs/gork/pkg/api.callbackResponse.Headers",
 	}
 	if got := callbackResponses["303"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("response 303 = %+v, want %+v", got, want)

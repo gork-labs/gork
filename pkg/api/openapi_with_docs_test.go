@@ -26,12 +26,14 @@ func TestGenerateOpenAPIWithDocs(t *testing.T) {
 		HandlerName:  "GetFoo",
 		RequestType:  reflect.TypeOf(Req{}),
 		ResponseType: reflect.TypeOf((*Resp)(nil)),
+
+		handlerDocKey: "example.com/app.GetFoo",
 	}
 	registry.Register(info)
 
 	extractor := NewDocExtractor()
 	// fake doc entries
-	extractor.docs["GetFoo"] = Documentation{Description: "Returns foo."}
+	extractor.docs["example.com/app.GetFoo"] = Documentation{Description: "Returns foo."}
 
 	spec := GenerateOpenAPIWithDocs(registry, extractor)
 	p := spec.Paths["/foo"]
