@@ -3,8 +3,6 @@ package api
 import (
 	"context"
 	"net/http"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -37,15 +35,7 @@ func TestBuildWebhookEventsMetadata_Branches(t *testing.T) {
 	spec := &OpenAPISpec{Components: &Components{Schemas: map[string]*Schema{}}}
 
 	// Prepare a DocExtractor with a documented function name
-	tmp := t.TempDir()
-	src := []byte("package tmp\n\n// MyDocHandler does something useful\nfunc MyDocHandler() {}\n")
-	if err := os.WriteFile(filepath.Join(tmp, "doc.go"), src, 0o600); err != nil {
-		t.Fatalf("write temp doc: %v", err)
-	}
-	extractor := NewDocExtractor()
-	if err := extractor.ParseDirectory(tmp); err != nil {
-		t.Fatalf("parse temp dir: %v", err)
-	}
+	extractor := parseFixtures(t, map[string]string{"doc.go": "package tmp\n\n// MyDocHandler does something useful\nfunc MyDocHandler() {}\n"})
 
 	gen := NewConventionOpenAPIGenerator(spec, extractor)
 

@@ -57,6 +57,7 @@ func (b *StructSchemaBuilder) BuildSchema(t reflect.Type, registry map[string]*S
 	// type t gets a $ref to s, and a recursive type does not recurse without end.
 	name := sanitizeSchemaName(t.Name())
 	if name != "" {
+		s.docTypes = []string{docKey(t)}
 		registerComponent(name, t, s, registry)
 	}
 

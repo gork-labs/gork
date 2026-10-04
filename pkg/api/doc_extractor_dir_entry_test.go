@@ -91,6 +91,9 @@ func TestProcessDirectoryEntryComprehensive(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer os.RemoveAll(tmpDir)
+		if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module example.com/fixtures\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 
 		// Create a Go file
 		goFile := filepath.Join(tmpDir, "test.go")
@@ -134,6 +137,9 @@ func TestProcessDirectoryEntryComprehensive(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer os.RemoveAll(tmpDir)
+		if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module example.com/fixtures\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 
 		// Create an invalid Go file
 		badGoFile := filepath.Join(tmpDir, "bad.go")

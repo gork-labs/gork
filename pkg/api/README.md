@@ -480,6 +480,8 @@ A pointer gets its own part because the schema of a pointer is nullable. Thus `E
 
 Two different Go types must not get the same component name. For example, `models.Item` and `billing.Item` both get the name `Item`. If this occurs, the OpenAPI generator stops with a panic. The panic message names the two Go types and the component name. To fix the problem, rename one of the types.
 
+The components `ErrorResponse` and `ValidationErrorResponse` describe the Go types `api.ErrorResponse` and `api.ValidationErrorResponse`. Thus a type with one of these names in your routes also gives the panic.
+
 ## Examples
 
 See the [examples](../../examples/) directory for complete working examples with different web frameworks.

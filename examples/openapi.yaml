@@ -703,7 +703,8 @@ paths:
             description: StreamUserActivity sends the actions of a user as Server-Sent Events.
             operationId: StreamUserActivity
             parameters:
-                - in: path
+                - description: UserID is the ID of the user to follow
+                  in: path
                   name: userId
                   required: true
                   schema:
@@ -728,7 +729,8 @@ paths:
             description: UpdateUserPaymentMethod handles user payment method update requests.
             operationId: UpdateUserPaymentMethod
             parameters:
-                - in: path
+                - description: UserID is the ID of the user whose payment method is being updated
+                  in: path
                   name: userId
                   required: true
                   schema:

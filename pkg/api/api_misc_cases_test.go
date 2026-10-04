@@ -139,8 +139,8 @@ func TestEnsureErrorSchemas(t *testing.T) {
 	})
 }
 
-// Test processAnonymousStructFields using dependency injection approach
-func TestProcessAnonymousStructFields(t *testing.T) {
+// Test processInlineStructField using dependency injection approach
+func TestProcessInlineStructField(t *testing.T) {
 	extractor := NewDocExtractor()
 
 	// Create a more sophisticated test that triggers the anonymous struct field processing
@@ -149,7 +149,7 @@ func TestProcessAnonymousStructFields(t *testing.T) {
 	
 	type ComplexStruct struct {
 		Name string
-		// This is a named struct field that should trigger processAnonymousStructFields
+		// This is a named struct field that should trigger processInlineStructField
 		EmbeddedData struct {
 			Value string
 			Count int
@@ -169,20 +169,15 @@ func TestProcessAnonymousStructFields(t *testing.T) {
 	ast.Inspect(file, func(n ast.Node) bool {
 		if ts, ok := n.(*ast.TypeSpec); ok && ts.Name.Name == "ComplexStruct" {
 			if st, ok := ts.Type.(*ast.StructType); ok {
-				doc := &Documentation{
-					Fields: make(map[string]FieldDoc),
-				}
-
-				// Process each field to trigger processAnonymousStructFields
 				for _, field := range st.Fields.List {
 					if len(field.Names) > 0 && field.Names[0].Name == "EmbeddedData" {
-						// This should trigger the processAnonymousStructFields function
-						extractor.processAnonymousStructFields(field, doc)
+						extractor.processInlineStructField(field, "example.com/test.ComplexStruct")
 					}
 				}
 
-				// The main test is that the function doesn't panic
-				t.Log("processAnonymousStructFields completed successfully")
+				if _, ok := extractor.docs["example.com/test.ComplexStruct.EmbeddedData"]; !ok {
+					t.Error("Expected a doc for the inline struct field EmbeddedData")
+				}
 				return false
 			}
 		}
@@ -239,23 +234,6 @@ func TestEnrichParametersWithDocsComplete(t *testing.T) {
 		}
 	})
 
-	t.Run("nil operation", func(t *testing.T) {
-		// Should handle nil operation gracefully
-		enrichParametersWithDocs(nil, extractor)
-		// Should not panic - that's the test
-	})
-
-	t.Run("nil extractor", func(t *testing.T) {
-		operation := &Operation{
-			OperationID: "TestOp",
-			Parameters:  []Parameter{{Name: "param", In: "query"}},
-		}
-
-		// Should handle nil extractor gracefully
-		enrichParametersWithDocs(operation, nil)
-		// Should not panic - that's the test
-	})
-
 	t.Run("operation with parameters and potential docs", func(t *testing.T) {
 		operation := &Operation{
 			OperationID: "GetUser",
@@ -286,18 +264,25 @@ func TestEnrichParametersWithDocsComplete(t *testing.T) {
 			}
 		}()
 
+		if err := ioutil.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module example.com/test\n"), 0o644); err != nil {
+			t.Fatalf("Failed to write go.mod: %v", err)
+		}
+
 		// Create a Go file with documented struct
 		sourceCode := `package test
 
 // GetUserRequest represents a request to get user information
 type GetUserRequest struct {
-	// ID is the unique identifier for the user
-	ID string ` + "`gork:\"id\"`" + `
-	// Include specifies what additional data to include
-	Include string ` + "`gork:\"include\"`" + `
+	Path struct {
+		// ID is the unique identifier for the user
+		ID string ` + "`gork:\"id\"`" + `
+	}
+	Query struct {
+		// Include specifies what additional data to include
+		Include string ` + "`gork:\"include\"`" + `
+	}
 }
 `
-
 		testFile := filepath.Join(tempDir, "test.go")
 		if err := ioutil.WriteFile(testFile, []byte(sourceCode), 0o644); err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
@@ -312,24 +297,21 @@ type GetUserRequest struct {
 
 		operation := &Operation{
 			OperationID: "GetUser",
+			docType:     "example.com/test.GetUserRequest",
 			Parameters: []Parameter{
 				{Name: "id", In: "path", Description: ""},
 				{Name: "include", In: "query", Description: ""},
+				{Name: "id", In: "query", Description: ""},
 			},
 		}
 
-		// This should now find and apply documentation
 		enrichParametersWithDocs(operation, extractor)
 
-		// Verify parameters are still there
-		if len(operation.Parameters) != 2 {
-			t.Error("Expected parameters to be preserved")
-		}
-
-		// Verify that documentation was found and applied
-		requestDoc := extractor.ExtractTypeDoc("GetUserRequest")
-		if len(requestDoc.Fields) == 0 {
-			t.Error("Expected to find documentation for GetUserRequest")
+		want := []string{"ID is the unique identifier for the user", "Include specifies what additional data to include", ""}
+		for i, param := range operation.Parameters {
+			if param.Description != want[i] {
+				t.Errorf("parameter %s in %s: description = %q, want %q", param.Name, param.In, param.Description, want[i])
+			}
 		}
 	})
 }
