@@ -18,6 +18,11 @@ if [ ! -f "$SPEC_FILE" ]; then
     exit 1
 fi
 
+if grep -Eq '^ *"?openapi"?: *"?3\.2' "$SPEC_FILE"; then
+    echo "The script does not validate $SPEC_FILE: the Swagger validator does not accept OpenAPI 3.2 documents."
+    exit 0
+fi
+
 echo "Validating OpenAPI spec: $SPEC_FILE"
 
 # Determine content type based on file extension
