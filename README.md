@@ -9,7 +9,7 @@
 
 ## 📥 Installation
 
-Gork is one Go module. Add it to your module:
+Gork is one Go module and requires Go 1.27 or higher. Add it to your module:
 
 ```bash
 go get github.com/gork-labs/gork@latest
@@ -611,7 +611,7 @@ make clean
 
 ### Requirements
 
-- Go 1.24 or higher
+- Go 1.27 or higher
 - Make (for using the Makefile)
 
 ### Project Structure
