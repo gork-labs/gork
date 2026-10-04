@@ -51,7 +51,7 @@ func NewValidator(config ValidatorConfig) *validator.Validate {
 // response rendering.
 func CheckDiscriminatorErrors(v interface{}) map[string][]string {
 	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 

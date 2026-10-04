@@ -13,7 +13,7 @@ type PointerTypeHandler struct{}
 
 // CanHandle returns true if this handler can process the given type.
 func (p *PointerTypeHandler) CanHandle(t reflect.Type) bool {
-	return t.Kind() == reflect.Ptr
+	return t.Kind() == reflect.Pointer
 }
 
 // GenerateSchema generates a schema for pointer types.

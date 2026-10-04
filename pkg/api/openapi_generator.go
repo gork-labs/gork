@@ -380,7 +380,7 @@ func buildBasicTypeSchema(t reflect.Type) *Schema {
 }
 
 func buildBasicTypeSchemaWithRegistry(t reflect.Type, registry map[string]*Schema) *Schema {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return reflectTypeToSchemaInternal(t.Elem(), registry, true)
 	}
 	return buildBasicTypeSchema(t)
@@ -394,7 +394,7 @@ func isUnionType(t reflect.Type) bool {
 	}
 
 	// Dereference pointer types
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -429,7 +429,7 @@ func isUnionStruct(t reflect.Type) bool {
 		if f.PkgPath != "" { // unexported field – treat as non-union
 			return false
 		}
-		if f.Type.Kind() != reflect.Ptr {
+		if f.Type.Kind() != reflect.Pointer {
 			return false
 		}
 		ptrFields++
@@ -541,7 +541,7 @@ func applyOneOfConstraint(fieldSchema *Schema, val string) {
 }
 
 func isStringKind(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	return t.Kind() == reflect.String
