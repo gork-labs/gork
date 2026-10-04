@@ -642,6 +642,8 @@ The module uses semantic versioning:
 - There are no tags for each package or directory
 - Example: `v0.1.0`
 
+Each merge into `main` gets the next patch tag (for example `v0.1.1` after `v0.1.0`) when CI passes. For a new minor or major version, push the tag by hand. The next merges then continue from that tag.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
