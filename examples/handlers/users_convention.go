@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"time"
 
 	"github.com/gork-labs/gork/pkg/api"
@@ -186,7 +187,7 @@ func LoginConvention(_ context.Context, req LoginConventionRequest) (*LoginConve
 				Name string `gork:"name"`
 			} `gork:"user"`
 		}{
-			Token:     "jwt-token-here",
+			Token:     rand.Text(),
 			ExpiresAt: time.Now().Add(24 * time.Hour),
 			User: struct {
 				ID   string `gork:"id"`
@@ -207,7 +208,7 @@ func LoginConvention(_ context.Context, req LoginConventionRequest) (*LoginConve
 			SessionToken string `gork:"session_token"`
 			Preferences  string `gork:"preferences"`
 		}{
-			SessionToken: "session-123",
+			SessionToken: rand.Text(),
 			Preferences:  "dark-mode",
 		},
 	}, nil
