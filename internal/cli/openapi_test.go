@@ -524,23 +524,6 @@ func TestBuildAndExtract(t *testing.T) {
 	}
 }
 
-func TestValidateSpec(t *testing.T) {
-	spec := &api.OpenAPISpec{
-		OpenAPI:    "3.1.0",
-		Info:       api.Info{Title: "Test", Version: "1.0.0"},
-		Paths:      map[string]*api.PathItem{},
-		Components: &api.Components{Schemas: map[string]*api.Schema{}},
-	}
-
-	// This will try to call the actual Swagger validator
-	// which might fail due to network issues, but we're testing the code path
-	err := validateSpec(spec)
-
-	// We don't assert on the error since network calls can fail
-	// We just want to ensure the function doesn't panic
-	t.Logf("validateSpec returned: %v", err)
-}
-
 func TestWriteOutputDirectoryHandling(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -700,22 +683,6 @@ func TestEnrichWithDocsErrorPath(t *testing.T) {
 	}
 }
 
-func TestValidateSpecErrorPaths(t *testing.T) {
-	// Test with a spec that can't be marshaled (circular reference)
-	// This is hard to create, so let's test the marshal path by creating a valid spec
-	spec := &api.OpenAPISpec{
-		OpenAPI:    "3.1.0",
-		Info:       api.Info{Title: "Test", Version: "1.0.0"},
-		Paths:      map[string]*api.PathItem{},
-		Components: &api.Components{Schemas: map[string]*api.Schema{}},
-	}
-
-	// This will test the network call and response parsing paths
-	err := validateSpec(spec)
-	// We don't assert on error since network calls are unpredictable
-	t.Logf("validateSpec result: %v", err)
-}
-
 func TestWriteOutputErrorPaths(t *testing.T) {
 	spec := &api.OpenAPISpec{
 		OpenAPI:    "3.1.0",
@@ -791,22 +758,6 @@ func TestBuildAndExtractErrorCoverage(t *testing.T) {
 	}
 }
 
-func TestValidateSpecMarshalError(t *testing.T) {
-	// Test JSON marshal error in validateSpec - hard to create a spec that fails to marshal
-	// but we can test with a valid spec to cover the success path
-	spec := &api.OpenAPISpec{
-		OpenAPI:    "3.1.0",
-		Info:       api.Info{Title: "Test", Version: "1.0.0"},
-		Paths:      map[string]*api.PathItem{},
-		Components: &api.Components{Schemas: map[string]*api.Schema{}},
-	}
-
-	// This tests the marshal success path and network call
-	err := validateSpec(spec)
-	// Don't assert on error since network can fail
-	t.Logf("validateSpec marshal path result: %v", err)
-}
-
 func TestWriteSpecYAMLWriteError(t *testing.T) {
 	// Test YAML write error by closing the file
 	spec := &api.OpenAPISpec{
@@ -845,21 +796,6 @@ func TestRemainingCoverage(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for nonexistent path")
 		}
-	})
-
-	// Test lines 75-77: validateSpec error path
-	t.Run("validateSpec error path", func(t *testing.T) {
-		spec := &api.OpenAPISpec{
-			OpenAPI:    "3.1.0",
-			Info:       api.Info{Title: "Test", Version: "1.0.0"},
-			Paths:      map[string]*api.PathItem{},
-			Components: &api.Components{Schemas: map[string]*api.Schema{}},
-		}
-
-		// Test that validateSpec can be called - network errors are expected
-		err := validateSpec(spec)
-		// Don't assert on result since network calls are unpredictable
-		t.Logf("validateSpec error path result: %v", err)
 	})
 
 	// Test lines 250, 271-273: writeOutput error paths
