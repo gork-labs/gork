@@ -508,6 +508,7 @@
         "operationId": "StreamUserActivity",
         "parameters": [
           {
+            "description": "UserID is the ID of the user to follow",
             "in": "path",
             "name": "userId",
             "required": true,
@@ -548,6 +549,7 @@
         "operationId": "UpdateUserPaymentMethod",
         "parameters": [
           {
+            "description": "UserID is the ID of the user whose payment method is being updated",
             "in": "path",
             "name": "userId",
             "required": true,

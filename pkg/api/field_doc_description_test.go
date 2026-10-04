@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -69,14 +67,7 @@ type docFieldsResponse struct {
 }
 
 func TestFieldDocIsDescriptionForEveryFieldType(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "fixture.go"), []byte(docFieldsSource), 0o644); err != nil {
-		t.Fatalf("write temp file: %v", err)
-	}
-	extractor := NewDocExtractor()
-	if err := extractor.ParseDirectory(dir); err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	extractor := parseFixtures(t, map[string]string{"pkg/api/fixture.go": docFieldsSource})
 
 	registry := NewRouteRegistry()
 	router := NewTypedRouter[*struct{}](nil, registry, "", nil, &HTTPParameterAdapter{}, nil)

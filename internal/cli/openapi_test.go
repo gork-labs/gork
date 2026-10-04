@@ -174,41 +174,6 @@ func TestGenerateBaseSpec(t *testing.T) {
 	}
 }
 
-func TestEnrichWithDocs(t *testing.T) {
-	spec := &api.OpenAPISpec{
-		OpenAPI:    "3.1.0",
-		Info:       api.Info{Title: "Test", Version: "1.0.0"},
-		Paths:      map[string]*api.PathItem{},
-		Components: &api.Components{Schemas: map[string]*api.Schema{}},
-	}
-
-	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
-	}{
-		{
-			name:       "empty source path",
-			sourcePath: "",
-			wantErr:    false,
-		},
-		{
-			name:       "nonexistent source path",
-			sourcePath: "/nonexistent/path",
-			wantErr:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := enrichWithDocs(spec, tt.sourcePath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("enrichWithDocs() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestWriteOutput(t *testing.T) {
 	spec := &api.OpenAPISpec{
 		OpenAPI:    "3.1.0",
@@ -516,7 +481,7 @@ func TestBuildAndExtract(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := buildAndExtract(tt.buildPath)
+			_, err := buildAndExtract(tt.buildPath, "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buildAndExtract() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -657,29 +622,12 @@ func main() {
 	}
 
 	// This should work now with proper module setup
-	_, err := buildAndExtract(tmpDir)
+	_, err := buildAndExtract(tmpDir, "")
 	// We expect this to still fail due to module resolution issues in test environment
 	if err == nil {
 		t.Log("buildAndExtract succeeded unexpectedly - that's actually good!")
 	} else {
 		t.Logf("buildAndExtract failed as expected in test environment: %v", err)
-	}
-}
-
-func TestEnrichWithDocsErrorPath(t *testing.T) {
-	spec := &api.OpenAPISpec{
-		OpenAPI:    "3.1.0",
-		Info:       api.Info{Title: "Test", Version: "1.0.0"},
-		Paths:      map[string]*api.PathItem{},
-		Components: &api.Components{Schemas: map[string]*api.Schema{}},
-	}
-
-	// Test with a directory that exists but has no Go files to parse
-	tmpDir := t.TempDir()
-	err := enrichWithDocs(spec, tmpDir)
-	// This should not error since ParseDirectory handles empty directories
-	if err != nil {
-		t.Errorf("enrichWithDocs should handle empty directory: %v", err)
 	}
 }
 
@@ -752,7 +700,7 @@ func TestGenerateSpecErrorPaths(t *testing.T) {
 func TestBuildAndExtractErrorCoverage(t *testing.T) {
 	// Test createTemp error - this is hard to trigger reliably,
 	// but we can test the code path exists
-	_, err := buildAndExtract("./nonexistent")
+	_, err := buildAndExtract("./nonexistent", "")
 	if err == nil {
 		t.Error("Expected error for nonexistent path")
 	}
@@ -782,22 +730,6 @@ func TestWriteSpecYAMLWriteError(t *testing.T) {
 
 // Test remaining coverage lines by testing error conditions
 func TestRemainingCoverage(t *testing.T) {
-	// Test lines 71-73: enrichWithDocs validation error path
-	t.Run("enrichWithDocs validation error", func(t *testing.T) {
-		spec := &api.OpenAPISpec{
-			OpenAPI:    "3.1.0",
-			Info:       api.Info{Title: "Test", Version: "1.0.0"},
-			Paths:      map[string]*api.PathItem{},
-			Components: &api.Components{Schemas: map[string]*api.Schema{}},
-		}
-
-		// Test with nonexistent path - this should trigger error in ParseDirectory
-		err := enrichWithDocs(spec, "/absolutely/nonexistent/path/that/cannot/exist")
-		if err == nil {
-			t.Error("Expected error for nonexistent path")
-		}
-	})
-
 	// Test lines 250, 271-273: writeOutput error paths
 	t.Run("writeOutput stat error", func(t *testing.T) {
 		spec := &api.OpenAPISpec{
@@ -843,7 +775,7 @@ func (m *MockBuildRunner) BuildCommand(outputPath, buildPath string) error {
 	return m.BuildError
 }
 
-func (m *MockBuildRunner) RunCommand(exePath string) ([]byte, error) {
+func (m *MockBuildRunner) RunCommand(exePath, sourcePath string) ([]byte, error) {
 	if m.RunError != nil {
 		return nil, m.RunError
 	}
@@ -900,7 +832,7 @@ func TestBuildAndExtractWithRunner(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			spec, err := buildAndExtractWithRunner(tt.buildPath, tt.runner)
+			spec, err := buildAndExtractWithRunner(tt.buildPath, "", tt.runner)
 
 			if tt.wantErr {
 				if err == nil {
@@ -942,7 +874,7 @@ func TestDefaultBuildRunner(t *testing.T) {
 	})
 
 	t.Run("RunCommand error", func(t *testing.T) {
-		_, err := runner.RunCommand("/nonexistent/binary")
+		_, err := runner.RunCommand("/nonexistent/binary", "")
 		if err == nil {
 			t.Error("Expected run error for nonexistent binary")
 		}
@@ -1032,24 +964,6 @@ func (m *MockSpecWriter) MarshalYAML(v interface{}) ([]byte, error) {
 
 // Additional tests to achieve 100% coverage
 func TestGenerateSpecErrorPaths100(t *testing.T) {
-	t.Run("enrichWithDocs error", func(t *testing.T) {
-		config := &GenerateConfig{
-			BuildPath:  "",
-			SourcePath: "/absolutely/nonexistent/path/12345",
-			OutputPath: "-",
-			Title:      "Test API",
-			Version:    "1.0.0",
-		}
-
-		err := GenerateSpec(config)
-		if err == nil {
-			t.Error("Expected error for nonexistent source path")
-		}
-		if !strings.Contains(err.Error(), "failed to parse source") {
-			t.Errorf("Expected 'failed to parse source' error, got: %v", err)
-		}
-	})
-
 	t.Run("validateSpec error wrapping", func(t *testing.T) {
 		// Override the default client to return validation error
 		originalClient := defaultValidatorClient
@@ -1358,4 +1272,31 @@ func (m *mockJSONMarshaler) Unmarshal(data []byte, v any) error {
 		return fmt.Errorf("mock json unmarshal error")
 	}
 	return json.Unmarshal(data, v)
+}
+
+func TestGenerateSpecHasDocsAndNoInternalData(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "openapi.json")
+	err := GenerateSpec(&GenerateConfig{
+		BuildPath:  "../../examples/cmd/openapi_export",
+		SourcePath: "../../examples",
+		OutputPath: output,
+		Title:      "API",
+		Version:    "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("GenerateSpec: %v", err)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := string(data)
+	if !strings.Contains(spec, "UserID is the ID of the user to follow") {
+		t.Error("spec has no field docs")
+	}
+	for _, internal := range []string{"x-gork-", "github.com/"} {
+		if strings.Contains(spec, internal) {
+			t.Errorf("spec contains %q", internal)
+		}
+	}
 }

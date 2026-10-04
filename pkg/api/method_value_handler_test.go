@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -12,15 +10,8 @@ type methodValueHandlers struct{}
 func (methodValueHandlers) ListWorkstreams(context.Context, struct{}) error { return nil }
 
 func TestMethodValueHandlerNameAndDescription(t *testing.T) {
-	dir := t.TempDir()
 	source := "package x\n\n// ListWorkstreams lists the workstreams.\nfunc (h *Handlers) ListWorkstreams() {}\n"
-	if err := os.WriteFile(filepath.Join(dir, "handlers.go"), []byte(source), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	extractor := NewDocExtractor()
-	if err := extractor.ParseDirectory(dir); err != nil {
-		t.Fatal(err)
-	}
+	extractor := parseFixtures(t, map[string]string{"handlers.go": source})
 
 	registry := NewRouteRegistry()
 	router := NewTypedRouter[*struct{}](nil, registry, "", nil, &HTTPParameterAdapter{}, nil)

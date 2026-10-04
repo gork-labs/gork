@@ -1,14 +1,18 @@
 package api
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
+
+	"golang.org/x/mod/modfile"
 )
 
 // Documentation holds extracted information from Go doc comments.
@@ -29,8 +33,13 @@ type FieldDoc struct {
 
 // DocExtractor parses Go source files and indexes doc comments for later
 // lookup by name.
+//
+// The key of a type is "<import path>.<type name>", for example
+// "example.com/app/api.User". A field with an inline struct type adds
+// ".<field name>" to the key of its struct, for example
+// "example.com/app/api.CreateUserRequest.Body". The key of a function is its name.
 type DocExtractor struct {
-	docs map[string]Documentation // fully-qualified name -> documentation
+	docs map[string]Documentation
 }
 
 // NewDocExtractor allocates a new instance.
@@ -43,11 +52,11 @@ func NewDocExtractor() *DocExtractor {
 func (d *DocExtractor) ParseDirectory(dir string) error {
 	fset := token.NewFileSet()
 	// parser.ParseDir does not walk recursively, so we need to walk manually.
-	return filepath.WalkDir(dir, func(path string, de os.DirEntry, err error) error {
+	return fs.WalkDir(os.DirFS(dir), ".", func(path string, de fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		return d.processDirectoryEntry(path, de, fset)
+		return d.processDirectoryEntry(filepath.Join(dir, path), de, fset)
 	})
 }
 
@@ -66,13 +75,18 @@ func (d *DocExtractor) processDirectoryEntry(path string, de os.DirEntry, fset *
 		return err
 	}
 
+	pkgPath, err := importPath(path)
+	if err != nil {
+		return err
+	}
+
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			continue
 		}
 
 		filePath := filepath.Join(path, entry.Name())
-		if err := d.parseFile(filePath, fset); err != nil {
+		if err := d.parseFile(filePath, pkgPath, fset); err != nil {
 			// Skip files that fail to parse
 			continue
 		}
@@ -81,60 +95,69 @@ func (d *DocExtractor) processDirectoryEntry(path string, de os.DirEntry, fset *
 	return nil
 }
 
-func (d *DocExtractor) parseFile(filePath string, fset *token.FileSet) error {
+// importPath returns the import path of the package in dir. It reads the
+// module path from the nearest go.mod file in dir or in a parent of dir.
+func importPath(dir string) (string, error) {
+	abs, _ := filepath.Abs(dir)
+	rel := "."
+	for {
+		data, err := fs.ReadFile(os.DirFS(abs), "go.mod")
+		if err == nil {
+			return path.Join(modfile.ModulePath(data), rel), nil
+		}
+		parent := filepath.Dir(abs)
+		if parent == abs {
+			return "", fmt.Errorf("no go.mod file in %s or in a parent directory", dir)
+		}
+		rel = path.Join(filepath.Base(abs), rel)
+		abs = parent
+	}
+}
+
+func (d *DocExtractor) parseFile(filePath, pkgPath string, fset *token.FileSet) error {
 	file, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
 
-	ast.Inspect(file, d.inspectNode)
+	ast.Inspect(file, func(n ast.Node) bool {
+		return d.inspectNode(n, pkgPath)
+	})
 	return nil
 }
 
-func (d *DocExtractor) inspectNode(n ast.Node) bool {
+func (d *DocExtractor) inspectNode(n ast.Node, pkgPath string) bool {
 	switch decl := n.(type) {
 	case *ast.GenDecl:
-		d.processGenDecl(decl)
+		d.processGenDecl(decl, pkgPath)
 	case *ast.FuncDecl:
 		d.processFuncDecl(decl)
 	}
 	return true // continue traversing children
 }
 
-func (d *DocExtractor) processGenDecl(decl *ast.GenDecl) {
+func (d *DocExtractor) processGenDecl(decl *ast.GenDecl, pkgPath string) {
 	if decl.Doc == nil || decl.Tok != token.TYPE {
 		return
 	}
 
 	for _, spec := range decl.Specs {
 		if ts, ok := spec.(*ast.TypeSpec); ok {
-			d.processTypeSpec(ts, decl.Doc)
+			d.processTypeSpec(ts, decl.Doc, pkgPath)
 		}
 	}
 }
 
-func (d *DocExtractor) processTypeSpec(ts *ast.TypeSpec, docComment *ast.CommentGroup) {
-	name := ts.Name.Name
-	// Retrieve or initialize existing doc entry for the type so that we can
-	// merge struct-level and field-level information.
-	doc := d.docs[name]
-	// Top-level type description (paragraph above `type X struct`)
-	if docComment != nil {
-		doc.Description = extractDescription(docComment.Text())
-	}
-
-	// If the underlying type is a struct, iterate over its fields and grab
-	// their doc comments. We store them in doc.Fields keyed by the field
-	// identifier so that later integration can attach them to schema
-	// properties.
+func (d *DocExtractor) processTypeSpec(ts *ast.TypeSpec, docComment *ast.CommentGroup, pkgPath string) {
+	key := pkgPath + "." + ts.Name.Name
+	doc := Documentation{Description: extractDescription(docComment.Text())}
 	if st, ok := ts.Type.(*ast.StructType); ok {
-		d.processStructFields(st, &doc)
+		d.processStructFields(st, key, &doc)
 	}
-
-	d.docs[name] = doc
+	d.docs[key] = doc
 }
 
-func (d *DocExtractor) processStructFields(st *ast.StructType, doc *Documentation) {
+func (d *DocExtractor) processStructFields(st *ast.StructType, key string, doc *Documentation) {
 	if doc.Fields == nil {
 		doc.Fields = map[string]FieldDoc{}
 	}
@@ -145,20 +168,22 @@ func (d *DocExtractor) processStructFields(st *ast.StructType, doc *Documentatio
 			d.storeFieldDocumentation(fld, desc, doc)
 		}
 
-		// Also process anonymous struct fields recursively
-		d.processAnonymousStructFields(fld, doc)
+		d.processInlineStructField(fld, key)
 	}
 }
 
-// processAnonymousStructFields recursively processes fields in anonymous structs.
-func (d *DocExtractor) processAnonymousStructFields(fld *ast.Field, doc *Documentation) {
-	// Check if this field is an anonymous struct (no field names means it's embedded)
-	if len(fld.Names) > 0 {
-		// This is a named field, check if it's a struct type
-		if st, ok := fld.Type.(*ast.StructType); ok {
-			// This is a named struct field, process its fields recursively
-			d.processStructFields(st, doc)
-		}
+// processInlineStructField stores the doc of a field with an inline struct
+// type, such as the Body section of a request, under "<key>.<field name>".
+func (d *DocExtractor) processInlineStructField(fld *ast.Field, key string) {
+	st, ok := fld.Type.(*ast.StructType)
+	if !ok {
+		return
+	}
+	for _, ident := range fld.Names {
+		fieldKey := key + "." + ident.Name
+		doc := Documentation{Description: d.extractFieldDescription(fld)}
+		d.processStructFields(st, fieldKey, &doc)
+		d.docs[fieldKey] = doc
 	}
 }
 
@@ -222,9 +247,9 @@ func (d *DocExtractor) processFuncDecl(decl *ast.FuncDecl) {
 	}
 }
 
-// ExtractTypeDoc returns the extracted documentation for the given type name.
-func (d *DocExtractor) ExtractTypeDoc(typeName string) Documentation {
-	if doc, ok := d.docs[typeName]; ok {
+// ExtractTypeDoc returns the extracted documentation for the type with the given key.
+func (d *DocExtractor) ExtractTypeDoc(key string) Documentation {
+	if doc, ok := d.docs[key]; ok {
 		return doc
 	}
 	return Documentation{}
@@ -236,20 +261,6 @@ func (d *DocExtractor) ExtractFunctionDoc(funcName string) Documentation {
 		return doc
 	}
 	return Documentation{}
-}
-
-// GetAllTypeNames returns all type names that have documentation.
-func (d *DocExtractor) GetAllTypeNames() []string {
-	var names []string
-	for name, doc := range d.docs {
-		// Only include types that have field documentation (indicating they're struct types)
-		if len(doc.Fields) > 0 {
-			names = append(names, name)
-		}
-	}
-	// Ensure deterministic order for enrichment to avoid nondeterministic docs
-	sort.Strings(names)
-	return names
 }
 
 // extractDescription returns the first paragraph (until double newline) trimmed.

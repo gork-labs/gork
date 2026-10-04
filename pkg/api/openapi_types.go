@@ -73,6 +73,9 @@ type Operation struct {
 	// Explicit vendor extension fields to ensure emission
 	XWebhookProvider map[string]string        `json:"x-webhook-provider,omitempty"`
 	XWebhookEvents   []map[string]interface{} `json:"x-webhook-events,omitempty"`
+
+	// docType is the DocExtractor key of the request type.
+	docType string
 }
 
 // MarshalJSON ensures Operation.Extensions are emitted as top-level x-* fields.
@@ -177,6 +180,10 @@ type Schema struct {
 
 	// goType is the Go type that a component describes. It is nil for a schema that is not a component.
 	goType reflect.Type
+
+	// docTypes lists the DocExtractor keys of the Go types that declare the schema
+	// and its properties. The doc of the first type describes the schema.
+	docTypes []string
 }
 
 // MarshalJSON implements custom JSON marshaling for Schema to handle the type field correctly.

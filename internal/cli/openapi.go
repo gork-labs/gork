@@ -69,10 +69,6 @@ func GenerateSpec(config *GenerateConfig) error {
 		return err
 	}
 
-	if err := enrichWithDocs(spec, config.SourcePath); err != nil {
-		return err
-	}
-
 	if config.ValidateOnline {
 		if err := validateSpec(spec); err != nil {
 			return fmt.Errorf("spec validation failed: %w", err)
@@ -135,14 +131,14 @@ func generateBaseSpec(config *GenerateConfig) (*api.OpenAPISpec, error) {
 			Components: &api.Components{Schemas: map[string]*api.Schema{}},
 		}, nil
 	}
-	return buildAndExtract(config.BuildPath)
+	return buildAndExtract(config.BuildPath, config.SourcePath)
 }
 
 // BuildRunner allows dependency injection for testing.
 type BuildRunner interface {
 	CreateTemp(pattern string) (*os.File, error)
 	BuildCommand(outputPath, buildPath string) error
-	RunCommand(exePath string) ([]byte, error)
+	RunCommand(exePath, sourcePath string) ([]byte, error)
 }
 
 // DefaultBuildRunner implements BuildRunner using real OS commands.
@@ -161,11 +157,12 @@ func (r *DefaultBuildRunner) BuildCommand(outputPath, buildPath string) error {
 	return cmd.Run()
 }
 
-// RunCommand executes the built binary and returns its output.
-func (r *DefaultBuildRunner) RunCommand(exePath string) ([]byte, error) {
+// RunCommand executes the built binary and returns its output. The binary
+// reads the doc comments in sourcePath.
+func (r *DefaultBuildRunner) RunCommand(exePath, sourcePath string) ([]byte, error) {
 	var out bytes.Buffer
 	cmd := exec.Command(exePath) // #nosec G204
-	cmd.Env = append(os.Environ(), "GORK_EXPORT=1")
+	cmd.Env = append(os.Environ(), "GORK_EXPORT=1", "GORK_SOURCE="+sourcePath)
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
@@ -174,11 +171,11 @@ func (r *DefaultBuildRunner) RunCommand(exePath string) ([]byte, error) {
 
 var defaultBuildRunner BuildRunner = &DefaultBuildRunner{}
 
-func buildAndExtract(buildPath string) (*api.OpenAPISpec, error) {
-	return buildAndExtractWithRunner(buildPath, defaultBuildRunner)
+func buildAndExtract(buildPath, sourcePath string) (*api.OpenAPISpec, error) {
+	return buildAndExtractWithRunner(buildPath, sourcePath, defaultBuildRunner)
 }
 
-func buildAndExtractWithRunner(buildPath string, runner BuildRunner) (*api.OpenAPISpec, error) {
+func buildAndExtractWithRunner(buildPath, sourcePath string, runner BuildRunner) (*api.OpenAPISpec, error) {
 	tmpExe, err := runner.CreateTemp("gork-build-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp exe: %w", err)
@@ -190,7 +187,7 @@ func buildAndExtractWithRunner(buildPath string, runner BuildRunner) (*api.OpenA
 		return nil, fmt.Errorf("build failed: %w", buildErr)
 	}
 
-	output, err := runner.RunCommand(tmpExe.Name())
+	output, err := runner.RunCommand(tmpExe.Name(), sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("run generated binary: %w", err)
 	}
@@ -200,18 +197,6 @@ func buildAndExtractWithRunner(buildPath string, runner BuildRunner) (*api.OpenA
 		return nil, fmt.Errorf("parse spec json: %w", err)
 	}
 	return &spec, nil
-}
-
-func enrichWithDocs(spec *api.OpenAPISpec, sourcePath string) error {
-	if sourcePath == "" {
-		return nil
-	}
-	extractor := api.NewDocExtractor()
-	if err := extractor.ParseDirectory(sourcePath); err != nil {
-		return fmt.Errorf("failed to parse source: %w", err)
-	}
-	api.EnhanceOpenAPISpecWithDocs(spec, extractor)
-	return nil
 }
 
 // HTTPClient interface for dependency injection.

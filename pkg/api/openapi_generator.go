@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"slices"
@@ -65,6 +66,14 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		// Security mapping
 		applySecurityToOperation(route, spec, op)
 		attachOperation(spec.Paths[path], strings.ToLower(route.Method), op)
+	}
+
+	if dir := os.Getenv("GORK_SOURCE"); dir != "" {
+		extractor := NewDocExtractor()
+		if err := extractor.ParseDirectory(dir); err != nil {
+			panic(fmt.Sprintf("read the doc comments in GORK_SOURCE: %v", err))
+		}
+		enrichSpecWithDocs(spec, extractor)
 	}
 
 	return spec
@@ -265,6 +274,13 @@ func qualifiedTypeName(t reflect.Type) string {
 	return t.PkgPath() + "." + t.Name()
 }
 
+// docKey returns the DocExtractor key of the named type t. A generic type
+// instance gives the key of its generic type.
+func docKey(t reflect.Type) string {
+	name, _, _ := strings.Cut(t.Name(), "[")
+	return t.PkgPath() + "." + name
+}
+
 func buildStructSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 	// Use the refactored builder for better testability
 	builder := NewStructSchemaBuilder()
@@ -291,6 +307,7 @@ func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string
 		s.Required = append(s.Required, embeddedSchema.Required...)
 	}
 	s.writtenFields = append(s.writtenFields, embeddedSchema.writtenFields...)
+	s.docTypes = append(s.docTypes, embeddedSchema.docTypes...)
 }
 
 func processStructField(f reflect.StructField, s *Schema, registry map[string]*Schema) {

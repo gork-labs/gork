@@ -25,6 +25,9 @@ type Foo struct {
 // It does a thing.
 func GetFoo() {}
 `
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/fixtures\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(dir, "fixture.go"), []byte(src), 0o644); err != nil {
 		t.Fatalf("write temp file: %v", err)
 	}
@@ -34,7 +37,7 @@ func GetFoo() {}
 		t.Fatalf("parse: %v", err)
 	}
 
-	td := d.ExtractTypeDoc("Foo")
+	td := d.ExtractTypeDoc("example.com/fixtures.Foo")
 	if td.Description != "Foo represents something." {
 		t.Errorf("got desc %q", td.Description)
 	}
@@ -242,7 +245,7 @@ func TestParseFile_Error(t *testing.T) {
 	fset := token.NewFileSet()
 
 	// Try to parse a non-existent file
-	err := extractor.parseFile("/non/existent/file.go", fset)
+	err := extractor.parseFile("/non/existent/file.go", "example.com/fixtures", fset)
 	if err == nil {
 		t.Error("Expected error when parsing non-existent file")
 	}
@@ -298,7 +301,7 @@ func TestProcessStructFields_NoFields(t *testing.T) {
 		Fields: &ast.FieldList{List: []*ast.Field{}},
 	}
 
-	extractor.processStructFields(st, doc)
+	extractor.processStructFields(st, "example.com/fixtures.T", doc)
 
 	if doc.Fields == nil {
 		t.Error("Expected Fields map to be initialized")
@@ -341,7 +344,7 @@ func TestProcessStructFields_EmptyDescription(t *testing.T) {
 		},
 	}
 
-	extractor.processStructFields(st, doc)
+	extractor.processStructFields(st, "example.com/fixtures.T", doc)
 
 	// No documentation should be stored for NoDocField
 	if len(doc.Fields) != 0 {
@@ -355,6 +358,9 @@ func TestProcessDirectoryEntry_ParseFileError(t *testing.T) {
 
 	// Create a temporary directory
 	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/fixtures\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
 
 	// Create a malformed Go file in the temporary directory
 	malformedFilePath := filepath.Join(dir, "malformed.go")
@@ -402,8 +408,8 @@ func TestProcessGenDecl_NoDocComment(t *testing.T) {
 	}
 
 	// Expect no panic or error, and no documentation stored
-	extractor.processGenDecl(decl)
-	if _, ok := extractor.docs["MyType"]; ok {
+	extractor.processGenDecl(decl, "example.com/fixtures")
+	if _, ok := extractor.docs["example.com/fixtures.MyType"]; ok {
 		t.Error("Expected no documentation to be stored for a type without a doc comment")
 	}
 }
@@ -423,8 +429,8 @@ func TestProcessGenDecl_NonTypeDeclaration(t *testing.T) {
 	}
 
 	// Expect no panic or error, and no documentation stored
-	extractor.processGenDecl(decl)
-	if _, ok := extractor.docs["myVar"]; ok {
+	extractor.processGenDecl(decl, "example.com/fixtures")
+	if _, ok := extractor.docs["example.com/fixtures.myVar"]; ok {
 		t.Error("Expected no documentation to be stored for a non-type declaration")
 	}
 }
@@ -439,49 +445,6 @@ func (m *mockDirEntry) Name() string               { return m.name }
 func (m *mockDirEntry) IsDir() bool                { return m.isDir }
 func (m *mockDirEntry) Type() os.FileMode          { return 0 }
 func (m *mockDirEntry) Info() (os.FileInfo, error) { return nil, nil }
-
-func TestGetAllTypeNames(t *testing.T) {
-	extractor := NewDocExtractor()
-
-	// Add some mock documentation
-	extractor.docs = map[string]Documentation{
-		"TypeWithFields": {
-			Description: "A type with fields",
-			Fields: map[string]FieldDoc{
-				"field1": {Description: "Field 1"},
-				"field2": {Description: "Field 2"},
-			},
-		},
-		"TypeWithoutFields": {
-			Description: "A type without fields",
-			Fields:      map[string]FieldDoc{},
-		},
-		"Function": {
-			Description: "A function",
-			// No Fields map - this should be excluded
-		},
-	}
-
-	names := extractor.GetAllTypeNames()
-
-	// Should only return types that have field documentation
-	expectedNames := []string{"TypeWithFields"}
-	if len(names) != len(expectedNames) {
-		t.Errorf("Expected %d type names, got %d: %v", len(expectedNames), len(names), names)
-	}
-
-	// Check that the returned name is correct
-	found := false
-	for _, name := range names {
-		if name == "TypeWithFields" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected 'TypeWithFields' to be in the result")
-	}
-}
 
 func TestStoreFieldDocByJSONTag_WithGorkTag(t *testing.T) {
 	extractor := NewDocExtractor()
@@ -528,5 +491,21 @@ func TestStoreFieldDocByJSONTag_WithGorkTagAndOptions(t *testing.T) {
 		t.Error("Expected field 'username' to be stored")
 	} else if fieldDoc.Description != "Username of the user" {
 		t.Errorf("Expected description 'Username of the user', got '%s'", fieldDoc.Description)
+	}
+}
+
+func TestParseDirectory_NoGoMod(t *testing.T) {
+	err := NewDocExtractor().ParseDirectory(t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "no go.mod file") {
+		t.Errorf("err = %v, want an error about the missing go.mod file", err)
+	}
+}
+
+func TestDocExtractor_ImportPathOfSubdirectory(t *testing.T) {
+	extractor := parseFixtures(t, map[string]string{
+		"internal/store/store.go": "package store\n\n// Row is a row.\ntype Row struct{}\n",
+	})
+	if got := extractor.ExtractTypeDoc("github.com/gork-labs/gork/internal/store.Row").Description; got != "Row is a row." {
+		t.Errorf("description = %q, want the doc of Row", got)
 	}
 }

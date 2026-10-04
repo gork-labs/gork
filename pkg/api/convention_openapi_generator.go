@@ -45,6 +45,9 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 
 	// Process request sections for regular handlers
 	if route.RequestType.Kind() == reflect.Struct {
+		if route.RequestType.Name() != "" {
+			operation.docType = docKey(route.RequestType)
+		}
 		g.processRequestSections(route.RequestType, operation, components)
 	}
 
@@ -336,6 +339,7 @@ func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type,
 	itemSchema := &Schema{OneOf: events}
 	if name := sanitizeSchemaName(eventType.Name()); name != "" {
 		itemSchema.Title = name
+		itemSchema.docTypes = []string{docKey(eventType)}
 		itemSchema = registerComponent(name, eventType, itemSchema, components.Schemas)
 	}
 
@@ -381,6 +385,7 @@ func (g *ConventionOpenAPIGenerator) generateResponseComponentSchema(respType re
 		Title:       typeName,
 		Properties:  make(map[string]*Schema),
 		Description: g.getTypeDescription(respType),
+		docTypes:    []string{docKey(respType), docKey(respType) + "." + SectionBody},
 	}
 
 	// Find the Body field and extract its properties
@@ -441,6 +446,7 @@ func (g *ConventionOpenAPIGenerator) extractBodyPropertiesToResponseSchema(bodyT
 				responseSchema.Required = bodySchema.Required
 			}
 			responseSchema.writtenFields = bodySchema.writtenFields
+			responseSchema.docTypes = append(responseSchema.docTypes, bodySchema.docTypes...)
 		}
 	}
 }
@@ -462,6 +468,7 @@ func (g *ConventionOpenAPIGenerator) extractStructPropertiesToSchema(structType 
 
 		// Handle embedded structs - flatten their properties into parent schema
 		if field.Anonymous && field.Type.Kind() == reflect.Struct && field.Tag.Get("gork") == "" && field.Tag.Get("json") == "" {
+			schema.docTypes = append(schema.docTypes, docKey(field.Type))
 			g.extractStructPropertiesToSchema(field.Type, schema, components)
 			continue
 		}
@@ -510,6 +517,12 @@ func (g *ConventionOpenAPIGenerator) generateRequestBodyComponentSchema(bodyType
 			Type:       "object",
 			Title:      componentName,
 			Properties: make(map[string]*Schema),
+		}
+		switch {
+		case bodyType.Name() != "":
+			componentSchema.docTypes = []string{docKey(bodyType)}
+		case reqType != nil:
+			componentSchema.docTypes = []string{docKey(reqType) + "." + SectionBody}
 		}
 		g.extractStructPropertiesToSchema(bodyType, componentSchema, components)
 	}
@@ -576,7 +589,7 @@ func (g *ConventionOpenAPIGenerator) getTypeDescription(t reflect.Type) string {
 		return ""
 	}
 
-	doc := g.extractor.ExtractTypeDoc(typeName)
+	doc := g.extractor.ExtractTypeDoc(docKey(t))
 	return doc.Description
 }
 
@@ -873,9 +886,9 @@ func (g *ConventionOpenAPIGenerator) ensureErrorSchemas(components *Components) 
 		components.Schemas = map[string]*Schema{}
 	}
 
-	// Add ErrorResponse schema if it doesn't exist
-	if _, exists := components.Schemas["ErrorResponse"]; !exists {
-		components.Schemas["ErrorResponse"] = &Schema{
+	errorType := reflect.TypeFor[ErrorResponse]()
+	if componentRef("ErrorResponse", errorType, components.Schemas) == nil {
+		registerComponent("ErrorResponse", errorType, &Schema{
 			Type:        "object",
 			Title:       "ErrorResponse",
 			Description: "Generic error response structure",
@@ -891,12 +904,12 @@ func (g *ConventionOpenAPIGenerator) ensureErrorSchemas(components *Components) 
 				},
 			},
 			Required: []string{"error"},
-		}
+		}, components.Schemas)
 	}
 
-	// Add ValidationErrorResponse schema if it doesn't exist
-	if _, exists := components.Schemas["ValidationErrorResponse"]; !exists {
-		components.Schemas["ValidationErrorResponse"] = &Schema{
+	validationErrorType := reflect.TypeFor[ValidationErrorResponse]()
+	if componentRef("ValidationErrorResponse", validationErrorType, components.Schemas) == nil {
+		registerComponent("ValidationErrorResponse", validationErrorType, &Schema{
 			Type:        "object",
 			Title:       "ValidationErrorResponse",
 			Description: "Validation error response with field-level details",
@@ -912,7 +925,7 @@ func (g *ConventionOpenAPIGenerator) ensureErrorSchemas(components *Components) 
 				},
 			},
 			Required: []string{"error"},
-		}
+		}, components.Schemas)
 	}
 }
 

@@ -280,6 +280,12 @@ if os.Getenv("GORK_EXPORT") == "1" {
 }
 ```
 
+The CLI also gives the `--source` directory to the binary in the environment variable `GORK_SOURCE`. When this variable is set, `api.GenerateOpenAPI` reads the doc comments of the Go files in this directory and in its subdirectories, and adds them to the spec. The directory must be in a Go module, because Gork uses the import path of each type. If Gork cannot read the directory, `api.GenerateOpenAPI` stops with a panic. A doc comment applies only to the Go type that declares it:
+
+- The doc comment of a type describes the schema of this type.
+- The doc comment of a field describes the property of this field. A field of an embedded struct describes the property in the schema of the outer type.
+- The doc comment of a field in a request section, for example `Body` or `Query`, describes the property or the parameter of this field.
+
 The generator makes no network call. To check the spec with the online Swagger validator, add `--validate-online`. This flag sends the spec to https://validator.swagger.io, and the command fails if the validator reports an error. The validator does not support OpenAPI 3.2, so the CLI does not send a 3.2 spec.
 
 ### lintgork - Convention Linter
