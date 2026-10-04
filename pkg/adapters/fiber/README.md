@@ -80,6 +80,8 @@ func main() {
 - **Documentation**: Serve interactive API documentation with multiple UI options
 - **OpenAPI generation**: Automatic OpenAPI 3.1 spec generation from handler types
 
+Stream handlers (`*api.Stream[E]`, Server-Sent Events) do not work with Fiber. Fasthttp sends the response body only after the handler returns. The adapter panics when a stream route registers.
+
 ## Path Parameter Mapping
 
 Gork uses `{param}` syntax which is automatically converted to Fiber's `:param` syntax:
