@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
 	"slices"
@@ -213,34 +214,52 @@ func handleUnionType(t reflect.Type, registry map[string]*Schema) *Schema {
 	generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
 	u := generator.generateUnionSchema(t, components)
 
-	rawName := t.Name()
-	typeName := sanitizeSchemaName(rawName)
+	typeName := sanitizeSchemaName(t.Name())
 	if typeName != "" {
-		// Choose a human-friendly unique name (guaranteed non-empty since typeName != "")
-		unique := uniqueSchemaNameForType(t, registry)
-		registry[unique] = u
-		return &Schema{Ref: "#/components/schemas/" + unique}
+		return registerComponent(typeName, t, u, registry)
 	}
 	return u
 }
 
 func checkExistingType(t reflect.Type, registry map[string]*Schema) *Schema {
-	rawName := t.Name()
-	typeName := sanitizeSchemaName(rawName)
-	if typeName != "" {
-		if _, ok := registry[typeName]; ok {
-			return &Schema{Ref: "#/components/schemas/" + typeName}
-		}
-		// Also check the package-prefixed alternative used for collision avoidance
-		pkgPref := toPascalCase(lastPathComponent(t.PkgPath()))
-		if pkgPref != "" {
-			alt := pkgPref + typeName
-			if _, ok := registry[alt]; ok {
-				return &Schema{Ref: "#/components/schemas/" + alt}
-			}
-		}
+	typeName := sanitizeSchemaName(t.Name())
+	if typeName == "" {
+		return nil
 	}
-	return nil
+	return componentRef(typeName, t, registry)
+}
+
+// componentRef returns a $ref to the component name, or nil when the registry
+// does not hold this name.
+func componentRef(name string, t reflect.Type, registry map[string]*Schema) *Schema {
+	checkComponentOwner(name, t, registry)
+	if _, ok := registry[name]; !ok {
+		return nil
+	}
+	return &Schema{Ref: "#/components/schemas/" + name}
+}
+
+// registerComponent stores s as the component of the Go type t and returns a $ref to it.
+func registerComponent(name string, t reflect.Type, s *Schema, registry map[string]*Schema) *Schema {
+	checkComponentOwner(name, t, registry)
+	s.goType = t
+	registry[name] = s
+	return &Schema{Ref: "#/components/schemas/" + name}
+}
+
+// checkComponentOwner panics when the component name already describes a Go
+// type other than t, because the two types cannot share one schema.
+func checkComponentOwner(name string, t reflect.Type, registry map[string]*Schema) {
+	existing, ok := registry[name]
+	if !ok || existing.goType == nil || existing.goType == t {
+		return
+	}
+	panic(fmt.Sprintf("the Go types %s and %s both get the OpenAPI component name %q; rename one of the types",
+		qualifiedTypeName(existing.goType), qualifiedTypeName(t), name))
+}
+
+func qualifiedTypeName(t reflect.Type) string {
+	return t.PkgPath() + "." + t.Name()
 }
 
 func buildStructSchema(t reflect.Type, registry map[string]*Schema) *Schema {
@@ -593,28 +612,70 @@ func getOpenAPIFieldName(field reflect.StructField) string {
 	return field.Name
 }
 
-// sanitizeSchemaName converts Go type names containing characters not allowed
-// in OpenAPI component keys (e.g. brackets, commas, slashes) into a
-// conservative snake-ish representation.
-// sanitizeGenericTypeName handles generic type names like "Union2[A,B]".
+// sanitizeGenericTypeName converts a generic type name, as reflect gives it,
+// to the base name and one part for each type argument, joined by "_".
+// For example, "Envelope[[]example.com/app.Item]" becomes "Envelope_Array_Item".
 func sanitizeGenericTypeName(name string) string {
 	open := strings.Index(name, "[")
 	if open == -1 || !strings.HasSuffix(name, "]") {
 		return name
 	}
 
-	base := name[:open]
-	args := name[open+1 : len(name)-1]
-	parts := strings.Split(args, ",")
-
-	for i, p := range parts {
-		p = strings.TrimSpace(p)
-		p = stripPackagePath(p)
-		parts[i] = p
+	parts := []string{name[:open]}
+	for _, arg := range splitTypeArgs(name[open+1 : len(name)-1]) {
+		parts = append(parts, typeArgName(arg))
 	}
+	return strings.Join(parts, "_")
+}
 
-	// Reassemble in a stable, readable form
-	return base + "_" + strings.Join(parts, "_")
+// typeArgName converts one type argument to a part of a component name.
+// A pointer gives "Nullable", because the schema of a pointer is nullable.
+func typeArgName(arg string) string {
+	switch {
+	case strings.HasPrefix(arg, "*"):
+		return "Nullable_" + typeArgName(arg[1:])
+	case strings.HasPrefix(arg, "[]"):
+		return "Array_" + typeArgName(arg[2:])
+	case strings.HasPrefix(arg, "["):
+		end := strings.Index(arg, "]")
+		return "Array" + arg[1:end] + "_" + typeArgName(arg[end+1:])
+	case strings.HasPrefix(arg, "map["):
+		end := 4 + topLevelIndex(arg[4:], ']')
+		return "Map_" + typeArgName(arg[4:end]) + "_" + typeArgName(arg[end+1:])
+	}
+	if open := strings.Index(arg, "["); open != -1 {
+		return sanitizeGenericTypeName(stripPackagePath(arg[:open]) + arg[open:])
+	}
+	return stripPackagePath(arg)
+}
+
+// splitTypeArgs splits a type argument list at the commas outside of brackets.
+func splitTypeArgs(args string) []string {
+	var parts []string
+	for {
+		i := topLevelIndex(args, ',')
+		if i == -1 {
+			return append(parts, strings.TrimSpace(args))
+		}
+		parts = append(parts, strings.TrimSpace(args[:i]))
+		args = args[i+1:]
+	}
+}
+
+// topLevelIndex returns the index of the first c in s outside of brackets, or -1.
+func topLevelIndex(s string, c rune) int {
+	depth := 0
+	for i, r := range s {
+		switch {
+		case depth == 0 && r == c:
+			return i
+		case r == '[' || r == '{' || r == '(':
+			depth++
+		case r == ']' || r == '}' || r == ')':
+			depth--
+		}
+	}
+	return -1
 }
 
 // stripPackagePath removes package path from type name.
@@ -646,6 +707,8 @@ func isAllowedSchemaChar(r rune) bool {
 		r == '.' || r == '-' || r == '_'
 }
 
+// sanitizeSchemaName converts a Go type name to an OpenAPI component name.
+// It replaces each character that a component name does not allow with "_".
 func sanitizeSchemaName(n string) string {
 	if n == "" {
 		return ""
@@ -656,49 +719,4 @@ func sanitizeSchemaName(n string) string {
 
 	// Replace disallowed characters
 	return sanitizeCharacters(n)
-}
-
-// lastPathComponent returns the last segment of a slash-separated path.
-func lastPathComponent(p string) string {
-	if p == "" {
-		return ""
-	}
-	parts := strings.Split(p, "/")
-	return parts[len(parts)-1]
-}
-
-// uniqueSchemaNameForType returns a human-friendly unique component name for a type.
-// Preference order:
-// 1) Simple type name (sanitized)
-// 2) PackageName + TypeName (PascalCase prefix)
-// 3) PackageName + TypeName + numeric suffix.
-func uniqueSchemaNameForType(t reflect.Type, registry map[string]*Schema) string {
-	base := sanitizeSchemaName(t.Name())
-	if base == "" {
-		return ""
-	}
-	if _, exists := registry[base]; !exists {
-		return base
-	}
-	pkgPref := toPascalCase(lastPathComponent(t.PkgPath()))
-	if pkgPref != "" {
-		alt := pkgPref + base
-		if _, exists := registry[alt]; !exists {
-			return alt
-		}
-		// As a last resort, append a numeric suffix
-		for i := 2; ; i++ {
-			candidate := alt + strconv.Itoa(i)
-			if _, exists := registry[candidate]; !exists {
-				return candidate
-			}
-		}
-	}
-	// If there's no package info, fallback to numbered variants of base
-	for i := 2; ; i++ {
-		candidate := base + strconv.Itoa(i)
-		if _, exists := registry[candidate]; !exists {
-			return candidate
-		}
-	}
 }

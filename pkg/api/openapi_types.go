@@ -1,6 +1,9 @@
 package api
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"reflect"
+)
 
 // testable JSON helpers (can be stubbed in tests).
 var (
@@ -171,6 +174,9 @@ type Schema struct {
 
 	// writtenFields lists the properties of a struct schema that gorkson.Marshal always writes.
 	writtenFields []string
+
+	// goType is the Go type that a component describes. It is nil for a schema that is not a component.
+	goType reflect.Type
 }
 
 // MarshalJSON implements custom JSON marshaling for Schema to handle the type field correctly.

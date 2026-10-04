@@ -362,6 +362,28 @@ The `required` list of a schema follows how Gork reads a request and writes a re
 - Only the union types of `pkg/unions` give a `oneOf`. To give a union a name, use a type alias: `type PaymentMethod = unions.Union2[Card, Bank]`.
 - A defined type such as `type PaymentMethod unions.Union2[Card, Bank]` does not keep the `MarshalJSON` method. Thus `gorkson` writes it as an object with the fields `A` and `B`, and the schema shows this object.
 
+### Component Names
+
+A component of a named type has the name of the Go type. The name does not include the package.
+
+A component of a generic type instance has the name of the generic type and one part for each type argument. The parts are joined by `_`. Each type argument gives its part with these rules:
+
+| Type argument | Part | Example instance | Component name |
+| --- | --- | --- | --- |
+| Named type `T` | `T` without the package | `Envelope[models.Item]` | `Envelope_Item` |
+| Built-in type | The type name | `Envelope[string]` | `Envelope_string` |
+| Slice `[]T` | `Array_` and the part of `T` | `Envelope[[]Item]` | `Envelope_Array_Item` |
+| Array `[N]T` | `ArrayN_` and the part of `T` | `Envelope[[3]Item]` | `Envelope_Array3_Item` |
+| Pointer `*T` | `Nullable_` and the part of `T` | `Envelope[*Item]` | `Envelope_Nullable_Item` |
+| Map `map[K]V` | `Map_`, the part of `K`, `_`, and the part of `V` | `Envelope[map[string]Item]` | `Envelope_Map_string_Item` |
+| Generic instance | The name of the instance with these rules | `Envelope[Page[Item]]` | `Envelope_Page_Item` |
+
+A type with more than one type argument gives one part for each argument. For example, `Pair[Item, User]` gives `Pair_Item_User`.
+
+A pointer gets its own part because the schema of a pointer is nullable. Thus `Envelope[*Item]` and `Envelope[Item]` have different schemas.
+
+Two different Go types must not get the same component name. For example, `models.Item` and `billing.Item` both get the name `Item`. If this occurs, the OpenAPI generator stops with a panic. The panic message names the two Go types and the component name. To fix the problem, rename one of the types.
+
 ## Examples
 
 See the [examples](../../examples/) directory for complete working examples with different web frameworks.
