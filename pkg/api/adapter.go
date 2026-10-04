@@ -15,6 +15,7 @@ type HandlerOption struct {
 	Tags           []string
 	Security       []SecurityRequirement
 	ErrorResponses []int
+	Status         int
 }
 
 // SecurityRequirement represents a security requirement for an operation.
@@ -77,6 +78,15 @@ func WithCookieAuth(name string) Option {
 func WithErrorResponses(statuses ...int) Option {
 	return func(h *HandlerOption) {
 		h.ErrorResponses = append(h.ErrorResponses, statuses...)
+	}
+}
+
+// WithStatus sets the HTTP status of a successful response. Without this
+// option, Gork sends 200 for a response with a Body and 204 for a response
+// without a Body. The OpenAPI operation shows the success response with this status.
+func WithStatus(status int) Option {
+	return func(h *HandlerOption) {
+		h.Status = status
 	}
 }
 

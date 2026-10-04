@@ -459,7 +459,7 @@ func TestConventionHandlerFactory_ProcessConventionResponse_NilError(t *testing.
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/test", nil)
 
-	factory.processConventionResponse(rr, req, handlerValue, reqPtr)
+	factory.processConventionResponse(rr, req, handlerValue, reqPtr, 0)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", rr.Code, http.StatusOK)
@@ -483,7 +483,7 @@ func TestConventionHandlerFactory_ProcessConventionResponse_UnknownError(t *test
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/test", nil)
 
-	factory.processConventionResponse(rr, req, handlerValue, reqPtr)
+	factory.processConventionResponse(rr, req, handlerValue, reqPtr, 0)
 
 	// Should return 500 for unknown error type
 	if rr.Code != http.StatusInternalServerError {
@@ -499,7 +499,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_NilPointer(t *testing.
 	respVal := reflect.ValueOf(nilResponse)
 
 	rr := httptest.NewRecorder()
-	factory.processResponseSections(rr, respVal)
+	factory.processResponseSections(rr, respVal, 0)
 
 	// Should return 204 No Content for nil pointer
 	if rr.Code != http.StatusNoContent {
@@ -523,7 +523,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_NoSections(t *testing.
 	respVal := reflect.ValueOf(response)
 
 	rr := httptest.NewRecorder()
-	factory.processResponseSections(rr, respVal)
+	factory.processResponseSections(rr, respVal, 0)
 
 	if rr.Code != http.StatusNoContent {
 		t.Errorf("Status = %d, want %d", rr.Code, http.StatusNoContent)
@@ -693,7 +693,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_EdgeCases(t *testing.T
 		w := httptest.NewRecorder()
 		var nilResponse *TestConventionHandlerResponse
 
-		factory.processResponseSections(w, reflect.ValueOf(nilResponse))
+		factory.processResponseSections(w, reflect.ValueOf(nilResponse), 0)
 
 		if w.Code != http.StatusNoContent {
 			t.Errorf("Expected status 204, got %d", w.Code)
@@ -704,7 +704,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_EdgeCases(t *testing.T
 		w := httptest.NewRecorder()
 		stringResponse := "plain string response"
 
-		factory.processResponseSections(w, reflect.ValueOf(stringResponse))
+		factory.processResponseSections(w, reflect.ValueOf(stringResponse), 0)
 
 		// Should return 204 No Content since validation prevents non-struct responses at registration
 		if w.Code != http.StatusNoContent {
@@ -722,7 +722,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_EdgeCases(t *testing.T
 			},
 		}
 
-		factory.processResponseSections(w, reflect.ValueOf(spec))
+		factory.processResponseSections(w, reflect.ValueOf(spec), 0)
 
 		// Should use standard JSON marshaling, not gork JSON
 		if w.Header().Get("Content-Type") != "application/json" {
@@ -768,7 +768,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_EdgeCases(t *testing.T
 			},
 		}
 
-		factory.processResponseSections(w, reflect.ValueOf(response))
+		factory.processResponseSections(w, reflect.ValueOf(response), 0)
 
 		// Check headers
 		if w.Header().Get("X-Custom-Header") != "custom-value" {
@@ -806,7 +806,7 @@ func TestConventionHandlerFactory_ProcessResponseSections_EdgeCases(t *testing.T
 			Value: 42,
 		}
 
-		factory.processResponseSections(w, reflect.ValueOf(response))
+		factory.processResponseSections(w, reflect.ValueOf(response), 0)
 
 		// Should return 204 No Content for struct without Body field
 		if w.Code != http.StatusNoContent {

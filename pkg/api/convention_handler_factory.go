@@ -53,14 +53,15 @@ func (f *ConventionHandlerFactory) CreateHandler(adapter GenericParameterAdapter
 
 	// Build the http.HandlerFunc using Convention Over Configuration
 	httpHandler := func(w http.ResponseWriter, r *http.Request) {
-		f.executeConventionHandler(w, r, v, reqType, adapter)
+		f.executeConventionHandler(w, r, v, reqType, adapter, info.Options.Status)
 	}
 
 	return httpHandler, info
 }
 
 // executeConventionHandler executes a handler using the Convention Over Configuration approach.
-func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqType reflect.Type, adapter GenericParameterAdapter[*http.Request]) {
+// A status other than 0 replaces the status of a successful response.
+func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqType reflect.Type, adapter GenericParameterAdapter[*http.Request], status int) {
 	// Instantiate request struct
 	reqPtr := reflect.New(reqType)
 
@@ -82,7 +83,7 @@ func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWrite
 	}
 
 	// Call handler and process response
-	f.processConventionResponse(w, r, handlerValue, reqPtr)
+	f.processConventionResponse(w, r, handlerValue, reqPtr, status)
 }
 
 // writeHandlerError writes the response for an error from request validation or from a handler.
@@ -101,7 +102,7 @@ func writeHandlerError(w http.ResponseWriter, err error) {
 }
 
 // processConventionResponse processes the handler response using Convention Over Configuration.
-func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value) {
+func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWriter, r *http.Request, handlerValue reflect.Value, reqPtr reflect.Value, status int) {
 	// Call the handler via reflection
 	results := handlerValue.Call([]reflect.Value{
 		reflect.ValueOf(r.Context()),
@@ -119,7 +120,7 @@ func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWrit
 			}
 		}
 		// Success with no content
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(successStatus(status, http.StatusNoContent))
 		return
 	}
 
@@ -137,20 +138,28 @@ func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWrit
 	}
 
 	// Process response sections if the response follows Convention Over Configuration
-	f.processResponseSections(w, respVal)
+	f.processResponseSections(w, respVal, status)
+}
+
+// successStatus returns status, or def when status is 0.
+func successStatus(status, def int) int {
+	if status == 0 {
+		return def
+	}
+	return status
 }
 
 // processResponseSections processes response sections (Body, Headers, Cookies).
-func (f *ConventionHandlerFactory) processResponseSections(w http.ResponseWriter, respVal reflect.Value) {
+func (f *ConventionHandlerFactory) processResponseSections(w http.ResponseWriter, respVal reflect.Value, status int) {
 	// Check if response is nil (only valid for pointer types)
 	if respVal.Kind() == reflect.Pointer && respVal.IsNil() {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(successStatus(status, http.StatusNoContent))
 		return
 	}
 
 	respStruct, respType := f.extractResponseStructAndType(respVal)
 	bodyValue, hasBody := f.processConventionSections(w, respStruct, respType)
-	f.writeResponseBody(w, respVal, bodyValue, hasBody)
+	f.writeResponseBody(w, respVal, bodyValue, hasBody, status)
 }
 
 // extractResponseStructAndType extracts the struct and type from response value.
@@ -206,28 +215,29 @@ func (f *ConventionHandlerFactory) hasConventionSections(respType reflect.Type) 
 }
 
 // writeResponseBody writes the response body based on whether convention sections are used.
-func (f *ConventionHandlerFactory) writeResponseBody(w http.ResponseWriter, respVal reflect.Value, bodyValue reflect.Value, hasBody bool) {
+func (f *ConventionHandlerFactory) writeResponseBody(w http.ResponseWriter, respVal reflect.Value, bodyValue reflect.Value, hasBody bool, status int) {
 	if hasBody {
-		f.writeConventionBody(w, bodyValue)
+		f.writeConventionBody(w, bodyValue, status)
 		return
 	}
 
-	f.writeNonConventionBody(w, respVal)
+	f.writeNonConventionBody(w, respVal, status)
 }
 
 // writeConventionBody writes body from convention Body field.
-func (f *ConventionHandlerFactory) writeConventionBody(w http.ResponseWriter, bodyValue reflect.Value) {
+func (f *ConventionHandlerFactory) writeConventionBody(w http.ResponseWriter, bodyValue reflect.Value, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	data, err := f.gorkMarshaler(bodyValue.Interface())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to encode response")
 		return
 	}
+	w.WriteHeader(successStatus(status, http.StatusOK))
 	_, _ = w.Write(data)
 }
 
 // writeNonConventionBody writes non-convention response body.
-func (f *ConventionHandlerFactory) writeNonConventionBody(w http.ResponseWriter, respVal reflect.Value) {
+func (f *ConventionHandlerFactory) writeNonConventionBody(w http.ResponseWriter, respVal reflect.Value, status int) {
 	responseInterface := respVal.Interface()
 	if _, canMarshal := responseInterface.(json.Marshaler); canMarshal {
 		// Response implements json.Marshaler - use standard JSON marshaling
@@ -237,10 +247,11 @@ func (f *ConventionHandlerFactory) writeNonConventionBody(w http.ResponseWriter,
 			writeError(w, http.StatusInternalServerError, "Failed to encode response")
 			return
 		}
+		w.WriteHeader(successStatus(status, http.StatusOK))
 		_, _ = w.Write(data)
 	} else {
 		// Non-conventional response without json.Marshaler - return 204 No Content
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(successStatus(status, http.StatusNoContent))
 	}
 }
 
