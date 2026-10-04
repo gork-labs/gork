@@ -9,6 +9,16 @@
       "post": {
         "description": "Login handles user login requests.",
         "operationId": "Login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -22,6 +32,16 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
           },
           "422": {
             "$ref": "#/components/responses/UnprocessableEntity"
@@ -411,6 +431,11 @@
             "$ref": "#/components/responses/InternalServerError"
           }
         },
+        "security": [
+          {
+            "session_id": []
+          }
+        ],
         "tags": [
           "users"
         ]
@@ -865,6 +890,24 @@
         ],
         "description": "ListUsersResponse represents the response for listing users."
       },
+      "LoginBody": {
+        "type": "object",
+        "title": "LoginBody",
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "Password is the user's password"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username is the user's username"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
       "LoginResponse": {
         "type": "object",
         "title": "LoginResponse",
@@ -1131,6 +1174,11 @@
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer"
+      },
+      "session_id": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session_id"
       }
     },
     "responses": {

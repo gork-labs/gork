@@ -2,7 +2,9 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -56,6 +58,8 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 		// Error-only handlers generate 204 No Content
 		operation.Responses["204"] = g.generateNoContentResponse()
 	}
+
+	g.addRouteErrorResponses(operation, route)
 
 	// Add standard error responses to all operations
 	g.addStandardErrorResponses(operation, components)
@@ -800,6 +804,21 @@ func (g *ConventionOpenAPIGenerator) hasBodyField(t reflect.Type) bool {
 func (g *ConventionOpenAPIGenerator) generateNoContentResponse() *Response {
 	return &Response{
 		Description: "No Content",
+	}
+}
+
+// addRouteErrorResponses adds the error responses of WithErrorResponses to the operation.
+func (g *ConventionOpenAPIGenerator) addRouteErrorResponses(operation *Operation, route *RouteInfo) {
+	if route.Options == nil {
+		return
+	}
+	for _, status := range route.Options.ErrorResponses {
+		operation.Responses[strconv.Itoa(status)] = &Response{
+			Description: http.StatusText(status),
+			Content: map[string]*MediaType{
+				"application/json": {Schema: &Schema{Ref: "#/components/schemas/ErrorResponse"}},
+			},
+		}
 	}
 }
 

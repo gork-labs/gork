@@ -15,14 +15,14 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	r := stdlib.NewRouter(mux)
 
 	// Auth
-	r.Post("/api/v1/auth/login", handlers.Login, api.WithTags("auth"))
+	r.Post("/api/v1/auth/login", handlers.Login, api.WithTags("auth"), api.WithErrorResponses(http.StatusUnauthorized))
 
 	// Users CRUD
 	r.Get("/api/v1/users", handlers.ListUsers, api.WithTags("users"), api.WithBearerTokenAuth("read:users"))
 	r.Get("/api/v1/users/{userId}", handlers.GetUser, api.WithTags("users"), api.WithAPIKeyAuth())
 	r.Post("/api/v1/users", handlers.CreateUser, api.WithTags("users"), api.WithBasicAuth())
 	r.Put("/api/v1/users/{userId}", handlers.UpdateUser, api.WithTags("users"), api.WithBearerTokenAuth())
-	r.Delete("/api/v1/users/{userId}", handlers.DeleteUser, api.WithTags("users"))
+	r.Delete("/api/v1/users/{userId}", handlers.DeleteUser, api.WithTags("users"), api.WithCookieAuth("session_id"))
 	r.Get("/api/v1/users/{userId}/activity", handlers.StreamUserActivity, api.WithTags("users"))
 
 	// Example demonstrating rules with context variables

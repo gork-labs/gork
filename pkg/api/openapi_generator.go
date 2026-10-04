@@ -92,6 +92,9 @@ func applySecurityToOperation(route *RouteInfo, spec *OpenAPISpec, op *Operation
 		case "apiKey":
 			schemeName = "ApiKeyAuth"
 			scheme = SecurityScheme{Type: "apiKey", In: "header", Name: "X-API-Key"}
+		case "cookie":
+			schemeName = sec.Name
+			scheme = SecurityScheme{Type: "apiKey", In: "cookie", Name: sec.Name}
 		default:
 			continue
 		}
