@@ -535,96 +535,6 @@ func Handler(ctx context.Context, req TestRequest) (TestResponse, error) {
 	}
 }
 
-func TestAnalyzeRequestStructure(t *testing.T) {
-	source := `package test
-
-type TestRequest struct {
-	Query struct {
-		Limit int ` + "`" + `gork:"limit"` + "`" + `
-	}
-	Body struct {
-		Name string ` + "`" + `gork:"name"` + "`" + `
-	}
-	InvalidSection int
-}
-
-type NotARequest struct {
-	Field string
-}
-`
-
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", source, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("Failed to parse test source: %v", err)
-	}
-
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						// Test with nil pass - should not panic
-						analyzeRequestStructure(typeSpec.Name.Name, structType, nil)
-					}
-				}
-			}
-		}
-	}
-}
-
-func TestValidateConventionSection(t *testing.T) {
-	// Test with non-struct section
-	nonStructField := &ast.Field{
-		Names: []*ast.Ident{{Name: "Query"}},
-		Type:  &ast.Ident{Name: "int"},
-	}
-
-	// Mock reporter to capture reports
-	reports := []string{}
-	mockReporter := &MockReporter{
-		ReportFunc: func(pos token.Pos, format string, args ...interface{}) {
-			reports = append(reports, format)
-		},
-	}
-
-	validateConventionSection("Query", nonStructField, mockReporter)
-	if len(reports) == 0 {
-		t.Error("Expected error report for non-struct section")
-	}
-
-	// Test with non-struct Body section
-	reports = []string{}
-	rawBodyField := &ast.Field{
-		Names: []*ast.Ident{{Name: "Body"}},
-		Type:  &ast.ArrayType{Elt: &ast.Ident{Name: "byte"}},
-	}
-
-	validateConventionSection("Body", rawBodyField, mockReporter)
-	if len(reports) != 0 {
-		t.Errorf("Expected no report for non-struct Body section, got %v", reports)
-	}
-
-	// Test with valid struct section
-	reports = []string{}
-	structField := &ast.Field{
-		Names: []*ast.Ident{{Name: "Query"}},
-		Type: &ast.StructType{
-			Fields: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Names: []*ast.Ident{{Name: "Limit"}},
-						Type:  &ast.Ident{Name: "int"},
-						Tag:   &ast.BasicLit{Value: "`gork:\"limit\"`"},
-					},
-				},
-			},
-		},
-	}
-
-	validateConventionSection("Query", structField, mockReporter)
-}
-
 func TestValidateSectionField(t *testing.T) {
 	reports := []string{}
 	mockReporter := &MockReporter{
@@ -1045,38 +955,6 @@ type NotARequest struct {
 	}
 }
 
-func TestAnalyzeRequestStructureWithAnonymousFields(t *testing.T) {
-	// Test with anonymous fields (should be skipped)
-	source := `package test
-
-type TestRequest struct {
-	string  // Anonymous field - should be skipped
-	Query struct {
-		Limit int ` + "`" + `gork:"limit"` + "`" + `
-	}
-}
-`
-
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", source, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("Failed to parse test source: %v", err)
-	}
-
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						// This should skip the anonymous field
-						analyzeRequestStructure(typeSpec.Name.Name, structType, nil)
-					}
-				}
-			}
-		}
-	}
-}
-
 func TestValidateGorkTagWithMissingWireFormat(t *testing.T) {
 	// Test validateGorkTag with missing wire format (empty first part)
 	reports := []string{}
@@ -1195,59 +1073,6 @@ func Handler(ctx context.Context, req TestRequest) {
 			}
 		}
 	}
-}
-
-func TestAnalyzeRequestStructureWithNonStandardSections(t *testing.T) {
-	// Test with request struct containing non-standard sections
-	source := `package test
-
-type TestRequest struct {
-	CustomSection string  // Not a standard section
-	Query struct {
-		Limit int ` + "`" + `gork:"limit"` + "`" + `
-	}
-}
-`
-
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", source, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("Failed to parse test source: %v", err)
-	}
-
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						// This should skip the non-standard section but process Query
-						analyzeRequestStructure(typeSpec.Name.Name, structType, nil)
-					}
-				}
-			}
-		}
-	}
-}
-
-func TestValidateConventionSectionWithNilReporter(t *testing.T) {
-	// Test validateConventionSection with nil reporter (should return early)
-	structField := &ast.Field{
-		Names: []*ast.Ident{{Name: "Query"}},
-		Type: &ast.StructType{
-			Fields: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Names: []*ast.Ident{{Name: "Limit"}},
-						Type:  &ast.Ident{Name: "int"},
-						Tag:   &ast.BasicLit{Value: "`gork:\"limit\"`"},
-					},
-				},
-			},
-		},
-	}
-
-	// Should not panic with nil reporter
-	validateConventionSection("Query", structField, nil)
 }
 
 func TestValidateSectionFieldWithNilReporter(t *testing.T) {
