@@ -382,7 +382,7 @@
       "observations": [
         "100% test coverage required for all pkg/ modules",
         "CLI tools and internal packages included in coverage requirements",
-        "Examples module excluded from coverage enforcement",
+        "Examples packages excluded from coverage enforcement",
         "Coverage checks integrated into CI/CD pipeline",
         "HTML coverage reports generated for analysis",
         "Coverage regression blocks deployment"
@@ -527,8 +527,8 @@
         "Build-time and runtime OpenAPI spec generation",
         "Uses go-playground/validator tags for automatic API documentation",
         "MIT licensed open-source project",
-        "Monorepo structure with independent module versioning",
-        "Requires Go 1.24 or higher",
+        "Monorepo with one Go module and one version tag for the repository",
+        "Requires Go 1.27 or higher",
         "100% test coverage enforcement across all modules"
       ],
       "tags": [
@@ -555,7 +555,7 @@
         "Union type system for type-safe API variants with JSON marshaling",
         "Static analysis and linting for convention compliance",
         "100% test coverage enforcement across all library modules",
-        "Monorepo structure with independent module versioning",
+        "Monorepo with one Go module and one version tag for the repository",
         "Developer productivity focused with minimal boilerplate",
         "Error handling is a core pillar of the Gork architecture",
         "Comprehensive validation system with go-playground/validator integration",
@@ -745,24 +745,20 @@
       "entity_type": "project_structure",
       "category": "business_entity",
       "observations": [
-        "Go workspace with independent module versioning",
-        "Separate go.mod files for each major component",
-        "Shared development tools and scripts across modules",
-        "Independent testing and coverage enforcement per module",
-        "Enables modular consumption of Gork components",
-        "Supports different release cycles for different modules",
+        "One Go module github.com/gork-labs/gork with one go.mod file at the root",
+        "One version tag vX.Y.Z for the whole repository",
+        "Consumers import only the packages they need; Go module graph pruning skips the dependencies of other packages",
+        "One test run and one coverage check for all packages outside examples",
         "Maintains clear boundaries between core packages and adapters"
       ],
       "tags": [
         "monorepo",
-        "go-workspace",
-        "modular-architecture",
-        "independent-versioning",
+        "single-module",
         "category:business_entity"
       ],
       "lifetime": "permanent",
       "created": "2025-08-06T14:59:57.455589+02:00",
-      "updated": "2025-08-06T14:59:57.455589+02:00"
+      "updated": "2026-10-04T12:00:00+02:00"
     },
     "OpenAPI Error Response Schema": {
       "name": "OpenAPI Error Response Schema",
