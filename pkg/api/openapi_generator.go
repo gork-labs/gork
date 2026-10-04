@@ -188,6 +188,8 @@ func makeNullableSchema(originalSchema *Schema) *Schema {
 			Pattern:     originalSchema.Pattern,
 			Enum:        originalSchema.Enum,
 			Items:       originalSchema.Items,
+			Format:      originalSchema.Format,
+			Example:     originalSchema.Example,
 		}
 	}
 
@@ -266,6 +268,11 @@ func processEmbeddedStruct(f reflect.StructField, s *Schema, registry map[string
 }
 
 func processStructField(f reflect.StructField, s *Schema, registry map[string]*Schema) {
+	fieldName := getOpenAPIFieldName(f)
+	if fieldName == "" {
+		return
+	}
+
 	fieldSchema := reflectTypeToSchemaInternal(f.Type, registry, true)
 
 	// Handle discriminator values
@@ -279,15 +286,6 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 		applyValidationConstraints(fieldSchema, validateTag, f.Type, s, f)
 	}
 
-	// Try gork tag first, then fall back to field name
-	gorkTag := f.Tag.Get("gork")
-	var fieldName string
-	if gorkTag != "" {
-		fieldName = parseGorkTag(gorkTag).Name
-	}
-	if fieldName == "" {
-		fieldName = f.Name
-	}
 	s.Properties[fieldName] = fieldSchema
 }
 
@@ -461,15 +459,7 @@ func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldTy
 }
 
 func addRequiredField(parent *Schema, sf reflect.StructField) {
-	// Try gork tag first, then fall back to field name
-	gorkTag := sf.Tag.Get("gork")
-	var fieldName string
-	if gorkTag != "" {
-		fieldName = parseGorkTag(gorkTag).Name
-	}
-	if fieldName == "" {
-		fieldName = sf.Name
-	}
+	fieldName := getOpenAPIFieldName(sf)
 
 	// Append if not already present
 	for _, r := range parent.Required {
@@ -559,6 +549,39 @@ func parseDiscriminator(tag string) (value string, ok bool) {
 		}
 	}
 	return "", false
+}
+
+// getOpenAPIFieldName extracts the field name from struct tags, with fallback priority:
+// 1. gork tag
+// 2. json tag
+// 3. struct field name
+// Returns empty string if field should be skipped (e.g., "-" tag value).
+func getOpenAPIFieldName(field reflect.StructField) string {
+	// Try gork tag first
+	if gorkTag := field.Tag.Get("gork"); gorkTag != "" {
+		tagInfo := parseGorkTag(gorkTag)
+		if tagInfo.Name == "-" {
+			return ""
+		}
+		if tagInfo.Name != "" {
+			return tagInfo.Name
+		}
+	}
+
+	// Fall back to json tag if no gork tag found
+	if jsonTag := field.Tag.Get("json"); jsonTag != "" {
+		// Parse json tag (take first part before comma)
+		name := strings.Split(jsonTag, ",")[0]
+		if name == "-" {
+			return ""
+		}
+		if name != "" {
+			return name
+		}
+	}
+
+	// Final fallback to field name
+	return field.Name
 }
 
 // sanitizeSchemaName converts Go type names containing characters not allowed

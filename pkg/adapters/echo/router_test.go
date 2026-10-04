@@ -452,22 +452,6 @@ func TestRouterIntegration(t *testing.T) {
 	}
 }
 
-func TestRouterExportOpenAPIAndExit(t *testing.T) {
-	router := NewRouter(echo.New())
-
-	// This test checks that ExportOpenAPIAndExit calls the underlying TypedRouter
-	// We can't test the actual exit behavior, but we can ensure the method exists and delegates
-	defer func() {
-		if r := recover(); r != nil {
-			// ExportOpenAPIAndExit calls os.Exit, so we expect a panic in tests
-			// This is expected behavior for this method
-		}
-	}()
-
-	// Call ExportOpenAPIAndExit - this will panic with os.Exit
-	router.ExportOpenAPIAndExit()
-}
-
 func TestRouterGroupServesPrefixedPath(t *testing.T) {
 	router := NewRouter(nil)
 	type liveResponse struct {

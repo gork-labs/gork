@@ -191,7 +191,6 @@ func TestHandleCloseParen(t *testing.T) {
 	t.Run("InsideSingleQuotes_NoOp", func(t *testing.T) {
 		depth := 1
 		err := handleCloseParen(&depth, true, false, "test')'")
-
 		if err != nil {
 			t.Errorf("Expected no error when inside single quotes, got: %v", err)
 		}
@@ -203,7 +202,6 @@ func TestHandleCloseParen(t *testing.T) {
 	t.Run("InsideDoubleQuotes_NoOp", func(t *testing.T) {
 		depth := 1
 		err := handleCloseParen(&depth, false, true, "test\")\"")
-
 		if err != nil {
 			t.Errorf("Expected no error when inside double quotes, got: %v", err)
 		}
@@ -231,7 +229,6 @@ func TestHandleCloseParen(t *testing.T) {
 	t.Run("DepthGreaterThanZero_DecrementDepth", func(t *testing.T) {
 		depth := 2
 		err := handleCloseParen(&depth, false, false, "test(x,y)")
-
 		if err != nil {
 			t.Errorf("Expected no error for matched paren, got: %v", err)
 		}
@@ -243,7 +240,6 @@ func TestHandleCloseParen(t *testing.T) {
 	t.Run("DepthOne_DecrementToZero", func(t *testing.T) {
 		depth := 1
 		err := handleCloseParen(&depth, false, false, "test(x)")
-
 		if err != nil {
 			t.Errorf("Expected no error for matched paren, got: %v", err)
 		}
@@ -303,7 +299,6 @@ func TestSplitTopLevel_CloseParenError(t *testing.T) {
 		input := "func(a,b),other"
 
 		parts, err := splitTopLevel(input)
-
 		if err != nil {
 			t.Errorf("Expected no error for matched parens, got: %v", err)
 		}

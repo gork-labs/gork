@@ -150,11 +150,6 @@ func (r *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
 	r.typedRouter.DocsRoute(path, cfg...)
 }
 
-// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
-func (r *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
-	r.typedRouter.ExportOpenAPIAndExit(opts...)
-}
-
 // toNativePath converts the generic goapi wildcard pattern ("/*") into the
 // format expected by Go's net/http ServeMux (Go 1.22+). A trailing "/*" is
 // replaced with a rest-of-path capture segment "{rest...}". All other paths

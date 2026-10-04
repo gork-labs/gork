@@ -75,6 +75,78 @@
         ]
       }
     },
+    "/api/v1/tasks/{taskId}/completed/{completedAt}": {
+      "get": {
+        "description": "GetTask demonstrates automatic type conversion using registered codecs.",
+        "operationId": "GetTask",
+        "parameters": [
+          {
+            "description": "Uses TaskCodec for entity resolution",
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "description": "Task ID that resolves to full task information",
+              "example": 1,
+              "format": "int32",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Uses TimeCodec for RFC3339 parsing",
+            "in": "path",
+            "name": "completedAt",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Uses PriorityCodec for enum validation",
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "description": "Task priority level (internal iota, external string)",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "example": "medium",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTaskResponse"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "tags": [
+          "tasks",
+          "codecs"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "description": "ListUsers handles listing all users.",
@@ -693,16 +765,15 @@
         "type": "object",
         "title": "CustomerMetadata",
         "properties": {
-          "PlanType": {
+          "plan_type": {
             "type": "string"
           },
-          "UserID": {
-            "type": "string",
-            "description": "UserID is the ID of the user"
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
-          "UserID"
+          "user_id"
         ],
         "description": "CustomerMetadata represents customer-specific metadata for webhook events."
       },
@@ -737,24 +808,55 @@
         ],
         "description": "Generic error response structure"
       },
+      "GetTaskResponse": {
+        "type": "object",
+        "title": "GetTaskResponse",
+        "properties": {
+          "completedAt": {
+            "type": "string",
+            "description": "Will be formatted back to RFC3339",
+            "format": "date-time"
+          },
+          "message": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Task priority level (internal iota, external string)",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "example": "medium"
+          },
+          "task": {
+            "type": "integer",
+            "description": "Task ID that resolves to full task information",
+            "minimum": 1,
+            "format": "int32",
+            "example": 1
+          }
+        },
+        "description": "GetTaskResponse demonstrates codec usage in responses."
+      },
       "InvoiceMetadata": {
         "type": "object",
         "title": "InvoiceMetadata",
         "properties": {
-          "BillingPeriod": {
+          "billing_period": {
             "type": "string"
           },
-          "SubscriptionID": {
+          "subscription_id": {
             "type": "string"
           },
-          "UserID": {
-            "type": "string",
-            "description": "UserID is the ID of the user"
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
-          "UserID",
-          "SubscriptionID"
+          "user_id",
+          "subscription_id"
         ],
         "description": "InvoiceMetadata represents invoice-specific metadata for webhook events."
       },
@@ -795,16 +897,15 @@
         "type": "object",
         "title": "PaymentMetadata",
         "properties": {
-          "ProjectID": {
+          "project_id": {
             "type": "string"
           },
-          "UserID": {
-            "type": "string",
-            "description": "UserID is the ID of the user"
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
-          "UserID"
+          "user_id"
         ],
         "description": "PaymentMetadata represents example user-defined metadata types validated by the webhook dispatcher."
       },
@@ -815,10 +916,10 @@
           "Body": {
             "type": "object",
             "properties": {
-              "Error": {
+              "error": {
                 "type": "string"
               },
-              "Received": {
+              "received": {
                 "type": "boolean"
               }
             }
@@ -856,7 +957,7 @@
           "Body": {
             "type": "object",
             "properties": {
-              "Received": {
+              "received": {
                 "type": "boolean"
               }
             }

@@ -28,6 +28,9 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	// Example demonstrating rules with context variables
 	r.Post("/api/v1/items/{itemId}", handlers.UpdateOwnedItem, api.WithTags("items"))
 
+	// Example demonstrating type codecs (automatic type conversion)
+	r.Get("/api/v1/tasks/{taskId}/completed/{completedAt}", handlers.GetTask, api.WithTags("tasks", "codecs"))
+
 	// Nested resources
 	r.Put("/api/v1/users/{userId}/payment-method", handlers.UpdateUserPaymentMethod, api.WithTags("users"), api.WithBearerTokenAuth("write:payment"))
 	r.Put("/api/v1/users/{userId}/preferences", handlers.UpdateUserPreferences, api.WithTags("users"), api.WithBearerTokenAuth("write:preferences"))

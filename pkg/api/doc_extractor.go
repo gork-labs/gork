@@ -200,6 +200,17 @@ func (d *DocExtractor) storeFieldDocByJSONTag(fld *ast.Field, desc string, doc *
 			doc.Fields[gorkTag] = FieldDoc{Description: desc}
 		}
 	}
+
+	// Also store by json property name if present
+	jsonTag := st.Get("json")
+	if jsonTag != "" {
+		if comma := strings.Index(jsonTag, ","); comma != -1 {
+			jsonTag = jsonTag[:comma]
+		}
+		if jsonTag != "" && jsonTag != "-" {
+			doc.Fields[jsonTag] = FieldDoc{Description: desc}
+		}
+	}
 }
 
 func (d *DocExtractor) processFuncDecl(decl *ast.FuncDecl) {
