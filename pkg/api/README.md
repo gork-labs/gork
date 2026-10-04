@@ -266,6 +266,23 @@ Rules:
 - The OpenAPI spec shows the route as `text/event-stream` with an `itemSchema`. The spec has `openapi: 3.2.0` when it has a stream route.
 - The Fiber adapter does not support stream handlers.
 
+## Type Conversion
+
+The `gorkson` package converts all values: path, query, header and cookie parameters, the JSON body, the JSON response, response headers and cookies, and stream event payloads. A type with a registered codec uses its codec. The codec also gives the OpenAPI schema of the type, and the parser checks each value against the schema constraints before it calls the codec.
+
+`time.Time` and `*time.Time` use RFC3339 and the OpenAPI schema `{"type": "string", "format": "date-time"}` with no registration.
+
+```go
+type GetTaskRequest struct {
+    Path struct {
+        Task        Task      `gork:"taskId"`      // codec registered with gorkson.RegisterCodec[Task]
+        CompletedAt time.Time `gork:"completedAt"` // built-in RFC3339 codec
+    }
+}
+```
+
+Parameters of other types use the basic conversion: strings, integers, floats, booleans, comma-separated string slices, and pointers to these types. See the [root README](../../README.md#-type-codec-system) and the [gorkson README](../gorkson/README.md) for the codec API.
+
 ## OpenAPI Integration
 
 This adapter automatically generates OpenAPI specifications from convention-based request/response structures using the gork CLI tool.

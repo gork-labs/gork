@@ -1294,48 +1294,31 @@ func UpdateUser(ctx context.Context, req UpdateUserRequest) (*UpdateUserResponse
 
 The framework supports automatic parsing of complex types from string-based request parameters (path, query, headers, cookies). This enables automatic entity resolution and custom type conversion.
 
-#### Type Parser Registration
+#### Codec Registration
 
-Register type parsers using a clean API that infers types from function signatures:
+Register a type codec from `pkg/gorkson` for each complex type. `time.Time` has a built-in RFC3339 codec, so it needs no registration:
 
 ```go
-// Register entity loaders
-api.RegisterTypeParser(func(ctx context.Context, id string) (*User, error) {
-    return userService.GetByID(ctx, id)
-})
-
-api.RegisterTypeParser(func(ctx context.Context, id string) (*Company, error) {
-    return companyService.GetByID(ctx, id)
-})
-
-// Register standard library type parsers
-api.RegisterTypeParser(func(ctx context.Context, s string) (*time.Time, error) {
-    t, err := time.Parse(time.RFC3339, s)
-    return &t, err
-})
-
-api.RegisterTypeParser(func(ctx context.Context, s string) (*uuid.UUID, error) {
-    id, err := uuid.Parse(s)
-    return &id, err
-})
-
-api.RegisterTypeParser(func(ctx context.Context, s string) (*url.URL, error) {
-    return url.Parse(s)
-})
+gorkson.RegisterCodec[User](UserCodec{})
+gorkson.RegisterCodec[Company](CompanyCodec{})
+gorkson.RegisterCodec[uuid.UUID](UUIDCodec{})
 ```
 
-#### Parser Function Requirements
+#### Codec Requirements
 
-Type parser functions must have the exact signature:
+A codec implements `gorkson.TypeCodec[T]`:
 ```go
-func(ctx context.Context, value string) (*T, error)
+type TypeCodec[T any] interface {
+    Parse(ctx context.Context, value string) (*T, error)
+    Format(ctx context.Context, value *T) (string, error)
+    Schema() gorkson.OpenAPISchema
+}
 ```
 
 Where:
-- `ctx` - Request context for timeouts, tracing, cancellation
-- `value` - String value from the request (path param, query param, header, cookie)
-- `*T` - Pointer to the target type
-- `error` - Parsing/loading error
+- `Parse` converts the string value from the request (path param, query param, header, cookie, or JSON value) to `*T`. `ctx` is the request context for parameters.
+- `Format` converts `*T` back to its text form for responses.
+- `Schema` gives the OpenAPI schema of the type. The parser checks each value against the schema constraints before it calls `Parse`.
 
 #### Usage in Request Structures
 
@@ -1344,15 +1327,15 @@ Once registered, complex types work automatically in any section:
 ```go
 type GetUserRequest struct {
     Path struct {
-        User    User      `gork:"user_id"`    // Auto-resolves using User parser
-        Company Company   `gork:"company_id"` // Auto-resolves using Company parser
+        User    User      `gork:"user_id"`    // Auto-resolves using the User codec
+        Company Company   `gork:"company_id"` // Auto-resolves using the Company codec
     }
     Query struct {
-        Since   time.Time `gork:"since"`      // Auto-resolves using time.Time parser
-        TraceID uuid.UUID `gork:"trace_id"`   // Auto-resolves using uuid.UUID parser
+        Since   time.Time `gork:"since"`      // Auto-resolves using the built-in time.Time codec
+        TraceID uuid.UUID `gork:"trace_id"`   // Auto-resolves using the uuid.UUID codec
     }
     Headers struct {
-        Referer url.URL   `gork:"Referer"`    // Auto-resolves using url.URL parser
+        Referer url.URL   `gork:"Referer"`    // Auto-resolves using a url.URL codec
     }
 }
 
@@ -1417,7 +1400,7 @@ type TransferRequest struct {
 
 // Validate implements cross-entity validation
 func (r *TransferRequest) Validate() error {
-    // Entities are already loaded by type parsers
+    // Entities are already loaded by type codecs
     if r.Path.FromAccount.ID == r.Path.ToAccount.ID {
         return &RequestValidationError{
             Errors: []string{"cannot transfer to the same account"},
@@ -1453,8 +1436,8 @@ type CreateOrderRequest struct {
 
 **Conditional Type Parsing:**
 ```go
-// Parser can return different results based on context
-api.RegisterTypeParser(func(ctx context.Context, id string) (*User, error) {
+// Parse can return different results based on context
+func (UserCodec) Parse(ctx context.Context, id string) (*User, error) {
     // Check user permissions from context
     currentUser := auth.GetUser(ctx)
     if !currentUser.CanAccessUser(id) {
@@ -1464,15 +1447,15 @@ api.RegisterTypeParser(func(ctx context.Context, id string) (*User, error) {
     }
     
     return userService.GetByID(ctx, id)
-})
+}
 ```
 
 #### Implementation Notes
 
-**Type Registry:**
-- Framework uses reflection on parser function signatures to build internal type registry
-- Registry maps `reflect.Type` → parser function
-- Validation ensures parser signature matches requirements
+**Codec Registry:**
+- `gorkson.RegisterCodec[T]` stores type-erased parse and format functions and the schema
+- Registry maps `reflect.Type` → codec
+- A later registration for the same type replaces the earlier codec
 
 **Parsing Order:**
 - Complex type parsing happens after basic field extraction but before validation
@@ -1480,7 +1463,7 @@ api.RegisterTypeParser(func(ctx context.Context, id string) (*User, error) {
 - Successful parsing allows normal validation to proceed
 
 **Performance Considerations:**
-- Parser functions should implement appropriate caching
+- Codecs should implement appropriate caching
 - Database connections should use connection pooling
 - Context cancellation should be respected for timeouts
 
