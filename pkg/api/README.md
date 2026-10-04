@@ -318,6 +318,12 @@ The `required` list of a schema follows how Gork reads a request and writes a re
 - A named struct type gives one component. When a request and a response both use the type, the component gets the response rule.
 - A webhook response uses `encoding/json`, so it keeps the `validate:"required"` rule.
 
+### Component Schemas
+
+- A named struct type gives one component. A field of a recursive type refers to this component with `$ref`.
+- Only the union types of `pkg/unions` give a `oneOf`. To give a union a name, use a type alias: `type PaymentMethod = unions.Union2[Card, Bank]`.
+- A defined type such as `type PaymentMethod unions.Union2[Card, Bank]` does not keep the `MarshalJSON` method. Thus `gorkson` writes it as an object with the fields `A` and `B`, and the schema shows this object.
+
 ## Examples
 
 See the [examples](../../examples/) directory for complete working examples with different web frameworks.

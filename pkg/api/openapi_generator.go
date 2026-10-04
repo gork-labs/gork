@@ -297,12 +297,14 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 // requireWrittenFields adds the written fields of each struct schema that the
 // response schema reaches to its required list. It does not visit
 // additionalProperties, because gorkson writes map values with encoding/json.
-func requireWrittenFields(s *Schema, schemas map[string]*Schema) {
-	if s == nil {
+// seen holds the visited schemas, because a recursive type gives a cycle of $refs.
+func requireWrittenFields(s *Schema, schemas map[string]*Schema, seen map[*Schema]bool) {
+	if s == nil || seen[s] {
 		return
 	}
+	seen[s] = true
 	if s.Ref != "" {
-		requireWrittenFields(schemas[strings.TrimPrefix(s.Ref, "#/components/schemas/")], schemas)
+		requireWrittenFields(schemas[strings.TrimPrefix(s.Ref, "#/components/schemas/")], schemas, seen)
 		return
 	}
 
@@ -312,14 +314,14 @@ func requireWrittenFields(s *Schema, schemas map[string]*Schema) {
 		}
 	}
 	for _, prop := range s.Properties {
-		requireWrittenFields(prop, schemas)
+		requireWrittenFields(prop, schemas, seen)
 	}
-	requireWrittenFields(s.Items, schemas)
+	requireWrittenFields(s.Items, schemas, seen)
 	for _, member := range s.OneOf {
-		requireWrittenFields(member, schemas)
+		requireWrittenFields(member, schemas, seen)
 	}
 	for _, member := range s.AnyOf {
-		requireWrittenFields(member, schemas)
+		requireWrittenFields(member, schemas, seen)
 	}
 }
 
@@ -442,28 +444,6 @@ func isUnionType(t reflect.Type) bool {
 	typeName := t.Name()
 	matched, _ := regexp.MatchString(`^Union\d+(\[.*\])?$`, typeName)
 	return matched
-}
-
-// isUnionStruct checks if the provided type is a user-defined union struct.
-// This is a placeholder and would require a more sophisticated check.
-func isUnionStruct(t reflect.Type) bool {
-	if t.Kind() != reflect.Struct {
-		return false
-	}
-	// Heuristic: exported struct with >=2 pointer fields and no additional
-	// metadata. We ignore unexported fields.
-	ptrFields := 0
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		if f.PkgPath != "" { // unexported field – treat as non-union
-			return false
-		}
-		if f.Type.Kind() != reflect.Pointer {
-			return false
-		}
-		ptrFields++
-	}
-	return ptrFields >= 2
 }
 
 // applyValidationConstraints maps struct tag validation rules into OpenAPI schema fields.

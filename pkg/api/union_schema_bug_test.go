@@ -81,7 +81,8 @@ func TestUnionSchemaDoesNotExposeImplementationDetails(t *testing.T) {
 	}
 }
 
-// TestUnionSchemaWithNamedUnionType tests union schema generation for named union types
+// TestUnionSchemaWithNamedUnionType tests union schema generation for an alias of a union type.
+// An alias keeps the MarshalJSON and UnmarshalJSON methods of the union.
 func TestUnionSchemaWithNamedUnionType(t *testing.T) {
 	type CreditCard struct {
 		Type       string `gork:"type" validate:"required"`
@@ -94,8 +95,7 @@ func TestUnionSchemaWithNamedUnionType(t *testing.T) {
 		RoutingNumber string `gork:"routingNumber" validate:"required"`
 	}
 
-	// Define a named union type
-	type PaymentMethod unions.Union2[CreditCard, BankAccount]
+	type PaymentMethod = unions.Union2[CreditCard, BankAccount]
 
 	type UpdatePaymentRequest struct {
 		Body struct {
@@ -136,19 +136,8 @@ func TestUnionSchemaWithNamedUnionType(t *testing.T) {
 		t.Fatal("Expected paymentMethod property to exist")
 	}
 
-	// Should be a reference to the PaymentMethod component
-	if paymentMethodProp.Ref != "#/components/schemas/PaymentMethod" {
-		t.Errorf("Expected paymentMethod to reference PaymentMethod component, got %s", paymentMethodProp.Ref)
-	}
-
-	// The referenced PaymentMethod component should have oneOf schema
-	paymentMethodComponent, exists := components.Schemas["PaymentMethod"]
-	if !exists {
-		t.Fatal("Expected PaymentMethod component to exist")
-	}
-
-	if len(paymentMethodComponent.OneOf) != 2 {
-		t.Errorf("Expected PaymentMethod component to have oneOf with 2 options, got %d", len(paymentMethodComponent.OneOf))
+	if len(paymentMethodProp.OneOf) != 2 {
+		t.Errorf("Expected paymentMethod to have oneOf with 2 options, got %+v", paymentMethodProp)
 	}
 
 	// Should not have A/B properties

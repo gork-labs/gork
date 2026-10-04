@@ -53,6 +53,13 @@ func (b *StructSchemaBuilder) BuildSchema(t reflect.Type, registry map[string]*S
 		Properties: map[string]*Schema{},
 	}
 
+	// s is in the registry while the loop builds the fields. Thus a field of
+	// type t gets a $ref to s, and a recursive type does not recurse without end.
+	name := uniqueSchemaNameForType(t, registry)
+	if name != "" {
+		registry[name] = s
+	}
+
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		if f.PkgPath != "" { // unexported
@@ -75,7 +82,8 @@ func (b *StructSchemaBuilder) BuildSchema(t reflect.Type, registry map[string]*S
 		}
 	}
 
-	// Register named types
+	// The registrar picks the first free name again, which is name.
+	delete(registry, name)
 	return b.typeRegistrar.RegisterType(t, s, registry)
 }
 
