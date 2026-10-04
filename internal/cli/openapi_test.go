@@ -460,6 +460,9 @@ func TestNewGenerateCommand(t *testing.T) {
 	if flags.Lookup("config") == nil {
 		t.Error("config flag not registered")
 	}
+	if f := flags.Lookup("validate-online"); f == nil || f.DefValue != "false" {
+		t.Error("validate-online flag not registered with default false")
+	}
 }
 
 func TestGenerateSpec(t *testing.T) {
@@ -1122,11 +1125,12 @@ func TestGenerateSpecErrorPaths100(t *testing.T) {
 
 		tmpFile := filepath.Join(t.TempDir(), "output.json")
 		config := &GenerateConfig{
-			BuildPath:  "",
-			SourcePath: "",
-			OutputPath: tmpFile,
-			Title:      "Test API",
-			Version:    "1.0.0",
+			BuildPath:      "",
+			SourcePath:     "",
+			OutputPath:     tmpFile,
+			Title:          "Test API",
+			Version:        "1.0.0",
+			ValidateOnline: true,
 		}
 
 		err := GenerateSpec(config)

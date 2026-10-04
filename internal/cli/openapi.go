@@ -42,18 +42,20 @@ func newGenerateCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.Title, "title", "API", "API title")
 	cmd.Flags().StringVar(&config.Version, "version", "0.1.0", "API version")
 	cmd.Flags().StringVar(&config.ConfigPath, "config", "", "Path to .gork.yml config file")
+	cmd.Flags().BoolVar(&config.ValidateOnline, "validate-online", false, "Send the spec to https://validator.swagger.io and fail on validation errors")
 
 	return cmd
 }
 
 // GenerateConfig holds configuration for OpenAPI generation.
 type GenerateConfig struct {
-	BuildPath  string
-	SourcePath string
-	OutputPath string
-	Title      string
-	Version    string
-	ConfigPath string
+	BuildPath      string
+	SourcePath     string
+	OutputPath     string
+	Title          string
+	Version        string
+	ConfigPath     string
+	ValidateOnline bool
 }
 
 // GenerateSpec generates an OpenAPI specification based on the provided configuration.
@@ -71,8 +73,10 @@ func GenerateSpec(config *GenerateConfig) error {
 		return err
 	}
 
-	if err := validateSpec(spec); err != nil {
-		return fmt.Errorf("spec validation failed: %w", err)
+	if config.ValidateOnline {
+		if err := validateSpec(spec); err != nil {
+			return fmt.Errorf("spec validation failed: %w", err)
+		}
 	}
 
 	return writeOutput(spec, config)
