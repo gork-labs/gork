@@ -45,6 +45,22 @@ func (testWebhookProvider) GetValidEventTypes() []string { return []string{"x"} 
 func (testWebhookProvider) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "Test"}
 }
+func (testWebhookProvider) RequestSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body    interface{} `json:"body" gork:"body"`
+		Headers struct {
+			ContentType string `json:"Content-Type" gork:"content_type"`
+		} `json:"headers" gork:"headers"`
+	}{})
+}
+
+func (testWebhookProvider) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			OK bool `json:"ok" gork:"ok"`
+		} `json:"body" gork:"body"`
+	}{})
+}
 
 func TestCreateHandlerFromHTTPFunc_Webhook(t *testing.T) {
 	// Build a webhook handler and wrap it as http.HandlerFunc

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gork-labs/gork/examples"
@@ -19,11 +20,14 @@ func main() {
 	// Register routes and capture the router instance
 	router := examples.RegisterRoutes(mux)
 
-	// Always export OpenAPI spec and exit (no longer need GORK_EXPORT env var)
-	router.ExportOpenAPIAndExit(
-		api.WithTitle("Example API"),
-		api.WithVersion("1.0.0"),
-	)
+	// Export when requested by CLI
+	if os.Getenv("GORK_EXPORT") == "1" {
+		spec := api.GenerateOpenAPI(router.GetRegistry(), api.WithTitle("Example API"), api.WithVersion("1.0.0"))
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(spec)
+		return
+	}
 
 	// Serve spec for manual inspection
 	mux.HandleFunc("GET /openapi.json", func(w http.ResponseWriter, _ *http.Request) {

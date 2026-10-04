@@ -86,6 +86,124 @@ func main() {
 
 > **💡 Documentation Magic**: Notice how the Go comments above struct fields automatically become field descriptions in your OpenAPI documentation! No need to maintain separate documentation - your code comments become live API docs.
 
+## 🔄 Type Codec System
+
+The Type Codec system enables automatic conversion between HTTP parameters (strings) and complex Go types, eliminating manual parsing boilerplate:
+
+```go
+import (
+    "context"
+    "strconv"
+    "github.com/gork-labs/gork/pkg/api"
+)
+
+// Entity Resolution Example: Convert ID strings to full entities
+type Task struct {
+    ID    int    `json:"id"`
+    Title string `json:"title"`
+}
+
+type TaskCodec struct{}
+
+func (c TaskCodec) Parse(ctx context.Context, value string) (*Task, error) {
+    // Numeric range validation (minimum: 1) handled automatically by schema
+    id, err := strconv.Atoi(value)
+    if err != nil {
+        return nil, api.NewParseError("Task", value, err)
+    }
+    
+    // Focus on business logic - fetch full entity from database
+    return taskService.GetByID(ctx, id)
+}
+
+func (c TaskCodec) Format(ctx context.Context, value *Task) (string, error) {
+    if value == nil {
+        return "", nil
+    }
+    // Format back to ID for transport
+    return strconv.Itoa(value.ID), nil
+}
+
+func (c TaskCodec) Schema() api.OpenAPISchema {
+    return api.OpenAPISchema{
+        Type:        "integer",
+        Format:      "int32", 
+        Description: "Task ID that resolves to full task information",
+        Example:     123,
+    }
+}
+
+// Usage in request struct
+type GetTaskRequest struct {
+    Path struct {
+        Task Task `gork:"taskId"` // "123" → Task{ID: 123, Title: "Setup ENV"}
+    }
+}
+
+// Register the codec
+func init() {
+    api.RegisterCodec[Task](TaskCodec{})
+}
+```
+
+### iota-Based Enums with String Transport
+
+```go
+import (
+    "context"
+    "sort"
+)
+
+// Priority uses iota internally for efficiency, strings externally for APIs
+type Priority int
+
+const (
+    PriorityLow Priority = iota    // 0
+    PriorityMedium                 // 1
+    PriorityHigh                   // 2
+)
+
+func (p Priority) String() string {
+    switch p {
+    case PriorityLow:
+        return "low"
+    case PriorityMedium:
+        return "medium" 
+    case PriorityHigh:
+        return "high"
+    default:
+        return "unknown"
+    }
+}
+
+// Handler benefits from type-safe enum operations
+func GetTask(ctx context.Context, req GetTaskRequest) (*GetTaskResponse, error) {
+    // req.Query.Priority is Priority(2) internally, "high" externally
+    
+    // Type-safe comparisons and ordering
+    if req.Query.Priority >= PriorityHigh {
+        // Handle urgent task
+    }
+    
+    // Efficient sorting by numeric value  
+    sort.Slice(tasks, func(i, j int) bool {
+        return tasks[i].Priority < tasks[j].Priority
+    })
+    
+    return response, nil
+}
+```
+
+**Automatic Schema Validation:**
+Gork automatically validates against schema constraints (pattern, length, range, enum) before calling your codec - no duplicate validation code needed!
+
+**Built-in Codecs:**
+- `TimeCodec` - RFC3339 timestamp parsing/formatting
+- `UnixTimeCodec` - Unix timestamp support
+- Custom codecs for entity resolution, enums, UUIDs, etc.
+
+Basic types (`string`, `int`, `bool`) use standard JSON serialization - no codec needed!
+
 ## Repository Structure
 
 ```
@@ -127,6 +245,13 @@ gork/
 - **Validator Integration**: `go-playground/validator` tags become OpenAPI constraints
 - **Union Types**: Type-safe variants with `oneOf` schemas and discriminators
 - **Multi-Framework**: Works with Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib
+
+### Type Codec System
+- **Automatic Type Resolution**: Convert path/query parameters to complex Go types automatically
+- **Entity Resolution**: Transform IDs to full entities (e.g., `"123"` → `User{ID: 123, Name: "John"}`)
+- **Custom Enum Support**: iota-based enums with string transport (`Priority(2)` ↔ `"high"`)
+- **Bidirectional Conversion**: Parse strings to types, format types back to strings
+- **OpenAPI Integration**: Automatic schema generation with examples and validation
 
 ### Developer Experience
 - **Zero Boilerplate**: Focus on business logic, not API plumbing
@@ -532,13 +657,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **100% Test Coverage**: Quality-first development approach
 - **Interactive Documentation**: Built-in docs serving
 - **Webhook Utilities**: Typed event handlers, signature verification (Stripe), OpenAPI extensions
+- **Type Codec System**: Automatic type resolution, entity resolution, iota-based enums
+- **Rules Engine**: Declarative business validation with context variables
 
 ### 🚀 Coming Soon
 - **⚡ Ahead-of-Time Compilation**: Eliminate runtime reflection for better performance
 - **📝 Enhanced Documentation**: Improved OpenAPI spec generation
 - **🌊 Event Streams**: WebSocket and SSE support  
 - **🎯 Advanced Validation**: Build-time validation generation
-- **📏 Simple Rule Engine**: Input validation with business rules (e.g., `rule:owned_by($current_user)`)
 - **🔗 Variable-Length Unions**: User-defined union types with custom properties
   ```go
   type Events struct {

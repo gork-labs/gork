@@ -243,11 +243,6 @@ func (r *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
 	r.typedRouter.DocsRoute(path, cfg...)
 }
 
-// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
-func (r *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
-	r.typedRouter.ExportOpenAPIAndExit(opts...)
-}
-
 // fiberResponseWriter implements http.ResponseWriter for Fiber compatibility.
 type fiberResponseWriter struct {
 	ctx *fiber.Ctx

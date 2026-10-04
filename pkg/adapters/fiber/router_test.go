@@ -605,23 +605,6 @@ func TestDocsRoute(t *testing.T) {
 	}
 }
 
-// TestRouterExportOpenAPIAndExit tests the export functionality
-func TestRouterExportOpenAPIAndExit(t *testing.T) {
-	app := fiber.New()
-	router := NewRouter(app)
-
-	// This test checks that ExportOpenAPIAndExit calls the underlying TypedRouter
-	defer func() {
-		if r := recover(); r != nil {
-			// ExportOpenAPIAndExit calls os.Exit, so we expect a panic in tests
-			// This is expected behavior for this method
-		}
-	}()
-
-	// Call ExportOpenAPIAndExit - this will panic with os.Exit
-	router.ExportOpenAPIAndExit()
-}
-
 // TestRegisterFnCoverage ensures the registerFn closure is executed for coverage
 func TestRegisterFnCoverage(t *testing.T) {
 	app := fiber.New()

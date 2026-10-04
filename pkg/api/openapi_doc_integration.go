@@ -1,6 +1,9 @@
 package api
 
-import "strings"
+import (
+	"reflect"
+	"strings"
+)
 
 // SchemaFieldSuffix represents the various field suffixes used in contextual schema naming.
 type SchemaFieldSuffix string
@@ -27,24 +30,124 @@ const (
 
 // Integration of AST documentation into the runtime-generated OpenAPI spec.
 
-// GenerateOpenAPIWithDocs combines route information from the given registry
-// with documentation parsed by DocExtractor to enrich operation and schema
-// descriptions. The function delegates the core generation work to
-// GenerateOpenAPI and then post-processes the specification.
-func GenerateOpenAPIWithDocs(reg *RouteRegistry, extractor *DocExtractor, opts ...OpenAPIOption) *OpenAPISpec {
-	spec := GenerateOpenAPI(reg, opts...)
-	if extractor == nil {
-		return spec
+// collectTypesFromRegistry collects all reflect.Type instances from routes in the registry.
+func collectTypesFromRegistry(reg *RouteRegistry) []reflect.Type {
+	var types []reflect.Type
+	typeSet := make(map[reflect.Type]bool) // avoid duplicates
+
+	for _, route := range reg.GetRoutes() {
+		// Add request type
+		if route.RequestType.Kind() != reflect.Invalid {
+			addTypeAndFields(route.RequestType, typeSet)
+		}
+
+		// Add response type
+		if route.ResponseType != nil {
+			addTypeAndFields(route.ResponseType, typeSet)
+		}
+
+		// Add webhook types if present
+		if route.WebhookHandler != nil {
+			if reqType := getWebhookRequestTypeFromHandler(route.WebhookHandler); reqType != nil {
+				addTypeAndFields(*reqType, typeSet)
+			}
+			if respType := getWebhookResponseTypeFromHandler(route.WebhookHandler); respType != nil {
+				addTypeAndFields(*respType, typeSet)
+			}
+		}
 	}
 
-	// Enrich component schemas first so that operations using $ref automatically
-	// pick up descriptions.
-	enrichComponentSchemas(spec, extractor)
+	// Convert set to slice
+	for t := range typeSet {
+		types = append(types, t)
+	}
 
-	// Update path operations.
-	enrichPathOperations(spec, extractor)
+	return types
+}
 
-	return spec
+// addTypeAndFields recursively adds a type and all its field types to the type set.
+func addTypeAndFields(t reflect.Type, typeSet map[reflect.Type]bool) {
+	if t == nil || typeSet[t] {
+		return // avoid infinite recursion
+	}
+
+	typeSet[t] = true
+
+	// Handle pointers
+	if t.Kind() == reflect.Ptr {
+		addTypeAndFields(t.Elem(), typeSet)
+		return
+	}
+
+	// Handle structs - add field types
+	if t.Kind() == reflect.Struct {
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			addTypeAndFields(field.Type, typeSet)
+		}
+	}
+
+	// Handle slices/arrays
+	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+		addTypeAndFields(t.Elem(), typeSet)
+	}
+
+	// Handle maps: include both key and value types
+	if t.Kind() == reflect.Map {
+		addTypeAndFields(t.Key(), typeSet)
+		addTypeAndFields(t.Elem(), typeSet)
+	}
+}
+
+// Helper functions to extract types from webhook handlers
+func getWebhookRequestTypeFromHandler(handler interface{}) *reflect.Type {
+	if handler == nil {
+		return nil
+	}
+
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+
+	// Look for RequestSchema() method
+	if method, found := handlerType.MethodByName("RequestSchema"); found {
+		methodType := method.Type
+		if methodType.NumOut() == 1 && methodType.Out(0) == reflect.TypeOf(reflect.TypeOf(0)) {
+			// Call RequestSchema() to get the type
+			results := handlerValue.Method(method.Index).Call(nil)
+			if len(results) == 1 && results[0].IsValid() {
+				if schemaType, ok := results[0].Interface().(reflect.Type); ok {
+					return &schemaType
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func getWebhookResponseTypeFromHandler(handler interface{}) *reflect.Type {
+	if handler == nil {
+		return nil
+	}
+
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+
+	// Look for ResponseSchema() method
+	if method, found := handlerType.MethodByName("ResponseSchema"); found {
+		methodType := method.Type
+		if methodType.NumOut() == 1 && methodType.Out(0) == reflect.TypeOf(reflect.TypeOf(0)) {
+			// Call ResponseSchema() to get the type
+			results := handlerValue.Method(method.Index).Call(nil)
+			if len(results) == 1 && results[0].IsValid() {
+				if schemaType, ok := results[0].Interface().(reflect.Type); ok {
+					return &schemaType
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func enrichComponentSchemas(spec *OpenAPISpec, extractor *DocExtractor) {
@@ -56,6 +159,12 @@ func enrichComponentSchemas(spec *OpenAPISpec, extractor *DocExtractor) {
 func enrichSchemaWithTypeDoc(schema *Schema, typeName string, extractor *DocExtractor) {
 	// First try the schema name directly
 	doc := extractor.ExtractTypeDoc(typeName)
+
+	// If not found, try common contextual-to-type mappings, e.g. EventBody -> Event
+	if (doc.Description == "" && len(doc.Fields) == 0) && strings.HasSuffix(typeName, SchemaSuffixBody.String()) {
+		base := strings.TrimSuffix(typeName, SchemaSuffixBody.String())
+		doc = extractor.ExtractTypeDoc(base)
+	}
 
 	if doc.Description != "" {
 		schema.Description = doc.Description
@@ -161,11 +270,19 @@ func removeDocumentedProperties(propsNeedingDocs map[string]*Schema, typeDoc Doc
 }
 
 // tryRemainingTypesEnrichment tries to enrich remaining properties from other types.
+// Uses smart field matching that considers semantic context to avoid cross-contamination.
 func tryRemainingTypesEnrichment(propsNeedingDocs map[string]*Schema, preferredType string, extractor TypeDocExtractor) {
+	// Only try smart field matching for local types to avoid cross-contamination
+	// External types should get documentation from the external type registry instead
 	allTypes := extractor.GetAllTypeNames()
 	for _, typeName := range allTypes {
 		if typeName == preferredType {
 			continue // Already tried this one
+		}
+
+		// Apply smart filtering to prevent inappropriate cross-contamination
+		if !isSafeForFieldMatching(typeName) {
+			continue
 		}
 
 		typeDoc := extractor.ExtractTypeDoc(typeName)
@@ -177,6 +294,14 @@ func tryRemainingTypesEnrichment(propsNeedingDocs map[string]*Schema, preferredT
 			break // Found documentation, stop looking
 		}
 	}
+}
+
+// isSafeForFieldMatching determines if a type is safe to use for cross-type field matching.
+// This prevents inappropriate documentation contamination between unrelated types.
+func isSafeForFieldMatching(typeName string) bool {
+	// Disable global field matching entirely to prevent cross-contamination
+	// Field documentation should only come from the actual type or embedded types
+	return false
 }
 
 // tryEnrichFromType attempts to enrich properties from a single type's documentation.

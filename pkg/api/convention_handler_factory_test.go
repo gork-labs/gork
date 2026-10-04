@@ -121,18 +121,9 @@ func TestNewConventionHandlerFactory(t *testing.T) {
 	}
 }
 
-func TestConventionHandlerFactory_RegisterTypeParser(t *testing.T) {
-	factory := NewConventionHandlerFactory()
-
-	// Test registering a type parser
-	err := factory.RegisterTypeParser(func(ctx context.Context, value string) (*time.Time, error) {
-		t, err := time.Parse(time.RFC3339, value)
-		return &t, err
-	})
-	if err != nil {
-		t.Errorf("RegisterTypeParser() error = %v", err)
-	}
-}
+// TestConventionHandlerFactory_RegisterTypeParser has been removed.
+// Type codecs are now registered directly with gorkson.RegisterCodec.
+// Example: gorkson.RegisterCodec[time.Time](gorkson.TimeCodec{})
 
 func TestConventionHandlerFactory_CreateHandler(t *testing.T) {
 	factory := NewConventionHandlerFactory()

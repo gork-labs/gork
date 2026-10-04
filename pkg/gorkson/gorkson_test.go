@@ -1,7 +1,9 @@
 package gorkson
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -1105,4 +1107,342 @@ func TestMarshaler_SetBasicFieldValue(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test internal functions for complete coverage
+func TestMarshalerInternalFunctions(t *testing.T) {
+	m := &Marshaler{}
+
+	// Test processStructField with various scenarios
+	t.Run("processStructField_edge_cases", func(t *testing.T) {
+		// Test unexported field
+		structType := reflect.StructOf([]reflect.StructField{
+			{
+				Name:    "unexportedField",
+				Type:    reflect.TypeOf(""),
+				Tag:     `gork:"test"`,
+				PkgPath: "testpkg", // Makes it unexported
+			},
+		})
+		structValue := reflect.New(structType).Elem()
+		field := structType.Field(0)
+		fieldValue := structValue.Field(0)
+
+		name, value := m.processStructField(field, fieldValue)
+		if name != "" || value != nil {
+			t.Errorf("processStructField() with unexported field should return empty name and nil value")
+		}
+
+		// Test field with "-" gork tag
+		exportedField := reflect.StructField{
+			Name: "SkippedField",
+			Type: reflect.TypeOf(""),
+			Tag:  `gork:"-"`,
+		}
+		exportedValue := reflect.ValueOf("test")
+
+		name, value = m.processStructField(exportedField, exportedValue)
+		if name != "" || value != nil {
+			t.Errorf("processStructField() with gork:'-' tag should return empty name and nil value")
+		}
+
+		// Test field with no gork tag (should return empty name)
+		normalField := reflect.StructField{
+			Name: "NormalField",
+			Type: reflect.TypeOf(""),
+		}
+		normalValue := reflect.ValueOf("test")
+
+		name, value = m.processStructField(normalField, normalValue)
+		if name != "" || value != nil {
+			t.Errorf("processStructField() with no gork tag should return empty name and nil value")
+		}
+
+		// Test field with valid gork tag
+		validField := reflect.StructField{
+			Name: "ValidField",
+			Type: reflect.TypeOf(""),
+			Tag:  `gork:"valid_field"`,
+		}
+		validValue := reflect.ValueOf("test")
+
+		name, value = m.processStructField(validField, validValue)
+		if name != "valid_field" || value != "test" {
+			t.Errorf("processStructField() with valid gork tag should return tag name and value")
+		}
+	})
+
+	// Test tryCodecConversion with various scenarios
+	t.Run("tryCodecConversion_edge_cases", func(t *testing.T) {
+		// Save original registry
+		originalRegistry := globalCodecRegistry
+		defer func() {
+			globalCodecRegistry = originalRegistry
+		}()
+
+		// Test with non-string value
+		var testString string
+		field := reflect.ValueOf(&testString).Elem() // This creates a settable string value
+		fieldType := reflect.TypeOf("")
+		nonStringValue := 42
+
+		result := m.tryCodecConversion(field, fieldType, nonStringValue)
+		if result {
+			t.Errorf("tryCodecConversion() should return false for non-string values")
+		}
+
+		// Test with string value but no codec registered
+		stringValue := "test"
+		globalCodecRegistry = NewCodecRegistry()
+
+		result = m.tryCodecConversion(field, fieldType, stringValue)
+		if result {
+			t.Errorf("tryCodecConversion() should return false when no codec is registered")
+		}
+
+		// Test with codec that fails parsing
+		failingCodec := &TestCodecThatFails{}
+		RegisterCodec[TestFailingType](failingCodec)
+
+		var customField TestFailingType
+		field = reflect.ValueOf(&customField).Elem()
+		fieldType = reflect.TypeOf(TestFailingType{})
+
+		result = m.tryCodecConversion(field, fieldType, "test")
+		if result {
+			t.Errorf("tryCodecConversion() should return false when codec parsing fails")
+		}
+
+		// Test successful codec conversion
+		successCodec := &TestSuccessCodec{}
+		globalCodecRegistry = NewCodecRegistry()
+		RegisterCodec[TestSuccessType](successCodec)
+
+		var successField TestSuccessType
+		field = reflect.ValueOf(&successField).Elem()
+		fieldType = reflect.TypeOf(TestSuccessType{})
+
+		result = m.tryCodecConversion(field, fieldType, "test")
+		if !result {
+			t.Errorf("tryCodecConversion() should return true when codec parsing succeeds")
+		}
+
+		if successField.Data != "parsed:test" {
+			t.Errorf("tryCodecConversion() should set field value correctly")
+		}
+	})
+
+	// Test tryCodecFormatting with various scenarios
+	t.Run("tryCodecFormatting_edge_cases", func(t *testing.T) {
+		// Save original registry
+		originalRegistry := globalCodecRegistry
+		defer func() {
+			globalCodecRegistry = originalRegistry
+		}()
+
+		// Test pointer type with nil value
+		var nilPtr *TestSuccessType
+		ptrValue := reflect.ValueOf(nilPtr)
+		ptrType := reflect.TypeOf(nilPtr)
+
+		result := m.tryCodecFormatting(ptrValue, ptrType, nilPtr)
+		if result != nil {
+			t.Errorf("tryCodecFormatting() should return nil for nil pointer values")
+		}
+
+		// Test pointer type with no formatter
+		testPtr := &TestSuccessType{Data: "test"}
+		ptrValue = reflect.ValueOf(testPtr)
+		globalCodecRegistry = NewCodecRegistry()
+
+		result = m.tryCodecFormatting(ptrValue, ptrType, testPtr)
+		if result != nil {
+			t.Errorf("tryCodecFormatting() should return nil when no formatter is registered")
+		}
+
+		// Test pointer type with formatter that fails
+		failingCodec := &TestFormatterThatFails{}
+		RegisterCodec[TestFailingType](failingCodec)
+
+		var failField TestFailingType
+		failPtr := &failField
+		ptrValue = reflect.ValueOf(failPtr)
+		ptrType = reflect.TypeOf(failPtr)
+
+		result = m.tryCodecFormatting(ptrValue, ptrType, failPtr)
+		if result != nil {
+			t.Errorf("tryCodecFormatting() should return nil when formatter fails")
+		}
+
+		// Test pointer type with successful formatter
+		successCodec := &TestSuccessCodec{}
+		globalCodecRegistry = NewCodecRegistry()
+		RegisterCodec[TestSuccessType](successCodec)
+
+		successPtr := &TestSuccessType{Data: "test"}
+		ptrValue = reflect.ValueOf(successPtr)
+		ptrType = reflect.TypeOf(successPtr)
+
+		result = m.tryCodecFormatting(ptrValue, ptrType, successPtr)
+		if result == nil {
+			t.Errorf("tryCodecFormatting() should return formatted value when formatter succeeds")
+		}
+
+		if result != "formatted:test" {
+			t.Errorf("tryCodecFormatting() result = %v, want 'formatted:test'", result)
+		}
+
+		// Test non-pointer type with formatter
+		nonPtrValue := TestSuccessType{Data: "test"}
+		fieldValue := reflect.ValueOf(nonPtrValue)
+		fieldType := reflect.TypeOf(nonPtrValue)
+
+		result = m.tryCodecFormatting(fieldValue, fieldType, nonPtrValue)
+		if result == nil {
+			t.Errorf("tryCodecFormatting() should return formatted value for non-pointer types")
+		}
+
+		// Test non-pointer type without formatter
+		globalCodecRegistry = NewCodecRegistry()
+
+		result = m.tryCodecFormatting(fieldValue, fieldType, nonPtrValue)
+		if result != nil {
+			t.Errorf("tryCodecFormatting() should return nil when no formatter is registered for non-pointer type")
+		}
+	})
+}
+
+// Test types for internal function testing
+type TestFailingType struct {
+	Data string
+}
+
+type TestSuccessType struct {
+	Data string
+}
+
+type TestCodecThatFails struct{}
+
+func (t *TestCodecThatFails) Parse(ctx context.Context, value string) (*TestFailingType, error) {
+	return nil, fmt.Errorf("parsing failed")
+}
+
+func (t *TestCodecThatFails) Format(ctx context.Context, value *TestFailingType) (string, error) {
+	return "", fmt.Errorf("formatting failed")
+}
+
+func (t *TestCodecThatFails) Schema() OpenAPISchema {
+	return OpenAPISchema{Type: "string"}
+}
+
+type TestSuccessCodec struct{}
+
+func (t *TestSuccessCodec) Parse(ctx context.Context, value string) (*TestSuccessType, error) {
+	return &TestSuccessType{Data: "parsed:" + value}, nil
+}
+
+func (t *TestSuccessCodec) Format(ctx context.Context, value *TestSuccessType) (string, error) {
+	if value == nil {
+		return "", nil
+	}
+	return "formatted:" + value.Data, nil
+}
+
+func (t *TestSuccessCodec) Schema() OpenAPISchema {
+	return OpenAPISchema{Type: "string"}
+}
+
+type TestFormatterThatFails struct{}
+
+func (t *TestFormatterThatFails) Parse(ctx context.Context, value string) (*TestFailingType, error) {
+	return &TestFailingType{Data: value}, nil
+}
+
+func (t *TestFormatterThatFails) Format(ctx context.Context, value *TestFailingType) (string, error) {
+	return "", fmt.Errorf("formatting failed")
+}
+
+func (t *TestFormatterThatFails) Schema() OpenAPISchema {
+	return OpenAPISchema{Type: "string"}
+}
+
+// Test codec helper functions
+func TestCodecHelperFunctions(t *testing.T) {
+	// Save original registry
+	originalRegistry := globalCodecRegistry
+	defer func() {
+		globalCodecRegistry = originalRegistry
+	}()
+
+	ctx := context.Background()
+
+	t.Run("RegisterCodec", func(t *testing.T) {
+		globalCodecRegistry = NewCodecRegistry()
+
+		codec := &TestSuccessCodec{}
+		err := RegisterCodec[TestSuccessType](codec)
+		if err != nil {
+			t.Errorf("RegisterCodec() error = %v, want nil", err)
+		}
+
+		// Verify codec was registered
+		targetType := reflect.TypeOf(TestSuccessType{})
+		if _, exists := globalCodecRegistry.Parser(targetType); !exists {
+			t.Error("RegisterCodec() should have registered a parser")
+		}
+		if _, exists := globalCodecRegistry.Formatter(targetType); !exists {
+			t.Error("RegisterCodec() should have registered a formatter")
+		}
+	})
+
+	t.Run("GetCodecRegistry", func(t *testing.T) {
+		registry := GetCodecRegistry()
+		if registry == nil {
+			t.Error("GetCodecRegistry() should not return nil")
+		}
+
+		// Test that it returns the same instance
+		registry2 := GetCodecRegistry()
+		if registry != registry2 {
+			t.Error("GetCodecRegistry() should return the same instance")
+		}
+	})
+
+	t.Run("SetFieldValueFromString", func(t *testing.T) {
+		globalCodecRegistry = NewCodecRegistry()
+
+		// Test with registered codec
+		codec := &TestSuccessCodec{}
+		err := RegisterCodec[TestSuccessType](codec)
+		if err != nil {
+			t.Fatalf("RegisterCodec() failed: %v", err)
+		}
+
+		var testStruct struct {
+			Field TestSuccessType
+		}
+		fieldValue := reflect.ValueOf(&testStruct).Elem().Field(0)
+
+		err = SetFieldValueFromString(ctx, fieldValue, "test")
+		if err != nil {
+			t.Errorf("SetFieldValueFromString() error = %v, want nil", err)
+		}
+
+		if testStruct.Field.Data != "parsed:test" {
+			t.Errorf("SetFieldValueFromString() result = %v, want 'parsed:test'", testStruct.Field.Data)
+		}
+
+		// Test without registered codec
+		globalCodecRegistry = NewCodecRegistry()
+		var testStruct2 struct {
+			Field TestSuccessType
+		}
+		fieldValue2 := reflect.ValueOf(&testStruct2).Elem().Field(0)
+
+		err = SetFieldValueFromString(ctx, fieldValue2, "test")
+		if err == nil {
+			t.Error("SetFieldValueFromString() should error when no codec is registered")
+		}
+	})
+
 }

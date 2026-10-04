@@ -34,15 +34,13 @@ var AllowedSections = map[string]bool{
 
 // ConventionParser handles parsing requests using the Convention Over Configuration approach.
 type ConventionParser struct {
-	typeRegistry *TypeParserRegistry
-	validator    *validator.Validate
+	validator *validator.Validate
 }
 
 // NewConventionParser creates a new convention parser.
 func NewConventionParser() *ConventionParser {
 	return &ConventionParser{
-		typeRegistry: NewTypeParserRegistry(),
-		validator:    validator.New(),
+		validator: validator.New(),
 	}
 }
 
@@ -97,11 +95,6 @@ func (d *DefaultParameterAdapter) Cookie(r *http.Request, key string) (string, b
 		return "", false
 	}
 	return cookie.Value, true
-}
-
-// RegisterTypeParser registers a type parser function.
-func (p *ConventionParser) RegisterTypeParser(parserFunc interface{}) error {
-	return p.typeRegistry.Register(parserFunc)
 }
 
 // ParseRequest parses an HTTP request into the given request struct using convention over configuration.
@@ -329,11 +322,20 @@ func (p *ConventionParser) parseCookiesSection(ctx context.Context, sectionValue
 
 // setFieldValue sets a field value with type conversion and complex type parsing.
 func (p *ConventionParser) setFieldValue(ctx context.Context, fieldValue reflect.Value, field reflect.StructField, value string) error {
-	// First try complex type parsing
-	if parser := p.typeRegistry.GetParser(field.Type); parser != nil {
+	// First try gorkson codec system
+	codecRegistry := gorkson.GetCodecRegistry()
+	if parser, exists := codecRegistry.Parser(field.Type); exists {
+		// Get schema for automatic validation
+		if schema, hasSchema := codecRegistry.Schema(field.Type); hasSchema {
+			// Automatically validate against schema constraints before parsing
+			if err := validateValueAgainstSchema(value, schema, field.Type.Name()); err != nil {
+				return fmt.Errorf("schema validation failed: %w", err)
+			}
+		}
+
 		result, err := parser(ctx, value)
 		if err != nil {
-			return err
+			return fmt.Errorf("codec parse error: %w", err)
 		}
 		fieldValue.Set(reflect.ValueOf(result).Elem())
 		return nil
@@ -341,6 +343,51 @@ func (p *ConventionParser) setFieldValue(ctx context.Context, fieldValue reflect
 
 	// Fall back to basic type conversion
 	return p.setBasicFieldValue(fieldValue, field, value)
+}
+
+// FormatFieldValue converts Go types to their appropriate representation for JSON responses.
+// This preserves native types (numbers, booleans, etc.) and delegates to codec system.
+func (p *ConventionParser) FormatFieldValue(ctx context.Context, value interface{}) (interface{}, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	valueType := reflect.TypeOf(value)
+	codecRegistry := gorkson.GetCodecRegistry()
+
+	// Handle pointer types
+	if valueType.Kind() == reflect.Ptr {
+		valueReflect := reflect.ValueOf(value)
+		if valueReflect.IsNil() {
+			return nil, nil
+		}
+		// Get the element type for codec lookup
+		elementType := valueType.Elem()
+
+		// Try codec formatter
+		if formatter, exists := codecRegistry.Formatter(elementType); exists {
+			result, err := formatter(ctx, value)
+			if err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
+
+		// Fallback: return the dereferenced value as-is
+		return valueReflect.Elem().Interface(), nil
+	}
+
+	// Handle non-pointer types
+	if formatter, exists := codecRegistry.Formatter(valueType); exists {
+		result, err := formatter(ctx, value)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+
+	// Fallback: return value as-is (preserving native type)
+	return value, nil
 }
 
 // setBasicFieldValue handles basic type conversions.

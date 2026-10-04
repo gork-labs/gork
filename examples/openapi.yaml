@@ -58,6 +58,7 @@ components:
             title: BankPaymentMethod
             type: object
         CreateUserBody:
+            description: CreateUser handles user creation requests.
             properties:
                 username:
                     description: Username is the username of the user to create
@@ -83,16 +84,16 @@ components:
         CustomerMetadata:
             description: CustomerMetadata represents customer-specific metadata for webhook events.
             properties:
-                PlanType:
+                plan_type:
                     type: string
-                UserID:
-                    description: UserID is the ID of the user
+                user_id:
                     type: string
             required:
-                - UserID
+                - user_id
             title: CustomerMetadata
             type: object
         DeleteUserBody:
+            description: DeleteUser handles user deletion requests.
             properties:
                 userID:
                     description: UserID is the ID of the user to delete
@@ -114,19 +115,76 @@ components:
                 - error
             title: ErrorResponse
             type: object
+        EventBody:
+            properties:
+                account:
+                    type: string
+                api_version:
+                    type: string
+                created:
+                    type: integer
+                data:
+                    $ref: '#/components/schemas/EventData'
+                id:
+                    type: string
+                livemode:
+                    type: boolean
+                object:
+                    type: string
+                pending_webhooks:
+                    type: integer
+                request:
+                    $ref: '#/components/schemas/EventRequest'
+                type:
+                    type: string
+            title: EventBody
+            type: object
+        EventData:
+            properties:
+                object:
+                    format: byte
+                    type: string
+                previous_attributes:
+                    description: Map with dynamic keys
+                    type: object
+            title: EventData
+            type: object
+        EventRequest:
+            properties:
+                id:
+                    type: string
+                idempotency_key:
+                    type: string
+            title: EventRequest
+            type: object
+        GetTaskResponse:
+            description: GetTaskResponse demonstrates codec usage in responses.
+            properties:
+                completedAt:
+                    $ref: '#/components/schemas/Time'
+                    description: Will be formatted back to RFC3339
+                message:
+                    type: string
+                priority:
+                    description: Will be formatted back to string
+                    type: integer
+                task:
+                    $ref: '#/components/schemas/Task'
+                    description: Will be formatted back to ID
+            title: GetTaskResponse
+            type: object
         InvoiceMetadata:
             description: InvoiceMetadata represents invoice-specific metadata for webhook events.
             properties:
-                BillingPeriod:
+                billing_period:
                     type: string
-                SubscriptionID:
+                subscription_id:
                     type: string
-                UserID:
-                    description: UserID is the ID of the user
+                user_id:
                     type: string
             required:
-                - UserID
-                - SubscriptionID
+                - user_id
+                - subscription_id
             title: InvoiceMetadata
             type: object
         ListUsersResponse:
@@ -154,56 +212,32 @@ components:
         PaymentMetadata:
             description: PaymentMetadata represents example user-defined metadata types validated by the webhook dispatcher.
             properties:
-                ProjectID:
+                project_id:
                     type: string
-                UserID:
-                    description: UserID is the ID of the user
+                user_id:
                     type: string
             required:
-                - UserID
+                - user_id
             title: PaymentMetadata
             type: object
-        StripeWebhookErrorResponse:
+        Task:
+            description: Task represents a task entity with full information.
             properties:
-                Body:
-                    properties:
-                        Error:
-                            type: string
-                        Received:
-                            type: boolean
-                    type: object
-            title: StripeWebhookErrorResponse
-            type: object
-        StripeWebhookRequest:
-            properties:
-                Body:
-                    format: byte
+                id:
+                    type: integer
+                title:
                     type: string
-                Headers:
-                    properties:
-                        Content-Type:
-                            type: string
-                        Stripe-Signature:
-                            type: string
-                    required:
-                        - Stripe-Signature
-                    type: object
-            title: StripeWebhookRequest
+            title: Task
             type: object
-        StripeWebhookResponse:
-            properties:
-                Body:
-                    properties:
-                        Received:
-                            type: boolean
-                    type: object
-            title: StripeWebhookResponse
+        Time:
+            title: Time
             type: object
         UpdateOwnedItemResponse:
             description: UpdateOwnedItemResponse is a demo empty response.
             title: UpdateOwnedItemResponse
             type: object
         UpdateUserBody:
+            description: UpdateUser handles user update requests.
             properties:
                 userID:
                     description: UserID is the ID of the user to update
@@ -217,6 +251,7 @@ components:
             title: UpdateUserBody
             type: object
         UpdateUserPreferencesBody:
+            description: UpdateUserPreferences handles user preferences update requests.
             properties:
                 paymentMethod:
                     description: PaymentMethod contains the user's payment method
@@ -319,6 +354,56 @@ paths:
                     $ref: '#/components/responses/InternalServerError'
             tags:
                 - items
+    /api/v1/tasks/{taskId}/completed/{completedAt}:
+        get:
+            description: GetTask demonstrates automatic type conversion using registered codecs.
+            operationId: GetTask
+            parameters:
+                - description: Uses TaskCodec for entity resolution
+                  in: path
+                  name: taskId
+                  required: true
+                  schema:
+                    description: Task ID that resolves to full task information
+                    format: int32
+                    minimum: 1
+                    type: integer
+                - description: Uses TimeCodec for RFC3339 parsing
+                  in: path
+                  name: completedAt
+                  required: true
+                  schema:
+                    description: RFC3339 formatted timestamp
+                    format: date-time
+                    pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z?$
+                    type: string
+                - description: Uses PriorityCodec for enum validation
+                  in: query
+                  name: priority
+                  required: false
+                  schema:
+                    description: Task priority level (internal iota, external string)
+                    enum:
+                        - low
+                        - medium
+                        - high
+                    type: string
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetTaskResponse'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            tags:
+                - tasks
+                - codecs
     /api/v1/users:
         get:
             description: ListUsers handles listing all users.
@@ -549,25 +634,47 @@ paths:
         post:
             description: Webhook endpoint that receives events from external services
             operationId: StripeWebhook
+            parameters:
+                - in: header
+                  name: content_type
+                  required: true
+                  schema:
+                    type: string
+                - in: header
+                  name: stripe_signature
+                  required: true
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/StripeWebhookRequest'
-                description: Webhook event payload
+                            $ref: '#/components/schemas/EventBody'
                 required: true
             responses:
                 "200":
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/StripeWebhookResponse'
+                                properties:
+                                    Error:
+                                        type: string
+                                    Received:
+                                        type: boolean
+                                type: object
                     description: Webhook processed successfully
+                "204":
+                    description: No Content
                 "400":
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/StripeWebhookErrorResponse'
+                                properties:
+                                    Error:
+                                        type: string
+                                    Received:
+                                        type: boolean
+                                type: object
                     description: Invalid webhook payload or signature
                 "422":
                     $ref: '#/components/responses/UnprocessableEntity'

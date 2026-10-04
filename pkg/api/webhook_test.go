@@ -76,6 +76,19 @@ func (h *TestWebhookHandler) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "TestProvider"}
 }
 
+func (h *TestWebhookHandler) RequestSchema() reflect.Type {
+	return reflect.TypeOf(TestWebhookRequest{})
+}
+
+func (h *TestWebhookHandler) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			Received bool   `json:"received" gork:"received"`
+			Error    string `json:"error,omitempty" gork:"error,omitempty"`
+		} `json:"body" gork:"body"`
+	}{})
+}
+
 // Test user metadata types
 type PaymentMetadata struct {
 	ProjectID string `json:"project_id" validate:"required"`
@@ -215,7 +228,7 @@ func TestWebhookHandler_ResponseMethods(t *testing.T) {
 
 func TestEventTypeValidator(t *testing.T) {
 	handler := NewTestWebhookHandler("test-secret")
-	validator := handler.(*TestWebhookHandler)
+	// Use interface directly since it has all the methods we need
 
 	t.Run("IsValidEventType", func(t *testing.T) {
 		tests := []struct {
@@ -230,7 +243,14 @@ func TestEventTypeValidator(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			result := validator.IsValidEventType(tt.eventType)
+			validTypes := handler.GetValidEventTypes()
+			result := false
+			for _, validType := range validTypes {
+				if tt.eventType == validType {
+					result = true
+					break
+				}
+			}
 			if result != tt.expected {
 				t.Errorf("IsValidEventType(%q) = %v, expected %v", tt.eventType, result, tt.expected)
 			}
@@ -238,7 +258,7 @@ func TestEventTypeValidator(t *testing.T) {
 	})
 
 	t.Run("GetValidEventTypes", func(t *testing.T) {
-		eventTypes := validator.GetValidEventTypes()
+		eventTypes := handler.GetValidEventTypes()
 		expected := []string{"payment.succeeded", "payment.failed", "subscription.created"}
 
 		if len(eventTypes) != len(expected) {

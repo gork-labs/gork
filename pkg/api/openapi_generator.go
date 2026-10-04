@@ -40,6 +40,17 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		o(spec)
 	}
 
+	// Create a single DocExtractor that will automatically discover and parse
+	// modules as needed when it encounters types it doesn't have docs for
+	extractor := NewDocExtractor()
+
+	// Proactively parse external modules for all types referenced by the registry
+	// so that documentation for external structs (e.g., stripe.Event) is available
+	// during later enrichment.
+	for _, t := range collectTypesFromRegistry(registry) {
+		_ = extractor.TryParseModuleForType(t)
+	}
+
 	// Determine active filter (user-provided or default)
 	routeFilter := spec.routeFilter
 	if routeFilter == nil {
@@ -54,13 +65,16 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		if spec.Paths[path] == nil {
 			spec.Paths[path] = &PathItem{}
 		}
-		generator := NewConventionOpenAPIGenerator(spec, NewDocExtractor())
+		generator := NewConventionOpenAPIGenerator(spec, extractor)
 		op := generator.buildConventionOperation(route, spec.Components)
 
 		// Security mapping
 		applySecurityToOperation(route, spec, op)
 		attachOperation(spec.Paths[path], strings.ToLower(route.Method), op)
 	}
+
+	// Enrich the generated spec with documentation
+	EnhanceOpenAPISpecWithDocs(spec, extractor)
 
 	return spec
 }
@@ -276,16 +290,11 @@ func processStructField(f reflect.StructField, s *Schema, registry map[string]*S
 		applyValidationConstraints(fieldSchema, validateTag, f.Type, s, f)
 	}
 
-	// Try gork tag first, then fall back to field name
-	gorkTag := f.Tag.Get("gork")
-	var fieldName string
-	if gorkTag != "" {
-		fieldName = parseGorkTag(gorkTag).Name
+	// Get field name using proper tag parsing (gork -> json -> field name)
+	fieldName := getOpenAPIFieldName(f)
+	if fieldName != "" {
+		s.Properties[fieldName] = fieldSchema
 	}
-	if fieldName == "" {
-		fieldName = f.Name
-	}
-	s.Properties[fieldName] = fieldSchema
 }
 
 func buildArraySchema(t reflect.Type, registry map[string]*Schema) *Schema {
@@ -458,15 +467,8 @@ func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldTy
 }
 
 func addRequiredField(parent *Schema, sf reflect.StructField) {
-	// Try gork tag first, then fall back to field name
-	gorkTag := sf.Tag.Get("gork")
-	var fieldName string
-	if gorkTag != "" {
-		fieldName = parseGorkTag(gorkTag).Name
-	}
-	if fieldName == "" {
-		fieldName = sf.Name
-	}
+	// Get field name using proper tag parsing (gork -> json -> field name)
+	fieldName := getOpenAPIFieldName(sf)
 
 	// Append if not already present
 	for _, r := range parent.Required {
@@ -556,6 +558,39 @@ func parseDiscriminator(tag string) (value string, ok bool) {
 		}
 	}
 	return "", false
+}
+
+// getOpenAPIFieldName extracts the field name from struct tags, with fallback priority:
+// 1. gork tag
+// 2. json tag
+// 3. struct field name
+// Returns empty string if field should be skipped (e.g., "-" tag value)
+func getOpenAPIFieldName(field reflect.StructField) string {
+	// Try gork tag first
+	if gorkTag := field.Tag.Get("gork"); gorkTag != "" {
+		tagInfo := parseGorkTag(gorkTag)
+		if tagInfo.Name == "-" {
+			return ""
+		}
+		if tagInfo.Name != "" {
+			return tagInfo.Name
+		}
+	}
+
+	// Fall back to json tag if no gork tag found
+	if jsonTag := field.Tag.Get("json"); jsonTag != "" {
+		// Parse json tag (take first part before comma)
+		name := strings.Split(jsonTag, ",")[0]
+		if name == "-" {
+			return ""
+		}
+		if name != "" {
+			return name
+		}
+	}
+
+	// Final fallback to field name
+	return field.Name
 }
 
 // sanitizeSchemaName converts Go type names containing characters not allowed

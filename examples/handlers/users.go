@@ -200,19 +200,24 @@ func ListUsers(ctx context.Context, _ ListUsersRequest) (ListUsersResponse, erro
 // Simulated ownership map for demo purposes.
 var exampleItemOwners = map[string]string{
 	"123": "alice",
+	"df":  "alice", // Add the requested item for testing
+	"abc": "bob",   // Add another item for different user
 }
 
 // Register a simple owned_by rule for demonstration when the package is loaded.
 func init() {
 	rules.Register("owned_by", func(_ context.Context, itemID *string, currentUser string) (bool, error) {
 		if itemID == nil {
-			return false, fmt.Errorf("item id is nil")
+			return false, fmt.Errorf("item id is nil") // System error - bad data flow
 		}
-		owner := exampleItemOwners[*itemID]
+		owner, exists := exampleItemOwners[*itemID]
+		if !exists {
+			return false, nil // Validation failed - item not found
+		}
 		if owner != currentUser {
-			return false, fmt.Errorf("item %s is not owned by %s", *itemID, currentUser)
+			return false, nil // Validation failed - access denied
 		}
-		return true, nil
+		return true, nil // Validation passed
 	})
 }
 

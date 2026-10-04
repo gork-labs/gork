@@ -26,7 +26,7 @@ func TestBuildWebhookOperation_ProviderAndEventsExtensions(t *testing.T) {
 		WebhookHandledEvents: []string{"payment_intent.succeeded", "invoice.paid"},
 	}
 
-	op := gen.buildWebhookOperation(route, spec.Components, &Operation{Responses: map[string]*Response{}})
+	op := gen.buildConventionOperation(route, spec.Components)
 
 	if op == nil {
 		t.Fatal("operation should not be nil")

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -33,6 +34,23 @@ func (p *testProvider) ProviderInfo() WebhookProviderInfo {
 		Website: "https://acme.example.com",
 		DocsURL: "https://docs.acme.example.com/webhooks",
 	}
+}
+
+func (p *testProvider) RequestSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body    acmeProviderPayload `json:"body" gork:"body"`
+		Headers struct {
+			ContentType string `json:"Content-Type" gork:"content_type"`
+		} `json:"headers" gork:"headers"`
+	}{})
+}
+
+func (p *testProvider) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			OK bool `json:"ok" gork:"ok"`
+		} `json:"body" gork:"body"`
+	}{})
 }
 
 func TestWebhookProviderMetadataAndHandledEvents(t *testing.T) {

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -135,6 +136,24 @@ func (h *mockWebhookHandler) GetValidEventTypes() []string { return []string{"ge
 
 func (h *mockWebhookHandler) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "Generic"}
+}
+
+func (h *mockWebhookHandler) RequestSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body    interface{} `json:"body" gork:"body"`
+		Headers struct {
+			ContentType string `json:"Content-Type" gork:"content_type"`
+		} `json:"headers" gork:"headers"`
+	}{})
+}
+
+func (h *mockWebhookHandler) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			Status string `json:"status" gork:"status"`
+			Error  string `json:"error,omitempty" gork:"error,omitempty"`
+		} `json:"body" gork:"body"`
+	}{})
 }
 
 func TestWebhookOpenAPIJSONSerialization(t *testing.T) {

@@ -32,6 +32,22 @@ func (p *metaProvider) GetValidEventTypes() []string { return []string{"evt.x", 
 func (p *metaProvider) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "Meta", Website: "w", DocsURL: "d"}
 }
+func (p *metaProvider) RequestSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body    interface{} `json:"body" gork:"body"`
+		Headers struct {
+			ContentType string `json:"Content-Type" gork:"content_type"`
+		} `json:"headers" gork:"headers"`
+	}{})
+}
+
+func (p *metaProvider) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			OK bool `json:"ok" gork:"ok"`
+		} `json:"body" gork:"body"`
+	}{})
+}
 
 func TestBuildWebhookEventsMetadata_Branches(t *testing.T) {
 	spec := &OpenAPISpec{Components: &Components{Schemas: map[string]*Schema{}}}

@@ -221,3 +221,16 @@ func (h *SimpleWebhookHandler) GetValidEventTypes() []string {
 func (h *SimpleWebhookHandler) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "Simple"}
 }
+
+func (h *SimpleWebhookHandler) RequestSchema() reflect.Type {
+	return reflect.TypeOf(SimpleWebhookRequest{})
+}
+
+func (h *SimpleWebhookHandler) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			Received bool   `json:"received" gork:"received"`
+			Error    string `json:"error,omitempty" gork:"error,omitempty"`
+		} `json:"body" gork:"body"`
+	}{})
+}

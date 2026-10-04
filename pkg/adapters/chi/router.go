@@ -147,8 +147,3 @@ func (r *Router) Register(method, path string, handler interface{}, opts ...api.
 func (r *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
 	r.typedRouter.DocsRoute(path, cfg...)
 }
-
-// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
-func (r *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
-	r.typedRouter.ExportOpenAPIAndExit(opts...)
-}

@@ -2,6 +2,7 @@
 package gorkson
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -41,51 +42,79 @@ func (m *Marshaler) UnmarshalFromJSON(data []byte, v any) error {
 
 // convertToGorkSON converts a struct to a map using gork tags for field names.
 func (m *Marshaler) convertToGorkSON(v any) any {
-	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Ptr {
-		if val.IsNil() {
-			return nil
-		}
-		val = val.Elem()
+	val, isNil := m.handlePointerValue(v)
+	if isNil {
+		return nil
 	}
 
 	// Handle slices by converting each element
 	if val.Kind() == reflect.Slice {
-		result := make([]interface{}, val.Len())
-		for i := 0; i < val.Len(); i++ {
-			result[i] = m.convertToGorkSON(val.Index(i).Interface())
-		}
-		return result
+		return m.convertSliceToGorkSON(val)
 	}
 
 	if val.Kind() != reflect.Struct {
 		return v
 	}
 
+	return m.convertStructToGorkSON(val)
+}
+
+// handlePointerValue handles pointer dereference and nil checking.
+func (m *Marshaler) handlePointerValue(v any) (reflect.Value, bool) {
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return reflect.Value{}, true // isNil = true
+		}
+		val = val.Elem()
+	}
+	return val, false // isNil = false
+}
+
+// convertSliceToGorkSON converts a slice to gorkson format.
+func (m *Marshaler) convertSliceToGorkSON(val reflect.Value) []interface{} {
+	result := make([]interface{}, val.Len())
+	for i := 0; i < val.Len(); i++ {
+		result[i] = m.convertToGorkSON(val.Index(i).Interface())
+	}
+	return result
+}
+
+// convertStructToGorkSON converts a struct to gorkson format using field tags.
+func (m *Marshaler) convertStructToGorkSON(val reflect.Value) map[string]interface{} {
 	result := make(map[string]interface{})
 	typ := val.Type()
 
 	for i := 0; i < val.NumField(); i++ {
-		field := typ.Field(i)
-		fieldValue := val.Field(i)
-
-		// Skip unexported fields
-		if !fieldValue.CanInterface() {
-			continue
+		if fieldName, fieldValue := m.processStructField(typ.Field(i), val.Field(i)); fieldName != "" {
+			result[fieldName] = fieldValue
 		}
-
-		// Get field name from gork tag
-		fieldName := m.getFieldName(field)
-		if fieldName == "" || fieldName == "-" {
-			continue
-		}
-
-		// Recursively convert nested structs
-		value := m.convertToGorkSON(fieldValue.Interface())
-		result[fieldName] = value
 	}
 
 	return result
+}
+
+// processStructField processes a single struct field and returns the field name and converted value.
+func (m *Marshaler) processStructField(field reflect.StructField, fieldValue reflect.Value) (string, any) {
+	// Skip unexported fields
+	if !fieldValue.CanInterface() {
+		return "", nil
+	}
+
+	// Get field name from gork tag
+	fieldName := m.getFieldName(field)
+	if fieldName == "" || fieldName == "-" {
+		return "", nil
+	}
+
+	// Try codec formatting first
+	fieldInterface := fieldValue.Interface()
+	if codecValue := m.tryCodecFormatting(fieldValue, field.Type, fieldInterface); codecValue != nil {
+		return fieldName, codecValue
+	}
+
+	// Recursively convert nested structs
+	return fieldName, m.convertToGorkSON(fieldInterface)
 }
 
 // convertFromGorkSON converts a JSON map back to a struct using gork tag mapping.
@@ -191,6 +220,12 @@ func (m *Marshaler) setFieldValue(field reflect.Value, value any) error {
 		return nil
 	}
 
+	// First try codec system for rich type conversion
+	fieldType := field.Type()
+	if m.tryCodecConversion(field, fieldType, value) {
+		return nil
+	}
+
 	kind := field.Kind()
 
 	// Check if it's a basic field type
@@ -208,6 +243,62 @@ func (m *Marshaler) setFieldValue(field reflect.Value, value any) error {
 
 	// Handle all other types as generic fields
 	return m.setGenericField(field, value)
+}
+
+// tryCodecConversion attempts to use a registered codec for type conversion.
+// Returns true if a codec was found and conversion succeeded, false otherwise.
+func (m *Marshaler) tryCodecConversion(field reflect.Value, fieldType reflect.Type, value any) bool {
+	// Check if value is a string (from JSON string fields)
+	if strValue, ok := value.(string); ok {
+		if parser, exists := globalCodecRegistry.Parser(fieldType); exists {
+			// Use context.Background() since JSON unmarshaling doesn't have context
+			// TODO: Consider adding context support to gorkson in the future
+			result, err := parser(context.Background(), strValue)
+			if err != nil {
+				// Codec conversion failed, continue with fallback
+				return false
+			}
+			field.Set(reflect.ValueOf(result).Elem())
+			return true
+		}
+	}
+	return false
+}
+
+// tryCodecFormatting attempts to use a registered codec for formatting a Go value.
+// Returns formatted value if codec found, nil otherwise.
+func (m *Marshaler) tryCodecFormatting(fieldValue reflect.Value, fieldType reflect.Type, value any) interface{} {
+	// Handle pointer types
+	if fieldType.Kind() == reflect.Ptr {
+		if fieldValue.IsNil() {
+			return nil
+		}
+		// Get the element type for codec lookup
+		elementType := fieldType.Elem()
+		if formatter, exists := globalCodecRegistry.Formatter(elementType); exists {
+			// Use context.Background() since JSON marshaling doesn't have context
+			result, err := formatter(context.Background(), value)
+			if err != nil {
+				// Codec formatting failed, return nil to fallback
+				return nil
+			}
+			return result
+		}
+	} else {
+		// Handle non-pointer types
+		if formatter, exists := globalCodecRegistry.Formatter(fieldType); exists {
+			// For non-pointer types, we need to pass the address
+			valuePtr := reflect.New(fieldType)
+			valuePtr.Elem().Set(fieldValue)
+			result, err := formatter(context.Background(), valuePtr.Interface())
+			if err != nil {
+				// Codec formatting failed, return nil to fallback
+				return nil
+			}
+			return result
+		}
+	}
+	return nil
 }
 
 // isBasicFieldKind checks if the kind is a basic type that can be set directly.

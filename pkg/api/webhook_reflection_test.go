@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"reflect"
 	"testing"
 )
 
@@ -44,6 +45,27 @@ func (h *CustomWebhookHandler) GetValidEventTypes() []string { return []string{"
 
 func (h *CustomWebhookHandler) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "Custom"}
+}
+
+func (h *CustomWebhookHandler) RequestSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body    interface{} `json:"body" gork:"body"`
+		Headers struct {
+			ContentType string `json:"Content-Type" gork:"content_type"`
+		} `json:"headers" gork:"headers"`
+	}{})
+}
+
+func (h *CustomWebhookHandler) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(struct {
+		Body struct {
+			Status      string `json:"status" gork:"status"`
+			ProcessedAt string `json:"processed_at,omitempty" gork:"processed_at,omitempty"`
+			WebhookID   string `json:"webhook_id,omitempty" gork:"webhook_id,omitempty"`
+			ErrorCode   int    `json:"error_code,omitempty" gork:"error_code,omitempty"`
+			Message     string `json:"message,omitempty" gork:"message,omitempty"`
+		} `json:"body" gork:"body"`
+	}{})
 }
 
 // Custom webhook request for testing

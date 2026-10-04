@@ -148,11 +148,6 @@ func (wr *Router) DocsRoute(path string, cfg ...api.DocsConfig) {
 	wr.typedRouter.DocsRoute(path, cfg...)
 }
 
-// ExportOpenAPIAndExit delegates to the underlying TypedRouter to export OpenAPI and exit.
-func (wr *Router) ExportOpenAPIAndExit(opts ...api.OpenAPIOption) {
-	wr.typedRouter.ExportOpenAPIAndExit(opts...)
-}
-
 // toNativePath converts goapi wildcard patterns ("/*") to gorilla/mux compatible
 // patterns using a regex catch-all segment. Example: "/docs/*" -> "/docs/{rest:.*}".
 // For all other paths it returns the input unchanged.

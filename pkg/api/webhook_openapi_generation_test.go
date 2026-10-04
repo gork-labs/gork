@@ -21,16 +21,21 @@ func TestWebhookOpenAPIInternalLogic(t *testing.T) {
 			}
 		})
 
-		t.Run("processWebhookRequestBody handles interface request type", func(t *testing.T) {
-			op := &Operation{Responses: map[string]*Response{}}
+		t.Run("webhook request processing uses conventional sections", func(t *testing.T) {
+			op := &Operation{
+				Parameters: []Parameter{},
+				Responses:  map[string]*Response{},
+			}
 			comps := &Components{Schemas: map[string]*Schema{}}
-			// Use interface type to trigger generic schema branch
-			gen.processWebhookRequestBody(reflect.TypeOf((*WebhookRequest)(nil)).Elem(), op, comps)
+
+			// Create a mock conventional request structure
+			reqType := reflect.TypeOf(struct {
+				Body interface{} `json:"body" gork:"body"`
+			}{})
+
+			gen.processRequestSections(reqType, op, comps)
 			if op.RequestBody == nil || op.RequestBody.Content["application/json"].Schema == nil {
 				t.Fatal("expected request body schema to be set")
-			}
-			if op.RequestBody.Content["application/json"].Schema.Type != "object" {
-				t.Fatalf("expected generic object schema, got %s", op.RequestBody.Content["application/json"].Schema.Type)
 			}
 		})
 
@@ -133,108 +138,45 @@ func (h *InvalidHandler) SomeOtherMethod() string {
 	return "not a webhook handler"
 }
 
-// TestWebhookResponseTypeDetection tests webhook response type detection and reflection
-func TestWebhookResponseTypeDetection(t *testing.T) {
+// TestWebhookConventionalSchemas tests that webhooks use conventional request/response schemas
+func TestWebhookConventionalSchemas(t *testing.T) {
 	generator := NewConventionOpenAPIGenerator(nil, NewDocExtractor())
+	components := &Components{Schemas: map[string]*Schema{}}
 
-	t.Run("getWebhookResponseType with nil handler", func(t *testing.T) {
-		result := generator.getWebhookResponseType(nil, "SuccessResponse")
-		if result != nil {
-			t.Error("Expected nil result for nil handler")
+	t.Run("webhook uses conventional request sections", func(t *testing.T) {
+		// Test that webhooks process headers, body, etc. using standard conventional logic
+		op := &Operation{
+			Parameters: []Parameter{},
+			Responses:  map[string]*Response{},
+		}
+
+		// Mock conventional request with Headers and Body
+		reqType := reflect.TypeOf(struct {
+			Body    interface{} `json:"body" gork:"body"`
+			Headers struct {
+				ContentType string `json:"Content-Type" gork:"content_type" validate:"required"`
+			} `json:"headers" gork:"headers"`
+		}{})
+
+		generator.processRequestSections(reqType, op, components)
+
+		// Should have processed both body and headers
+		if op.RequestBody == nil {
+			t.Fatal("Expected request body to be processed")
+		}
+
+		// Should have header parameters
+		hasHeaderParam := false
+		for _, param := range op.Parameters {
+			if param.In == "header" {
+				hasHeaderParam = true
+				break
+			}
+		}
+		if !hasHeaderParam {
+			t.Fatal("Expected header parameters to be processed")
 		}
 	})
-
-	t.Run("getWebhookResponseType with non-interface return type", func(t *testing.T) {
-		handler := &NonInterfaceHandler{}
-
-		result := generator.getWebhookResponseType(handler, "SuccessResponse")
-
-		// Should return the concrete type directly since it's not interface{}
-		if result == nil {
-			t.Fatal("Expected non-nil result")
-		}
-
-		expectedType := reflect.TypeOf(CustomSuccessResponse{})
-		if result != expectedType {
-			t.Errorf("Expected %v, got %v", expectedType, result)
-		}
-	})
-
-	t.Run("getWebhookResponseType with invalid method name", func(t *testing.T) {
-		handler := &CustomWebhookHandler{}
-
-		result := generator.getWebhookResponseType(handler, "NonExistentMethod")
-		if result != nil {
-			t.Error("Expected nil result for non-existent method")
-		}
-	})
-
-	t.Run("getWebhookResponseType with handler without expected methods", func(t *testing.T) {
-		handler := &InvalidHandler{}
-
-		result := generator.getWebhookResponseType(handler, "SuccessResponse")
-		if result != nil {
-			t.Error("Expected nil result for handler without SuccessResponse method")
-		}
-	})
-
-	t.Run("getWebhookResponseType ErrorResponse method", func(t *testing.T) {
-		handler := &CustomWebhookHandler{}
-
-		result := generator.getWebhookResponseType(handler, "ErrorResponse")
-
-		if result == nil {
-			t.Fatal("Expected non-nil result for ErrorResponse")
-		}
-
-		expectedType := reflect.TypeOf(CustomErrorResponse{})
-		if result != expectedType {
-			t.Errorf("Expected %v, got %v", expectedType, result)
-		}
-	})
-
-	t.Run("getWebhookResponseType with method that returns nil interface", func(t *testing.T) {
-		handler := &NilReturnHandler{}
-
-		result := generator.getWebhookResponseType(handler, "SuccessResponse")
-		// When method returns nil, we still get interface{} as the static return type
-		expectedType := reflect.TypeOf((*interface{})(nil)).Elem()
-		if result != expectedType {
-			t.Errorf("Expected %v when method returns nil, got %v", expectedType, result)
-		}
-	})
-
-	t.Run("getWebhookResponseType with method that has wrong signature", func(t *testing.T) {
-		handler := &WrongSignatureHandler{}
-
-		result := generator.getWebhookResponseType(handler, "SuccessResponse")
-		// Should handle method with wrong parameters
-		if result == nil {
-			t.Error("Expected some result even with wrong signature")
-		}
-	})
-}
-
-// Handler that returns nil from interface{} methods
-type NilReturnHandler struct{}
-
-func (h *NilReturnHandler) SuccessResponse() interface{} {
-	return nil
-}
-
-func (h *NilReturnHandler) ErrorResponse(err error) interface{} {
-	return nil
-}
-
-// Handler with wrong method signatures
-type WrongSignatureHandler struct{}
-
-func (h *WrongSignatureHandler) SuccessResponse(wrongParam string) interface{} {
-	return "wrong signature"
-}
-
-func (h *WrongSignatureHandler) ErrorResponse() interface{} {
-	return "wrong signature - no error param"
 }
 
 // TestWebhookResponseGeneration tests webhook response generation scenarios

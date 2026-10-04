@@ -51,6 +51,15 @@ type WebhookHandler[T WebhookRequest] interface {
 
 	// ProviderInfo exposes provider name and documentation metadata.
 	ProviderInfo() WebhookProviderInfo
+
+	// RequestSchema returns the type that represents the complete webhook request structure.
+	// This should be a struct with conventional sections like Body, Headers, Query, etc.
+	// The Body section should contain the actual webhook payload structure.
+	RequestSchema() reflect.Type
+
+	// ResponseSchema returns the type that represents the webhook response structure.
+	// This should be a struct with conventional sections like Body, Headers, etc.
+	ResponseSchema() reflect.Type
 }
 
 // EventHandlerFunc is a generic interface for event handlers.

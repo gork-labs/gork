@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/gork-labs/gork/pkg/api"
@@ -142,6 +143,33 @@ func (h *Handler) ProviderInfo() api.WebhookProviderInfo {
 		Website: "https://stripe.com",
 		DocsURL: "https://stripe.com/docs/webhooks",
 	}
+}
+
+// StripeWebhookRequest represents the complete Stripe webhook request structure.
+type StripeWebhookRequest struct {
+	Body    stripe.Event `json:"body" gork:"body"`
+	Headers struct {
+		ContentType     string `json:"Content-Type" gork:"content_type" validate:"required"`
+		StripeSignature string `json:"Stripe-Signature" gork:"stripe_signature" validate:"required"`
+	} `json:"headers" gork:"headers"`
+}
+
+// StripeWebhookResponse represents the Stripe webhook response structure.
+type StripeWebhookResponse struct {
+	Body struct {
+		Received bool   `json:"received" gork:"received"`
+		Error    string `json:"error,omitempty" gork:"error,omitempty"`
+	} `json:"body" gork:"body"`
+}
+
+// RequestSchema returns the type that represents the complete Stripe webhook request structure.
+func (h *Handler) RequestSchema() reflect.Type {
+	return reflect.TypeOf(StripeWebhookRequest{})
+}
+
+// ResponseSchema returns the type that represents the Stripe webhook response structure.
+func (h *Handler) ResponseSchema() reflect.Type {
+	return reflect.TypeOf(StripeWebhookResponse{})
 }
 
 // contextKey is a type for context keys to avoid collisions.

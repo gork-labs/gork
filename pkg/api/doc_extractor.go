@@ -30,12 +30,56 @@ type FieldDoc struct {
 // DocExtractor parses Go source files and indexes doc comments for later
 // lookup by name.
 type DocExtractor struct {
-	docs map[string]Documentation // fully-qualified name -> documentation
+	docs          map[string]Documentation // fully-qualified name -> documentation
+	parsedModules map[string]bool          // track which modules we've already parsed
 }
 
 // NewDocExtractor allocates a new instance.
 func NewDocExtractor() *DocExtractor {
-	return &DocExtractor{docs: map[string]Documentation{}}
+	return &DocExtractor{
+		docs:          map[string]Documentation{},
+		parsedModules: map[string]bool{},
+	}
+}
+
+// ParseExternalModule parses Go source files from external modules in the Go module cache.
+// It looks for the specified module path and parses documentation from its source files.
+func (d *DocExtractor) ParseExternalModule(modulePath string) error {
+	// Try to find the module in GOPATH/pkg/mod
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		// If GOPATH is not set, try the default location
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		gopath = filepath.Join(homeDir, "go")
+	}
+
+	// Construct the module cache path
+	modCachePath := filepath.Join(gopath, "pkg", "mod", modulePath)
+
+	// Check if the exact path exists
+	if _, err := os.Stat(modCachePath); err != nil {
+		// Try to find versioned directories (like v76@v76.25.0)
+		parentDir := filepath.Dir(modCachePath)
+		baseName := filepath.Base(modCachePath)
+
+		entries, err := os.ReadDir(parentDir)
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() && strings.HasPrefix(entry.Name(), baseName) {
+				modCachePath = filepath.Join(parentDir, entry.Name())
+				break
+			}
+		}
+	}
+
+	// Parse the module directory
+	return d.ParseDirectory(modCachePath)
 }
 
 // ParseDirectory walks through the provided directory (recursively) and parses
@@ -200,6 +244,17 @@ func (d *DocExtractor) storeFieldDocByJSONTag(fld *ast.Field, desc string, doc *
 			doc.Fields[gorkTag] = FieldDoc{Description: desc}
 		}
 	}
+
+	// Also store by json property name if present
+	jsonTag := st.Get("json")
+	if jsonTag != "" {
+		if comma := strings.Index(jsonTag, ","); comma != -1 {
+			jsonTag = jsonTag[:comma]
+		}
+		if jsonTag != "" && jsonTag != "-" {
+			doc.Fields[jsonTag] = FieldDoc{Description: desc}
+		}
+	}
 }
 
 func (d *DocExtractor) processFuncDecl(decl *ast.FuncDecl) {
@@ -217,6 +272,30 @@ func (d *DocExtractor) ExtractTypeDoc(typeName string) Documentation {
 		return doc
 	}
 	return Documentation{}
+}
+
+// TryParseModuleForType attempts to find and parse the module containing the given type.
+// This is called when we don't have documentation for a type and want to try finding it
+// in external modules.
+func (d *DocExtractor) TryParseModuleForType(t reflect.Type) error {
+	if t == nil {
+		return nil
+	}
+
+	// Get the package path
+	pkgPath := t.PkgPath()
+	if pkgPath == "" {
+		return nil // built-in type
+	}
+
+	// Skip if we've already tried to parse this module
+	if d.parsedModules[pkgPath] {
+		return nil
+	}
+	d.parsedModules[pkgPath] = true
+
+	// Try to parse the external module
+	return d.ParseExternalModule(pkgPath)
 }
 
 // ExtractFunctionDoc returns the extracted documentation for the given function name.

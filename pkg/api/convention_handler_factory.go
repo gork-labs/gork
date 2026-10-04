@@ -30,10 +30,10 @@ func NewConventionHandlerFactory() *ConventionHandlerFactory {
 	}
 }
 
-// RegisterTypeParser registers a type parser for complex types.
-func (f *ConventionHandlerFactory) RegisterTypeParser(parserFunc any) error {
-	return f.parser.RegisterTypeParser(parserFunc)
-}
+// RegisterTypeParser has been removed. Use gorkson.RegisterCodec instead.
+// Example: gorkson.RegisterCodec[time.Time](gorkson.TimeCodec{})
+//
+// Deprecated: Use gorkson.RegisterCodec directly.
 
 // CreateHandler creates an HTTP handler using the Convention Over Configuration approach.
 func (f *ConventionHandlerFactory) CreateHandler(adapter GenericParameterAdapter[*http.Request], handler any, opts ...Option) (http.HandlerFunc, *RouteInfo) {

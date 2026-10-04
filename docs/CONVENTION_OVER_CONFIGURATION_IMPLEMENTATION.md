@@ -59,7 +59,7 @@ if IsValidationError(err) {
 
 ### 3. Type Parser Registry (`pkg/api/type_parser_registry.go`)
 
-The `TypeParserRegistry` manages parsers for complex types, enabling automatic entity resolution.
+The global codec registry manages type codecs for complex types, enabling automatic entity resolution, bidirectional conversion, and OpenAPI schema generation.
 
 **Parser Signature:**
 ```go
@@ -68,7 +68,8 @@ func(ctx context.Context, value string) (*T, error)
 
 **Example:**
 ```go
-registry := NewTypeParserRegistry()
+// Register codecs globally instead
+api.RegisterCodec[User](UserCodec{})
 
 // Register entity parser
 registry.Register(func(ctx context.Context, id string) (*User, error) {

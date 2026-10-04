@@ -75,6 +75,78 @@
         ]
       }
     },
+    "/api/v1/tasks/{taskId}/completed/{completedAt}": {
+      "get": {
+        "description": "GetTask demonstrates automatic type conversion using registered codecs.",
+        "operationId": "GetTask",
+        "parameters": [
+          {
+            "description": "Uses TaskCodec for entity resolution",
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "description": "Task ID that resolves to full task information",
+              "format": "int32",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Uses TimeCodec for RFC3339 parsing",
+            "in": "path",
+            "name": "completedAt",
+            "required": true,
+            "schema": {
+              "description": "RFC3339 formatted timestamp",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z?$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Uses PriorityCodec for enum validation",
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "description": "Task priority level (internal iota, external string)",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTaskResponse"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "tags": [
+          "tasks",
+          "codecs"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "description": "ListUsers handles listing all users.",
@@ -445,15 +517,32 @@
       "post": {
         "description": "Webhook endpoint that receives events from external services",
         "operationId": "StripeWebhook",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "content_type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "stripe_signature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StripeWebhookRequest"
+                "$ref": "#/components/schemas/EventBody"
               }
             }
           },
-          "description": "Webhook event payload",
           "required": true
         },
         "responses": {
@@ -461,17 +550,36 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StripeWebhookResponse"
+                  "properties": {
+                    "Error": {
+                      "type": "string"
+                    },
+                    "Received": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 }
               }
             },
             "description": "Webhook processed successfully"
           },
+          "204": {
+            "description": "No Content"
+          },
           "400": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StripeWebhookErrorResponse"
+                  "properties": {
+                    "Error": {
+                      "type": "string"
+                    },
+                    "Received": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -591,7 +699,8 @@
         },
         "required": [
           "username"
-        ]
+        ],
+        "description": "CreateUser handles user creation requests."
       },
       "CreditCardPaymentMethod": {
         "type": "object",
@@ -616,16 +725,15 @@
         "type": "object",
         "title": "CustomerMetadata",
         "properties": {
-          "PlanType": {
+          "plan_type": {
             "type": "string"
           },
-          "UserID": {
-            "type": "string",
-            "description": "UserID is the ID of the user"
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
-          "UserID"
+          "user_id"
         ],
         "description": "CustomerMetadata represents customer-specific metadata for webhook events."
       },
@@ -640,7 +748,8 @@
         },
         "required": [
           "userID"
-        ]
+        ],
+        "description": "DeleteUser handles user deletion requests."
       },
       "ErrorResponse": {
         "type": "object",
@@ -660,24 +769,107 @@
         ],
         "description": "Generic error response structure"
       },
+      "EventBody": {
+        "type": "object",
+        "title": "EventBody",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "api_version": {
+            "type": "string"
+          },
+          "created": {
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/EventData"
+          },
+          "id": {
+            "type": "string"
+          },
+          "livemode": {
+            "type": "boolean"
+          },
+          "object": {
+            "type": "string"
+          },
+          "pending_webhooks": {
+            "type": "integer"
+          },
+          "request": {
+            "$ref": "#/components/schemas/EventRequest"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "EventData": {
+        "type": "object",
+        "title": "EventData",
+        "properties": {
+          "object": {
+            "type": "string",
+            "format": "byte"
+          },
+          "previous_attributes": {
+            "type": "object",
+            "description": "Map with dynamic keys"
+          }
+        }
+      },
+      "EventRequest": {
+        "type": "object",
+        "title": "EventRequest",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          }
+        }
+      },
+      "GetTaskResponse": {
+        "type": "object",
+        "title": "GetTaskResponse",
+        "properties": {
+          "completedAt": {
+            "$ref": "#/components/schemas/Time",
+            "description": "Will be formatted back to RFC3339"
+          },
+          "message": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "description": "Will be formatted back to string"
+          },
+          "task": {
+            "$ref": "#/components/schemas/Task",
+            "description": "Will be formatted back to ID"
+          }
+        },
+        "description": "GetTaskResponse demonstrates codec usage in responses."
+      },
       "InvoiceMetadata": {
         "type": "object",
         "title": "InvoiceMetadata",
         "properties": {
-          "BillingPeriod": {
+          "billing_period": {
             "type": "string"
           },
-          "SubscriptionID": {
+          "subscription_id": {
             "type": "string"
           },
-          "UserID": {
-            "type": "string",
-            "description": "UserID is the ID of the user"
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
-          "UserID",
-          "SubscriptionID"
+          "user_id",
+          "subscription_id"
         ],
         "description": "InvoiceMetadata represents invoice-specific metadata for webhook events."
       },
@@ -718,73 +910,34 @@
         "type": "object",
         "title": "PaymentMetadata",
         "properties": {
-          "ProjectID": {
+          "project_id": {
             "type": "string"
           },
-          "UserID": {
-            "type": "string",
-            "description": "UserID is the ID of the user"
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
-          "UserID"
+          "user_id"
         ],
         "description": "PaymentMetadata represents example user-defined metadata types validated by the webhook dispatcher."
       },
-      "StripeWebhookErrorResponse": {
+      "Task": {
         "type": "object",
-        "title": "StripeWebhookErrorResponse",
+        "title": "Task",
         "properties": {
-          "Body": {
-            "type": "object",
-            "properties": {
-              "Error": {
-                "type": "string"
-              },
-              "Received": {
-                "type": "boolean"
-              }
-            }
-          }
-        }
-      },
-      "StripeWebhookRequest": {
-        "type": "object",
-        "title": "StripeWebhookRequest",
-        "properties": {
-          "Body": {
-            "type": "string",
-            "format": "byte"
+          "id": {
+            "type": "integer"
           },
-          "Headers": {
-            "type": "object",
-            "properties": {
-              "Content-Type": {
-                "type": "string"
-              },
-              "Stripe-Signature": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "Stripe-Signature"
-            ]
+          "title": {
+            "type": "string"
           }
-        }
+        },
+        "description": "Task represents a task entity with full information."
       },
-      "StripeWebhookResponse": {
+      "Time": {
         "type": "object",
-        "title": "StripeWebhookResponse",
-        "properties": {
-          "Body": {
-            "type": "object",
-            "properties": {
-              "Received": {
-                "type": "boolean"
-              }
-            }
-          }
-        }
+        "title": "Time"
       },
       "UpdateOwnedItemResponse": {
         "type": "object",
@@ -807,7 +960,8 @@
         "required": [
           "userID",
           "username"
-        ]
+        ],
+        "description": "UpdateUser handles user update requests."
       },
       "UpdateUserPreferencesBody": {
         "type": "object",
@@ -837,7 +991,8 @@
         "required": [
           "paymentMethod",
           "primaryNotificationChannel"
-        ]
+        ],
+        "description": "UpdateUserPreferences handles user preferences update requests."
       },
       "UserType": {
         "type": "object",
