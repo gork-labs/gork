@@ -74,7 +74,7 @@ func TestFunctionNameExtraction(t *testing.T) {
 			expected string
 		}{
 			{"github.com/gork-labs/gork/pkg/api.Handler", "Handler"},
-			{"main.(*Server).HandleRequest-fm", "HandleRequest-fm"},
+			{"main.(*Server).HandleRequest-fm", "HandleRequest"},
 			{"SimpleHandler", "SimpleHandler"},
 			{"", ""},
 		}
