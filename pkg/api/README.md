@@ -73,19 +73,71 @@ func main() {
 
 ### Error Handling
 
-The adapter automatically handles errors and returns appropriate HTTP responses:
+To send an HTTP error status, return an `*api.HTTPError`. Use `api.NewHTTPError(status, message)` to make one:
 
 ```go
 func GetUser(ctx context.Context, req GetUserRequest) (*GetUserResponse, error) {
     user, err := db.GetUser(req.Path.ID)
     if err != nil {
         if errors.Is(err, ErrNotFound) {
-            return nil, &api.ErrorResponse{Error: "User not found"}
+            return nil, api.NewHTTPError(http.StatusNotFound, "User not found") // 404 {"error":"User not found"}
         }
-        return nil, err // 500 Internal Server Error
+        return nil, err // 500 {"error":"Internal Server Error"}
     }
     return &GetUserResponse{Body: user}, nil
 }
+```
+
+Gork writes the response for the error that the handler returns:
+
+| Error | Status | Body |
+| --- | --- | --- |
+| `*api.HTTPError` with a 4xx status | `Status` | `{"error": Message}` |
+| `*api.HTTPError` with a 5xx status | `Status` | `{"error": "<status text>"}` |
+| `*api.ValidationErrorResponse` | 400 | `{"error": Message, "details": Details}` |
+| Other errors | 500 | `{"error": "Internal Server Error"}` |
+
+- Gork finds an `*api.HTTPError` in a wrapped error with `errors.As`.
+- For a 5xx status, Gork does not send the message to the client. Gork writes the message to the log.
+
+### Error Responses in the OpenAPI Spec
+
+Each operation has the responses 400, 422 and 500. To add other error responses, declare their statuses with `api.WithErrorResponses`:
+
+```go
+router.Post("/login", Login, api.WithErrorResponses(http.StatusUnauthorized, http.StatusTooManyRequests))
+```
+
+Each status gets a response with the `ErrorResponse` schema:
+
+```json
+"401": {
+  "description": "Unauthorized",
+  "content": {
+    "application/json": {
+      "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+    }
+  }
+}
+```
+
+The responses 400, 422 and 500 always use the standard responses. `WithErrorResponses` does not change them.
+
+### Authentication
+
+These options add a security requirement to the OpenAPI operation. They do not check the request. Check the credentials in a middleware or in the handler.
+
+| Option | Security scheme |
+| --- | --- |
+| `api.WithBasicAuth()` | `BasicAuth`: `{"type": "http", "scheme": "basic"}` |
+| `api.WithBearerTokenAuth()` | `BearerAuth`: `{"type": "http", "scheme": "bearer"}` |
+| `api.WithAPIKeyAuth()` | `ApiKeyAuth`: `{"type": "apiKey", "in": "header", "name": "X-API-Key"}` |
+| `api.WithCookieAuth(name)` | `<name>`: `{"type": "apiKey", "in": "cookie", "name": "<name>"}` |
+
+For a session cookie, use `WithCookieAuth` with the cookie name. The name of the security scheme is the cookie name:
+
+```go
+router.Get("/me", GetMe, api.WithCookieAuth("session_id"), api.WithErrorResponses(http.StatusUnauthorized))
 ```
 
 ### Request Structure
