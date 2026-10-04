@@ -293,7 +293,8 @@ The `required` list of a schema follows how Gork reads a request and writes a re
 
 - **Request**: A request body field or a parameter is required only when it has `validate:"required"`. A client can omit other fields. Then the field gets its zero value.
 - **Response**: Gork writes the response body and the stream event data with `gorkson`. `gorkson` writes each exported field, and it does not use `omitempty`. Thus each of these fields is required.
-- A pointer field of a response is required and nullable. A nil pointer, map or interface gives `null`, so the key is always there.
+- A pointer field of a response is required and nullable. A nil pointer or interface gives `null`, so the key is always there.
+- A nil slice gives `[]` and a nil map gives `{}`. Thus a slice or map field is not nullable.
 - The property name comes from the `gork` tag, else from the `json` tag, else it is the Go field name. A field with the name `-` is not in the schema.
 - An exported embedded struct without a tag gives its properties to the outer schema, because `gorkson` writes its fields in the outer object.
 - A named struct type gives one component. When a request and a response both use the type, the component gets the response rule.

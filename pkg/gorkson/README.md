@@ -71,7 +71,7 @@ gorkson.RegisterCodec[time.Time](gorkson.UnixTimeCodec{})
 - When the schema type is `string` (or empty), the codec text is the content of a JSON string.
 - For other schema types (`integer`, `number`, `boolean`, `object`, `array`), the codec text is the JSON value itself. A codec with an `integer` schema that formats `"42"` writes `42`.
 - `Unmarshal` gives the content of a JSON string to `Parse`. For other JSON values, it gives their JSON text.
-- `Marshal` writes `null` for a nil pointer. `Unmarshal` does not change a field for a `null` value.
+- `Marshal` writes `null` for a nil pointer, `[]` for a nil slice and `{}` for a nil map. `Unmarshal` does not change a field for a `null` value.
 - `Marshal` and `Unmarshal` give `context.Background()` to the codec.
 
 ### Schema Validation
