@@ -694,6 +694,12 @@ func TestConventionHandlerFactory_SetResponseCookies(t *testing.T) {
 		t.Errorf("user_token cookie = %v, want token-456", value)
 	}
 
+	for _, cookie := range cookies {
+		if !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode {
+			t.Errorf("%s cookie: Secure=%v HttpOnly=%v SameSite=%v, want true, true, Lax", cookie.Name, cookie.Secure, cookie.HttpOnly, cookie.SameSite)
+		}
+	}
+
 	// Empty value cookie should not be set
 	if _, exists := cookieMap["empty_cookie"]; exists {
 		t.Error("Empty value cookie should not be set")

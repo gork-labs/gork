@@ -883,7 +883,7 @@ func (e *CookiesValidationError) Error() string {
 2. **For each section present**:
    - `Body`: Marshal to JSON/other format using `gork` tags
    - `Headers`: Set HTTP headers using `gork` tag names
-   - `Cookies`: Set HTTP cookies using `gork` tag names
+   - `Cookies`: Set HTTP cookies using `gork` tag names, with the `Secure`, `HttpOnly` and `SameSite=Lax` attributes
 
 ## Tag Specifications
 
