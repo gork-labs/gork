@@ -12,7 +12,7 @@ var (
 // populate for now. Additional fields can be added without breaking existing
 // users as we expand the generator.
 
-// OpenAPISpec represents the root of an OpenAPI 3.1 document.
+// OpenAPISpec represents the root of an OpenAPI 3.1 or 3.2 document.
 type OpenAPISpec struct {
 	OpenAPI    string               `json:"openapi"`
 	Info       Info                 `json:"info"`
@@ -118,6 +118,8 @@ type RequestBody struct {
 // MediaType represents an OpenAPI media type object containing schema information.
 type MediaType struct {
 	Schema *Schema `json:"schema,omitempty"`
+	// ItemSchema describes each item of a sequential media type such as text/event-stream (OpenAPI 3.2).
+	ItemSchema *Schema `json:"itemSchema,omitempty"`
 }
 
 // Response represents an OpenAPI response object describing a single response from an API operation.
@@ -159,6 +161,10 @@ type Schema struct {
 	Enum          []string           `json:"enum,omitempty"`
 	Items         *Schema            `json:"items,omitempty"`
 	Format        string             `json:"format,omitempty"`
+
+	Const            string  `json:"const,omitempty"`
+	ContentMediaType string  `json:"contentMediaType,omitempty"`
+	ContentSchema    *Schema `json:"contentSchema,omitempty"`
 }
 
 // MarshalJSON implements custom JSON marshaling for Schema to handle the type field correctly.

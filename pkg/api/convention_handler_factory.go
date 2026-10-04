@@ -80,6 +80,11 @@ func (f *ConventionHandlerFactory) executeConventionHandler(w http.ResponseWrite
 		return
 	}
 
+	if handlerValue.Type().NumIn() == 3 {
+		serveStream(w, r, handlerValue, reqPtr)
+		return
+	}
+
 	// Call handler and process response
 	f.processConventionResponse(w, r, handlerValue, reqPtr)
 }

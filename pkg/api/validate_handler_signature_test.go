@@ -58,7 +58,7 @@ func TestValidateHandlerSignature(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Error("Expected panic for wrong number of input parameters")
-			} else if r != "handler must accept exactly 2 parameters (context.Context, Request)" {
+			} else if r != "handler must accept 2 parameters (context.Context, Request) or 3 parameters (context.Context, Request, *api.Stream[E])" {
 				t.Errorf("Expected parameter count error, got: %v", r)
 			}
 		}()
@@ -74,7 +74,7 @@ func TestValidateHandlerSignature(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Error("Expected panic for wrong number of input parameters")
-			} else if r != "handler must accept exactly 2 parameters (context.Context, Request)" {
+			} else if r != "handler must accept 2 parameters (context.Context, Request) or 3 parameters (context.Context, Request, *api.Stream[E])" {
 				t.Errorf("Expected parameter count error, got: %v", r)
 			}
 		}()
@@ -86,16 +86,16 @@ func TestValidateHandlerSignature(t *testing.T) {
 		validateHandlerSignature(reflect.TypeOf(invalidHandler))
 	})
 
-	t.Run("wrong number of input parameters - three", func(t *testing.T) {
+	t.Run("wrong number of input parameters - four", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Error("Expected panic for wrong number of input parameters")
-			} else if r != "handler must accept exactly 2 parameters (context.Context, Request)" {
+			} else if r != "handler must accept 2 parameters (context.Context, Request) or 3 parameters (context.Context, Request, *api.Stream[E])" {
 				t.Errorf("Expected parameter count error, got: %v", r)
 			}
 		}()
 
-		invalidHandler := func(ctx context.Context, req string, extra int) (string, error) {
+		invalidHandler := func(ctx context.Context, req string, extra int, more int) (string, error) {
 			return "", nil
 		}
 
