@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"reflect"
 	"testing"
 )
@@ -80,6 +81,39 @@ func TestProcessResponseSections_ConventionalResponseWithoutBody(t *testing.T) {
 		// Should not have 200 response
 		if _, exists := operation.Responses["200"]; exists {
 			t.Error("Should not have 200 response when no Body field")
+		}
+	})
+
+	t.Run("conventional response with http.Cookie fields but no Body should return 204 without headers", func(t *testing.T) {
+		type ConventionalResponseWithHTTPCookies struct {
+			Cookies struct {
+				Theme  *http.Cookie
+				Locale http.Cookie
+			}
+		}
+
+		respType := reflect.TypeOf(ConventionalResponseWithHTTPCookies{})
+		operation := &Operation{
+			Responses: make(map[string]*Response),
+		}
+		route := &RouteInfo{
+			Method:      "POST",
+			Path:        "/test",
+			HandlerName: "TestHandler",
+		}
+		schemaCount := len(components.Schemas)
+
+		generator.processResponseSections(respType, operation, components, route)
+
+		response, exists := operation.Responses["204"]
+		if !exists {
+			t.Fatal("Expected 204 response to be created when no Body field")
+		}
+		if len(response.Headers) != 0 {
+			t.Errorf("Expected no headers, got %v", response.Headers)
+		}
+		if len(components.Schemas) != schemaCount {
+			t.Errorf("Expected no new component schemas, got %d", len(components.Schemas)-schemaCount)
 		}
 	})
 

@@ -283,6 +283,30 @@ type LoginResponse struct {
 }
 ```
 
+#### Response Cookies with Custom Attributes
+
+Gork sends a field of type `*http.Cookie` or `http.Cookie` in the `Cookies` section unchanged with `http.SetCookie`. The handler sets all attributes. The cookie name comes from `Cookie.Name`, so the field does not need a `gork` tag. A nil `*http.Cookie` sends no cookie.
+
+```go
+type PreferencesResponse struct {
+    Cookies struct {
+        Theme *http.Cookie
+    }
+}
+
+// In the handler:
+resp.Cookies.Theme = &http.Cookie{
+    Name:     "theme",
+    Value:    "dark",
+    Path:     "/",
+    MaxAge:   86400,
+    Secure:   true,
+    SameSite: http.SameSiteStrictMode,
+}
+```
+
+The OpenAPI document does not show response cookies.
+
 #### File Download Response
 ```go
 type DownloadFileResponse struct {
@@ -883,7 +907,7 @@ func (e *CookiesValidationError) Error() string {
 2. **For each section present**:
    - `Body`: Marshal to JSON/other format using `gork` tags
    - `Headers`: Set HTTP headers using `gork` tag names
-   - `Cookies`: Set HTTP cookies using `gork` tag names, with the `Secure`, `HttpOnly` and `SameSite=Lax` attributes
+   - `Cookies`: Set HTTP cookies using `gork` tag names, with the `Secure`, `HttpOnly` and `SameSite=Lax` attributes. Send an `http.Cookie` or a non-nil `*http.Cookie` field unchanged
 
 ## Tag Specifications
 
@@ -897,7 +921,7 @@ func (e *CookiesValidationError) Error() string {
 - MUST be present on all fields that are transmitted over the wire
 - Name MUST match the expected parameter/field name in HTTP
 - For headers, use the exact header name (e.g., `Authorization`, `Content-Type`)
-- For cookies, use the exact cookie name
+- For cookies, use the exact cookie name. A response `http.Cookie` or `*http.Cookie` field needs no `gork` tag
 - Use snake_case for JSON fields by convention
 - Use kebab-case for query parameters by convention
 

@@ -711,6 +711,34 @@ func TestConventionHandlerFactory_SetResponseCookies(t *testing.T) {
 	}
 }
 
+func TestConventionHandlerFactory_SetResponseCookies_HTTPCookie(t *testing.T) {
+	factory := NewConventionHandlerFactory()
+
+	cookiesValue := reflect.ValueOf(struct {
+		Theme   *http.Cookie
+		Missing *http.Cookie
+		Locale  http.Cookie
+		Session string `gork:"session_id"`
+	}{
+		Theme:   &http.Cookie{Name: "theme", Value: "dark", Path: "/app", Domain: "example.com", MaxAge: 3600, SameSite: http.SameSiteStrictMode},
+		Locale:  http.Cookie{Name: "locale", Value: "en", SameSite: http.SameSiteNoneMode, Secure: true},
+		Session: "session-123",
+	})
+
+	rr := httptest.NewRecorder()
+	factory.setResponseCookies(rr, cookiesValue)
+
+	want := []string{
+		"theme=dark; Path=/app; Domain=example.com; Max-Age=3600; SameSite=Strict",
+		"locale=en; Secure; SameSite=None",
+		"session_id=session-123; HttpOnly; Secure; SameSite=Lax",
+	}
+	got := rr.Header().Values("Set-Cookie")
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Set-Cookie = %q, want %q", got, want)
+	}
+}
+
 func TestConventionHandlerFactory_SetResponseCookies_NonStruct(t *testing.T) {
 	factory := NewConventionHandlerFactory()
 
