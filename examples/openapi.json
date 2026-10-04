@@ -34,7 +34,7 @@
             "description": "See Other",
             "headers": {
               "Location": {
-                "description": "Response header",
+                "description": "Location is the page that the browser opens next",
                 "schema": {
                   "type": "string"
                 }

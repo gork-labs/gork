@@ -80,13 +80,14 @@ func updateOperationWithDocs(op *Operation, extractor *DocExtractor) {
 	if op == nil || extractor == nil {
 		return
 	}
-	doc := extractor.ExtractFunctionDoc(op.OperationID)
+	doc := extractor.ExtractFunctionDoc(op.handlerDocKey)
 	if doc.Description != "" {
 		op.Description = doc.Description
 	}
 
 	// Enhance parameters with documentation
 	enrichParametersWithDocs(op, extractor)
+	enrichResponseHeadersWithDocs(op, extractor)
 }
 
 // parameterSections maps the "in" value of a parameter to its request section.
@@ -101,9 +102,21 @@ var parameterSections = map[string]string{
 func enrichParametersWithDocs(op *Operation, extractor *DocExtractor) {
 	for i := range op.Parameters {
 		param := &op.Parameters[i]
-		section := extractor.ExtractTypeDoc(op.docType + "." + parameterSections[param.In])
+		section := extractor.ExtractTypeDoc(op.sectionDocTypes[parameterSections[param.In]])
 		if fieldDoc, ok := section.Fields[param.Name]; ok {
 			param.Description = fieldDoc.Description
+		}
+	}
+}
+
+// enrichResponseHeadersWithDocs gives each response header the field doc from the Headers section of the response type.
+func enrichResponseHeadersWithDocs(op *Operation, extractor *DocExtractor) {
+	for _, response := range op.Responses {
+		section := extractor.ExtractTypeDoc(response.headersDocType)
+		for name, header := range response.Headers {
+			if fieldDoc, ok := section.Fields[name]; ok {
+				header.Description = fieldDoc.Description
+			}
 		}
 	}
 }

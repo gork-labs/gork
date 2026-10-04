@@ -31,11 +31,13 @@ func (p *metaProvider) ProviderInfo() WebhookProviderInfo {
 	return WebhookProviderInfo{Name: "Meta", Website: "w", DocsURL: "d"}
 }
 
+func webhookDocHandler() {}
+
 func TestBuildWebhookEventsMetadata_Branches(t *testing.T) {
 	spec := &OpenAPISpec{Components: &Components{Schemas: map[string]*Schema{}}}
 
 	// Prepare a DocExtractor with a documented function name
-	extractor := parseFixtures(t, map[string]string{"doc.go": "package tmp\n\n// MyDocHandler does something useful\nfunc MyDocHandler() {}\n"})
+	extractor := parseFixtures(t, map[string]string{"pkg/api/doc.go": "package api\n\n// webhookDocHandler does something useful\nfunc webhookDocHandler() {}\n"})
 
 	gen := NewConventionOpenAPIGenerator(spec, extractor)
 
@@ -44,7 +46,8 @@ func TestBuildWebhookEventsMetadata_Branches(t *testing.T) {
 		WebhookHandlersMeta: []RegisteredEventHandler{
 			{
 				EventType:           "evt.x",
-				HandlerName:         "MyDocHandler",
+				HandlerFunc:         webhookDocHandler,
+				HandlerName:         "webhookDocHandler",
 				UserMetadataType:    reflect.TypeOf((*sampleUserMeta)(nil)),
 				ProviderPayloadType: reflect.TypeOf((*struct{})(nil)),
 			},

@@ -281,6 +281,15 @@ func docKey(t reflect.Type) string {
 	return t.PkgPath() + "." + name
 }
 
+// sectionDocKey returns the DocExtractor key of the type of the section field
+// of the request or response type t. An inline struct section has its docs in t.
+func sectionDocKey(t reflect.Type, field reflect.StructField) string {
+	if field.Type.Name() != "" {
+		return docKey(field.Type)
+	}
+	return docKey(t) + "." + field.Name
+}
+
 func buildStructSchema(t reflect.Type, registry map[string]*Schema) *Schema {
 	// Use the refactored builder for better testability
 	builder := NewStructSchemaBuilder()

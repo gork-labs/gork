@@ -297,7 +297,10 @@ type GetUserRequest struct {
 
 		operation := &Operation{
 			OperationID: "GetUser",
-			docType:     "example.com/test.GetUserRequest",
+			sectionDocTypes: map[string]string{
+				SectionPath:  "example.com/test.GetUserRequest.Path",
+				SectionQuery: "example.com/test.GetUserRequest.Query",
+			},
 			Parameters: []Parameter{
 				{Name: "id", In: "path", Description: ""},
 				{Name: "include", In: "query", Description: ""},
