@@ -233,7 +233,7 @@ gork/
 - **OpenAPI 3.1.0**: Full specification generation from Go source code
 - **Validator Integration**: `go-playground/validator` tags become OpenAPI constraints
 - **Union Types**: Type-safe variants with `oneOf` schemas and discriminators
-- **Server-Sent Events**: Stream handlers send typed events, documented with the OpenAPI 3.2 `itemSchema`
+- **Server-Sent Events**: Stream handlers send typed events with an optional event id, documented with the OpenAPI 3.2 `itemSchema`
 - **Multi-Framework**: Works with Gin, Echo, Chi, Gorilla Mux, Fiber, stdlib
 
 ### Type Codec System

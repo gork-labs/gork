@@ -277,6 +277,7 @@ router.Get("/live", Live)
 Rules:
 - Each field of the event struct must be an exported pointer with a `gork` tag. The tag is the SSE `event:` name. Gork checks the struct at registration and panics when it breaks a rule.
 - `Send` writes `event: <tag>` and `data: <json>` and flushes. Set exactly one field for each call. Otherwise `Send` returns an error.
+- `SendWithID(id, e)` also writes the line `id: <id>`. An id with CR, LF or NUL gives an error.
 - Gork parses and validates the request before the stream starts. An invalid request gets the usual JSON error response.
 - Then Gork sends status 200 with `Content-Type: text/event-stream`. An error from the handler only ends the stream.
 - Gork sends a `: ping` comment every 15 seconds while the handler runs.
@@ -285,6 +286,39 @@ Rules:
 - Call `Send` only from the handler goroutine.
 - The OpenAPI spec shows the route as `text/event-stream` with an `itemSchema`. The spec has `openapi: 3.2.0` when it has a stream route.
 - The Fiber adapter does not support stream handlers.
+
+### Resume After a Reconnect
+
+A browser `EventSource` keeps the id of the last event. When it connects again, it sends this id in the `Last-Event-ID` request header. Read the header with a field of the `Headers` section, and send each event with `SendWithID`:
+
+```go
+type LiveRequest struct {
+    Headers struct {
+        // LastEventID is the id of the last event that the client got
+        LastEventID string `gork:"Last-Event-ID"`
+    }
+}
+
+func Live(ctx context.Context, req LiveRequest, stream *api.Stream[LiveEvents]) error {
+    for _, row := range rowsAfter(req.Headers.LastEventID) {
+        if err := stream.SendWithID(row.ID, LiveEvents{Feed: &row}); err != nil {
+            return err
+        }
+    }
+    for {
+        select {
+        case <-ctx.Done():
+            return nil
+        case row := <-feed:
+            if err := stream.SendWithID(row.ID, LiveEvents{Feed: &row}); err != nil {
+                return err
+            }
+        }
+    }
+}
+```
+
+The OpenAPI spec shows `Last-Event-ID` as a header parameter of the route.
 
 ## Type Conversion
 

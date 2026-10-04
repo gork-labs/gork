@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,20 @@ type Stream[E any] struct {
 // Send writes one event to the client and flushes it. Exactly one field of e
 // must be set. Call Send only from the handler goroutine.
 func (s *Stream[E]) Send(e E) error {
+	return s.send("", e)
+}
+
+// SendWithID writes one event with the SSE line "id: <id>", as Send does. When
+// a browser EventSource connects again, it sends the last id in the
+// Last-Event-ID request header. The id must not contain CR, LF or NUL.
+func (s *Stream[E]) SendWithID(id string, e E) error {
+	if strings.ContainsAny(id, "\r\n\x00") {
+		return errors.New("stream event id must not contain CR, LF or NUL")
+	}
+	return s.send("id: "+id+"\n", e)
+}
+
+func (s *Stream[E]) send(idLine string, e E) error {
 	name, payload, err := streamEvent(reflect.ValueOf(e))
 	if err != nil {
 		return err
@@ -41,7 +56,7 @@ func (s *Stream[E]) Send(e E) error {
 	if err := json.Compact(&line, data); err != nil {
 		return err
 	}
-	return s.out.write("event: " + name + "\ndata: " + line.String() + "\n\n")
+	return s.out.write(idLine + "event: " + name + "\ndata: " + line.String() + "\n\n")
 }
 
 func (s *Stream[E]) eventType() reflect.Type {
