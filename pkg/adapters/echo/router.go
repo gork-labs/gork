@@ -61,13 +61,7 @@ func NewRouter(e *echosdk.Echo, opts ...api.Option) *Router {
 	registry := api.NewRouteRegistry()
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		nativePath := toNativePath(path)
-		e.Add(method, nativePath, func(ec echosdk.Context) error {
-			// store echo.Context
-			reqWith := ec.Request().WithContext(context.WithValue(ec.Request().Context(), echoCtxKey{}, ec))
-			handler.ServeHTTP(ec.Response().Writer, reqWith)
-			return nil
-		})
+		e.Add(method, toNativePath(path), echoHandler(handler))
 	}
 
 	r := &Router{
@@ -89,6 +83,15 @@ func NewRouter(e *echosdk.Echo, opts ...api.Option) *Router {
 	return r
 }
 
+// echoHandler stores the echo context in the request context for echoParamAdapter.
+func echoHandler(handler http.HandlerFunc) echosdk.HandlerFunc {
+	return func(ec echosdk.Context) error {
+		reqWith := ec.Request().WithContext(context.WithValue(ec.Request().Context(), echoCtxKey{}, ec))
+		handler.ServeHTTP(ec.Response().Writer, reqWith)
+		return nil
+	}
+}
+
 // Group creates a sub-router with prefix sharing the same registry.
 func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
@@ -100,7 +103,7 @@ func (r *Router) Group(prefix string) *Router {
 	}
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		g.Add(method, toNativePath(path), echosdk.WrapHandler(handler))
+		g.Add(method, toNativePath(path), echoHandler(handler))
 	}
 
 	// Create a defensive copy of middleware slice to prevent aliasing

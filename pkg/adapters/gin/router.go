@@ -34,10 +34,7 @@ func NewRouter(e *ginpkg.Engine, opts ...api.Option) *Router {
 	registry := api.NewRouteRegistry()
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		e.Handle(method, toNativePath(path), func(c *ginpkg.Context) {
-			reqWith := c.Request.WithContext(context.WithValue(c.Request.Context(), ginCtxKey{}, c))
-			handler.ServeHTTP(c.Writer, reqWith)
-		})
+		e.Handle(method, toNativePath(path), ginHandler(handler))
 	}
 
 	r := &Router{
@@ -59,6 +56,14 @@ func NewRouter(e *ginpkg.Engine, opts ...api.Option) *Router {
 	return r
 }
 
+// ginHandler stores the gin context in the request context for ginParamAdapter.
+func ginHandler(handler http.HandlerFunc) ginpkg.HandlerFunc {
+	return func(c *ginpkg.Context) {
+		reqWith := c.Request.WithContext(context.WithValue(c.Request.Context(), ginCtxKey{}, c))
+		handler.ServeHTTP(c.Writer, reqWith)
+	}
+}
+
 // Group creates a sub-router with prefix sharing the same registry.
 func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
@@ -70,7 +75,7 @@ func (r *Router) Group(prefix string) *Router {
 	}
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		g.Handle(method, toNativePath(path), ginpkg.WrapH(handler))
+		g.Handle(method, toNativePath(path), ginHandler(handler))
 	}
 
 	// Create a defensive copy of middleware slice to prevent aliasing
