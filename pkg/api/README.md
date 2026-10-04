@@ -287,6 +287,17 @@ Parameters of other types use the basic conversion: strings, integers, floats, b
 
 This adapter automatically generates OpenAPI specifications from convention-based request/response structures using the gork CLI tool.
 
+### Required Fields
+
+The `required` list of a schema follows how Gork reads a request and writes a response:
+
+- **Request**: A request body field or a parameter is required only when it has `validate:"required"`. A client can omit other fields. Then the field gets its zero value.
+- **Response**: Gork writes the response body and the stream event data with `gorkson`. `gorkson` writes each field that has a `gork` or `json` name, and it does not use `omitempty`. Thus each of these fields is required.
+- A pointer field of a response is required and nullable. A nil pointer, map or interface gives `null`, so the key is always there.
+- `gorkson` does not write a field without a `gork` or `json` name, or an embedded struct without a tag. These fields are not required.
+- A named struct type gives one component. When a request and a response both use the type, the component gets the response rule.
+- A webhook response uses `encoding/json`, so it keeps the `validate:"required"` rule.
+
 ## Examples
 
 See the [examples](../../examples/) directory for complete working examples with different web frameworks.

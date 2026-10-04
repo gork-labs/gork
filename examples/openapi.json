@@ -699,6 +699,12 @@
             "description": "Username is the username of the user"
           }
         },
+        "required": [
+          "userID",
+          "username",
+          "createdAt",
+          "updatedAt"
+        ],
         "description": "AdminUserType represents admin user data structure."
       },
       "BankOrCreditBody": {
@@ -838,6 +844,12 @@
             "example": 1
           }
         },
+        "required": [
+          "task",
+          "priority",
+          "completedAt",
+          "message"
+        ],
         "description": "GetTaskResponse demonstrates codec usage in responses."
       },
       "InvoiceMetadata": {
@@ -891,6 +903,9 @@
             "description": "Token is the JWT token for the authenticated user"
           }
         },
+        "required": [
+          "token"
+        ],
         "description": "LoginResponse represents the response body for the login endpoint."
       },
       "PaymentMetadata": {
@@ -1030,6 +1045,10 @@
             "description": "UserID is the ID of the user who did the action"
           }
         },
+        "required": [
+          "userId",
+          "action"
+        ],
         "description": "UserActivity describes one action of a user."
       },
       "UserType": {
@@ -1045,6 +1064,10 @@
             "description": "Username is the username of the user"
           }
         },
+        "required": [
+          "userID",
+          "username"
+        ],
         "description": "UserType represents user data structure."
       },
       "ValidationErrorResponse": {

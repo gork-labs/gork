@@ -34,6 +34,11 @@ components:
                 username:
                     description: Username is the username of the user
                     type: string
+            required:
+                - userID
+                - username
+                - createdAt
+                - updatedAt
             title: AdminUserType
             type: object
         BankOrCreditBody:
@@ -136,6 +141,11 @@ components:
                     format: int32
                     minimum: 1
                     type: integer
+            required:
+                - task
+                - priority
+                - completedAt
+                - message
             title: GetTaskResponse
             type: object
         InvoiceMetadata:
@@ -172,6 +182,8 @@ components:
                 token:
                     description: Token is the JWT token for the authenticated user
                     type: string
+            required:
+                - token
             title: LoginResponse
             type: object
         PaymentMetadata:
@@ -266,6 +278,9 @@ components:
                 userId:
                     description: UserID is the ID of the user who did the action
                     type: string
+            required:
+                - userId
+                - action
             title: UserActivity
             type: object
         UserType:
@@ -277,6 +292,9 @@ components:
                 username:
                     description: Username is the username of the user
                     type: string
+            required:
+                - userID
+                - username
             title: UserType
             type: object
         ValidationErrorResponse:
