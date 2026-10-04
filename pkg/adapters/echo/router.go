@@ -100,8 +100,7 @@ func (r *Router) Group(prefix string) *Router {
 	}
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		nativePath := toNativePath(newPrefix + path)
-		g.Add(method, nativePath, echosdk.WrapHandler(handler))
+		g.Add(method, toNativePath(path), echosdk.WrapHandler(handler))
 	}
 
 	// Create a defensive copy of middleware slice to prevent aliasing

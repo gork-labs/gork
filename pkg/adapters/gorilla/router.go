@@ -84,7 +84,7 @@ func (wr *Router) Group(prefix string) *Router {
 	sub := wr.router.PathPrefix(prefix).Subrouter()
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		sub.Path(toNativePath(newPrefix + path)).Methods(method).Handler(handler)
+		sub.Path(toNativePath(path)).Methods(method).Handler(handler)
 	}
 
 	// Create a defensive copy of middleware slice to prevent aliasing
