@@ -389,3 +389,27 @@ func TestRouterExportOpenAPIAndExit(t *testing.T) {
 	// Call ExportOpenAPIAndExit - this will panic with os.Exit
 	router.ExportOpenAPIAndExit()
 }
+
+func TestRouterGroupServesPrefixedPath(t *testing.T) {
+	router := NewRouter(nil)
+	type liveResponse struct {
+		Body struct {
+			Status string `gork:"status"`
+		}
+	}
+	handler := func(context.Context, struct{}) (*liveResponse, error) { return &liveResponse{}, nil }
+	router.Group("/v1").Get("/live", handler)
+	router.Group("/api").Group("/v2").Get("/live", handler)
+
+	for path, want := range map[string]int{
+		"/v1/live":     http.StatusOK,
+		"/api/v2/live": http.StatusOK,
+		"/v1/v1/live":  http.StatusNotFound,
+	} {
+		rec := httptest.NewRecorder()
+		router.mux.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		if rec.Code != want {
+			t.Errorf("GET %s status = %d, want %d", path, rec.Code, want)
+		}
+	}
+}

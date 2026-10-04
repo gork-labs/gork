@@ -174,8 +174,7 @@ func createRegisterFn(g fiber.Router, newPrefix string) func(method, path string
 // Group creates a sub-router with prefix sharing the same registry.
 func (r *Router) Group(prefix string) *Router {
 	newPrefix := r.prefix + prefix
-	g := r.app.Group(prefix)
-	registerFn := createRegisterFn(g, newPrefix)
+	registerFn := createRegisterFn(r.app, newPrefix)
 
 	// Create a defensive copy of middleware slice to prevent aliasing
 	middlewareCopy := make([]api.Option, len(r.middleware))

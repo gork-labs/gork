@@ -70,7 +70,7 @@ func (r *Router) Group(prefix string) *Router {
 	}
 
 	registerFn := func(method, path string, handler http.HandlerFunc, _ *api.RouteInfo) {
-		g.Handle(method, toNativePath(newPrefix+path), ginpkg.WrapH(handler))
+		g.Handle(method, toNativePath(path), ginpkg.WrapH(handler))
 	}
 
 	// Create a defensive copy of middleware slice to prevent aliasing
