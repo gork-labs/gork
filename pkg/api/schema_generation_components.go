@@ -84,7 +84,7 @@ type UnionTypeHandler struct{}
 
 // CanHandle returns true if this handler can process the given type.
 func (u *UnionTypeHandler) CanHandle(t reflect.Type) bool {
-	return isUnionType(t) || isUnionStruct(t)
+	return isUnionType(t)
 }
 
 // GenerateSchema generates a schema for union types.

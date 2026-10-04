@@ -7,7 +7,7 @@ import (
 )
 
 // PaymentRequest represents a payment request with different payment methods.
-type PaymentRequest unions.Union2[CreditCardPaymentMethod, BankPaymentMethod]
+type PaymentRequest = unions.Union2[CreditCardPaymentMethod, BankPaymentMethod]
 
 // ProcessPaymentRequest represents the full request for processing payment.
 type ProcessPaymentRequest struct {

@@ -290,7 +290,7 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 
 	// Add body content for 200 response
 	if bodySchema != nil {
-		requireWrittenFields(bodySchema, components.Schemas)
+		requireWrittenFields(bodySchema, components.Schemas, map[*Schema]bool{})
 		response.Content = map[string]*MediaType{
 			"application/json": {
 				Schema: bodySchema,
@@ -307,7 +307,7 @@ func (g *ConventionOpenAPIGenerator) buildStreamResponse(eventType reflect.Type,
 	for i := 0; i < eventType.NumField(); i++ {
 		field := eventType.Field(i)
 		data := g.generateSchemaFromType(field.Type.Elem(), "", components)
-		requireWrittenFields(data, components.Schemas)
+		requireWrittenFields(data, components.Schemas, map[*Schema]bool{})
 		events = append(events, &Schema{
 			Type:     "object",
 			Required: []string{"event", "data"},
