@@ -146,6 +146,24 @@ type UpdateUserRequest struct {
 }
 ```
 
+### Array Body
+
+A `Body` of a slice type is a JSON array, in a request and in a response:
+
+```go
+type CreateUsersRequest struct {
+    Body []NewUser
+}
+
+type ListUsersResponse struct {
+    Body []User
+}
+```
+
+- The OpenAPI schema is `{"type": "array", "items": {"$ref": "#/components/schemas/User"}}`.
+- Gork validates each item of a request array with its `validate` tags.
+- A request `Body []byte` is the raw request body. It has no JSON schema.
+
 ### Response Cookies
 
 A plain field in the response `Cookies` section sets a cookie with the name from the `gork` tag. Gork gives this cookie the `Secure`, `HttpOnly` and `SameSite=Lax` attributes. Gork does not send a cookie for an empty value.

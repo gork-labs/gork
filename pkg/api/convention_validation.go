@@ -277,7 +277,7 @@ func (v *ConventionValidator) validateByteSliceField(field reflect.StructField, 
 	return validationErr
 }
 
-// validateStructField validates regular struct fields.
+// validateStructField validates a struct section, or each item of a slice Body.
 func (v *ConventionValidator) validateStructField(fieldValue reflect.Value, sectionName string, validationErrors map[string][]string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -285,7 +285,12 @@ func (v *ConventionValidator) validateStructField(fieldValue reflect.Value, sect
 		}
 	}()
 
-	validationErr := v.fieldValidator.Struct(fieldValue.Interface())
+	var validationErr error
+	if fieldValue.Kind() == reflect.Slice {
+		validationErr = v.fieldValidator.Var(fieldValue.Interface(), "dive")
+	} else {
+		validationErr = v.fieldValidator.Struct(fieldValue.Interface())
+	}
 	if validationErr == nil {
 		return nil
 	}
