@@ -140,7 +140,7 @@ func (f *ConventionHandlerFactory) processConventionResponse(w http.ResponseWrit
 // processResponseSections processes response sections (Body, Headers, Cookies).
 func (f *ConventionHandlerFactory) processResponseSections(w http.ResponseWriter, respVal reflect.Value) {
 	// Check if response is nil (only valid for pointer types)
-	if respVal.Kind() == reflect.Ptr && respVal.IsNil() {
+	if respVal.Kind() == reflect.Pointer && respVal.IsNil() {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -152,7 +152,7 @@ func (f *ConventionHandlerFactory) processResponseSections(w http.ResponseWriter
 
 // extractResponseStructAndType extracts the struct and type from response value.
 func (f *ConventionHandlerFactory) extractResponseStructAndType(respVal reflect.Value) (reflect.Value, reflect.Type) {
-	if respVal.Kind() == reflect.Ptr {
+	if respVal.Kind() == reflect.Pointer {
 		return respVal.Elem(), respVal.Elem().Type()
 	}
 	return respVal, respVal.Type()
@@ -287,8 +287,11 @@ func (f *ConventionHandlerFactory) setResponseCookies(w http.ResponseWriter, coo
 
 		if cookieValue != "" {
 			cookie := &http.Cookie{
-				Name:  cookieName,
-				Value: cookieValue,
+				Name:     cookieName,
+				Value:    cookieValue,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
 			}
 			http.SetCookie(w, cookie)
 		}
