@@ -56,6 +56,9 @@ jobs:
           version: v2.14.0
           args: --timeout=5m
 
+      - name: lintgork
+        run: go run ./cmd/lintgork -test=false ./...
+
   validate-openapi:
     needs:
       - build
