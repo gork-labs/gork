@@ -175,10 +175,12 @@ func validateConventionSection(sectionName string, field *ast.Field, reporter Re
 		return
 	}
 
-	// Section must be a struct type
+	// Body may be any type: []byte gets the raw body and other types are JSON-decoded.
 	structType, ok := field.Type.(*ast.StructType)
 	if !ok {
-		reporter.Reportf(field.Pos(), "section '%s' must be a struct type", sectionName)
+		if sectionName != "Body" {
+			reporter.Reportf(field.Pos(), "section '%s' must be a struct type", sectionName)
+		}
 		return
 	}
 

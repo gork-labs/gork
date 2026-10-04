@@ -46,6 +46,21 @@ type InvalidRequest struct {
 	}
 }
 
+// Test struct with non-struct sections
+type NonStructSectionRequest struct {
+	Query int // want "section 'Query' must be a struct type"
+	Body  []byte
+}
+
+type NamedBody struct {
+	Name string `gork:"name"`
+}
+
+// Test struct with a named Body type
+type NamedBodyRequest struct {
+	Body NamedBody
+}
+
 // Test router method calls
 func setupRoutes(router TestRouter) {
 	// Valid router calls with path parameters

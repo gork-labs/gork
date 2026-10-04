@@ -593,6 +593,18 @@ func TestValidateConventionSection(t *testing.T) {
 		t.Error("Expected error report for non-struct section")
 	}
 
+	// Test with non-struct Body section
+	reports = []string{}
+	rawBodyField := &ast.Field{
+		Names: []*ast.Ident{{Name: "Body"}},
+		Type:  &ast.ArrayType{Elt: &ast.Ident{Name: "byte"}},
+	}
+
+	validateConventionSection("Body", rawBodyField, mockReporter)
+	if len(reports) != 0 {
+		t.Errorf("Expected no report for non-struct Body section, got %v", reports)
+	}
+
 	// Test with valid struct section
 	reports = []string{}
 	structField := &ast.Field{
