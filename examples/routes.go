@@ -26,6 +26,9 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	r.Delete("/api/v1/users/{userId}", handlers.DeleteUser, api.WithTags("users"), api.WithCookieAuth("session_id"))
 	r.Get("/api/v1/users/{userId}/activity", handlers.StreamUserActivity, api.WithTags("users"))
 
+	// Example demonstrating a multipart/form-data upload
+	r.Post("/api/v1/chats/{chat_id}/messages", handlers.SendMessage, api.WithTags("chats"), api.WithBearerTokenAuth("write:messages"))
+
 	// Example demonstrating rules with context variables
 	r.Post("/api/v1/items/{itemId}", handlers.UpdateOwnedItem, api.WithTags("items"))
 
