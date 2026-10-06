@@ -543,6 +543,84 @@
         ]
       }
     },
+    "/api/v1/users/{userId}/avatar": {
+      "get": {
+        "description": "GetAvatar sends the avatar image of a user.",
+        "operationId": "GetAvatar",
+        "parameters": [
+          {
+            "description": "UserID is the ID of the user",
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/gif": {
+                "schema": {
+                  "contentMediaType": "image/gif",
+                  "type": "string"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "image/jpeg",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "contentMediaType": "image/png",
+                  "type": "string"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "contentMediaType": "image/webp",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "description": "CacheControl tells the client how long it can keep the image",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/api/v1/users/{userId}/payment-method": {
       "put": {
         "description": "UpdateUserPaymentMethod handles user payment method update requests.",

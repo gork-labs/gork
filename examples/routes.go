@@ -26,6 +26,9 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	r.Delete("/api/v1/users/{userId}", handlers.DeleteUser, api.WithTags("users"), api.WithCookieAuth("session_id"))
 	r.Get("/api/v1/users/{userId}/activity", handlers.StreamUserActivity, api.WithTags("users"))
 
+	// Binary response with the media types of the image
+	r.Get("/api/v1/users/{userId}/avatar", handlers.GetAvatar, api.WithTags("users"), api.WithResponseContentTypes("image/png", "image/jpeg", "image/gif", "image/webp"), api.WithErrorResponses(http.StatusNotFound))
+
 	// Example demonstrating rules with context variables
 	r.Post("/api/v1/items/{itemId}", handlers.UpdateOwnedItem, api.WithTags("items"))
 

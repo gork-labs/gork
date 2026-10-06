@@ -10,6 +10,14 @@ import (
 	"github.com/gork-labs/gork/pkg/gorkson"
 )
 
+// Binary is a response Body that Gork writes as it is, with ContentType as the Content-Type header.
+type Binary struct {
+	ContentType string
+	Data        []byte
+}
+
+var binaryType = reflect.TypeOf(Binary{})
+
 // JSONMarshaler defines the interface for JSON marshaling.
 type JSONMarshaler func(v any) ([]byte, error)
 
@@ -226,6 +234,14 @@ func (f *ConventionHandlerFactory) writeResponseBody(w http.ResponseWriter, resp
 
 // writeConventionBody writes body from convention Body field.
 func (f *ConventionHandlerFactory) writeConventionBody(w http.ResponseWriter, bodyValue reflect.Value, status int) {
+	if bodyValue.Type() == binaryType {
+		binary := bodyValue.Interface().(Binary)
+		w.Header().Set("Content-Type", binary.ContentType)
+		w.WriteHeader(successStatus(status, http.StatusOK))
+		_, _ = w.Write(binary.Data)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	data, err := f.gorkMarshaler(bodyValue.Interface())
 	if err != nil {
