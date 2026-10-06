@@ -78,7 +78,8 @@ func TestParseRequest_MultipartTextFields(t *testing.T) {
 		multipartPart{name: "text", data: "hello"},
 		multipartPart{name: "count", data: "7"},
 		multipartPart{name: "pinned", data: "true"},
-		multipartPart{name: "tags", data: "a, b"},
+		multipartPart{name: "tags", data: "a"},
+		multipartPart{name: "tags", data: "b,c"},
 		multipartPart{name: "unknown", data: "ignored"},
 	)
 	if err != nil {
@@ -87,7 +88,7 @@ func TestParseRequest_MultipartTextFields(t *testing.T) {
 	if req.Body.Text != "hello" || req.Body.Count != 7 || !req.Body.Pinned {
 		t.Errorf("unexpected text fields: %+v", req.Body)
 	}
-	if !reflect.DeepEqual(req.Body.Tags, []string{"a", "b"}) {
+	if !reflect.DeepEqual(req.Body.Tags, []string{"a", "b,c"}) {
 		t.Errorf("Tags = %v", req.Body.Tags)
 	}
 }
