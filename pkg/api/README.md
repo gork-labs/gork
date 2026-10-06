@@ -241,7 +241,7 @@ func SendMessage(ctx context.Context, req SendMessageRequest) (*SendMessageRespo
 
 - `api.File` has the fields `Name` (the file name of the part), `ContentType` (the `Content-Type` of the part) and `Data` (the bytes).
 - The `gork` tag gives the name of the form field. `api.File` holds one file part. `[]api.File` holds all file parts with that name.
-- A text field uses the same conversion as a query parameter. A `[]string` field takes one comma-separated value.
+- A text field uses the same conversion as a query parameter. Each part of a `[]string` field adds one item to the slice.
 - Gork reads the parts one at a time with the standard multipart reader. It skips a part that no field names.
 - A request with a different `Content-Type` gets a 400 error.
 - The `validate` tags work on the text fields. On `[]api.File`, `min` and `max` check the count of file parts, and `required` means at least one file part. On `api.File`, `required` means that the file part is present.

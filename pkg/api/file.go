@@ -15,8 +15,9 @@ type File struct {
 }
 
 var (
-	fileType      = reflect.TypeOf(File{})
-	fileSliceType = reflect.TypeOf([]File{})
+	fileType        = reflect.TypeOf(File{})
+	fileSliceType   = reflect.TypeOf([]File{})
+	stringSliceType = reflect.TypeOf([]string{})
 )
 
 // isMultipartBody reports whether a Body struct has a File or []File field.

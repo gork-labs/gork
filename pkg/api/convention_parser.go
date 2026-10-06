@@ -203,6 +203,7 @@ func (p *ConventionParser) parseBodySection(sectionValue reflect.Value, r *http.
 
 // parseMultipartBody reads the parts of a multipart/form-data body one at a time.
 // A part for a File or []File field is a file part. Any other part is a text field.
+// Each part for a []string field adds one item.
 // A part with a name that no field has is skipped.
 func (p *ConventionParser) parseMultipartBody(ctx context.Context, sectionValue reflect.Value, r *http.Request) error {
 	reader, err := r.MultipartReader()
@@ -234,6 +235,8 @@ func (p *ConventionParser) parseMultipartBody(ctx context.Context, sectionValue 
 			fieldValue.Set(reflect.ValueOf(newFile(part, data)))
 		case fileSliceType:
 			fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(newFile(part, data))))
+		case stringSliceType:
+			fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(string(data))))
 		default:
 			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, string(data)); err != nil {
 				return fmt.Errorf("failed to set form field %s: %w", part.FormName(), err)
