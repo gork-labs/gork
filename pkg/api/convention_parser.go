@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"reflect"
 	"strings"
@@ -175,6 +177,10 @@ func (p *ConventionParser) parseBodySection(sectionValue reflect.Value, r *http.
 		return nil
 	}
 
+	if isMultipartBody(sectionValue.Type()) {
+		return p.parseMultipartBody(r.Context(), sectionValue, r)
+	}
+
 	// Read the body first
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -193,6 +199,66 @@ func (p *ConventionParser) parseBodySection(sectionValue reflect.Value, r *http.
 		sectionValue.Set(sectionPtr.Elem())
 	}
 	return nil
+}
+
+// parseMultipartBody reads the parts of a multipart/form-data body one at a time.
+// A part for a File or []File field is a file part. Any other part is a text field.
+// A part with a name that no field has is skipped.
+func (p *ConventionParser) parseMultipartBody(ctx context.Context, sectionValue reflect.Value, r *http.Request) error {
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return fmt.Errorf("invalid multipart body: %w", err)
+	}
+
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read multipart body: %w", err)
+		}
+
+		fieldValue, ok := p.findFormField(sectionValue, part.FormName())
+		if !ok {
+			continue
+		}
+
+		data, err := io.ReadAll(part)
+		if err != nil {
+			return fmt.Errorf("failed to read form field %s: %w", part.FormName(), err)
+		}
+
+		switch fieldValue.Type() {
+		case fileType:
+			fieldValue.Set(reflect.ValueOf(newFile(part, data)))
+		case fileSliceType:
+			fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(newFile(part, data))))
+		default:
+			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, string(data)); err != nil {
+				return fmt.Errorf("failed to set form field %s: %w", part.FormName(), err)
+			}
+		}
+	}
+}
+
+// findFormField finds the field of a Body struct with the given gork name.
+func (p *ConventionParser) findFormField(sectionValue reflect.Value, name string) (reflect.Value, bool) {
+	sectionType := sectionValue.Type()
+	for i := 0; i < sectionType.NumField(); i++ {
+		if tagName := parseGorkTag(sectionType.Field(i).Tag.Get("gork")).Name; tagName != "" && tagName == name {
+			return sectionValue.Field(i), true
+		}
+	}
+	return reflect.Value{}, false
+}
+
+func newFile(part *multipart.Part, data []byte) File {
+	return File{
+		Name:        part.FileName(),
+		ContentType: part.Header.Get("Content-Type"),
+		Data:        data,
+	}
 }
 
 // parseRawBodyField handles direct []byte Body fields for webhook support.

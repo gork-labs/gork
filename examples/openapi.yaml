@@ -213,6 +213,39 @@ components:
                 - user_id
             title: PaymentMetadata
             type: object
+        SendMessageBody:
+            properties:
+                images:
+                    description: Images are the images of the message
+                    items:
+                        contentMediaType: application/octet-stream
+                        type: string
+                    type: array
+                text:
+                    description: Text is the text of the message
+                    maxLength: 4000
+                    type: string
+            required:
+                - text
+            title: SendMessageBody
+            type: object
+        SendMessageResponse:
+            description: SendMessageResponse represents the message that the chat got.
+            properties:
+                image_names:
+                    description: ImageNames are the file names of the images of the message
+                    items:
+                        type: string
+                    title: '[]string'
+                    type: array
+                text:
+                    description: Text is the text of the message
+                    type: string
+            required:
+                - text
+                - image_names
+            title: SendMessageResponse
+            type: object
         StripeWebhookErrorResponse:
             properties:
                 Body:
@@ -454,6 +487,40 @@ paths:
                     $ref: '#/components/responses/InternalServerError'
             tags:
                 - auth
+    /api/v1/chats/{chat_id}/messages:
+        post:
+            description: SendMessage adds a message with images to a chat.
+            operationId: SendMessage
+            parameters:
+                - description: ChatID is the chat that gets the message
+                  in: path
+                  name: chat_id
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/SendMessageBody'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SendMessageResponse'
+                    description: Success
+                "400":
+                    $ref: '#/components/responses/BadRequest'
+                "422":
+                    $ref: '#/components/responses/UnprocessableEntity'
+                "500":
+                    $ref: '#/components/responses/InternalServerError'
+            security:
+                - BearerAuth: []
+            tags:
+                - chats
     /api/v1/items/{itemId}:
         post:
             description: UpdateOwnedItem is a demo handler that runs after validation and rules.
