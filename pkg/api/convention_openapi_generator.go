@@ -209,9 +209,13 @@ func (g *ConventionOpenAPIGenerator) processCookiesSection(sectionType reflect.T
 // body, so it has no JSON schema.
 func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type, reqType reflect.Type, operation *Operation, components *Components) {
 	var schema *Schema
+	mediaType := "application/json"
 	switch {
 	case sectionType.Kind() == reflect.Struct:
 		schema = g.generateRequestBodyComponentSchema(sectionType, reqType, components)
+		if isMultipartBody(sectionType) {
+			mediaType = "multipart/form-data"
+		}
 	case sectionType.Kind() == reflect.Slice && sectionType.Elem().Kind() != reflect.Uint8:
 		schema = g.generateSchemaFromType(sectionType, "", components)
 	default:
@@ -221,7 +225,7 @@ func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type
 	operation.RequestBody = &RequestBody{
 		Required: true,
 		Content: map[string]*MediaType{
-			"application/json": {
+			mediaType: {
 				Schema: schema,
 			},
 		},
@@ -642,6 +646,13 @@ func (g *ConventionOpenAPIGenerator) generateSchemaFromType(fieldType reflect.Ty
 	// Handle nil types gracefully
 	if fieldType == nil {
 		return nil
+	}
+
+	if fieldType == fileType {
+		return fileSchema()
+	}
+	if fieldType == fileSliceType {
+		return &Schema{Type: "array", Items: fileSchema()}
 	}
 
 	// Check if this is a union type

@@ -216,6 +216,37 @@ type ListUsersResponse struct {
 - Gork validates each item of a request array with its `validate` tags.
 - A request `Body []byte` is the raw request body. It has no JSON schema.
 
+### File Upload (multipart/form-data)
+
+A `Body` struct with a field of type `api.File` or `[]api.File` is a `multipart/form-data` body:
+
+```go
+type SendMessageRequest struct {
+    Path struct {
+        ChatID string `gork:"chat_id" validate:"required,uuid"`
+    }
+    Body struct {
+        Text   string     `gork:"text" validate:"required,max=4000"`
+        Images []api.File `gork:"images" validate:"max=4"`
+    }
+}
+
+func SendMessage(ctx context.Context, req SendMessageRequest) (*SendMessageResponse, error) {
+    for _, image := range req.Body.Images {
+        store(image.Name, image.ContentType, image.Data)
+    }
+    // ...
+}
+```
+
+- `api.File` has the fields `Name` (the file name of the part), `ContentType` (the `Content-Type` of the part) and `Data` (the bytes).
+- The `gork` tag gives the name of the form field. `api.File` holds one file part. `[]api.File` holds all file parts with that name.
+- A text field uses the same conversion as a query parameter. Each part of a `[]string` field adds one item to the slice.
+- Gork reads the parts one at a time with the standard multipart reader. It skips a part that no field names.
+- A request with a different `Content-Type` gets a 400 error.
+- The `validate` tags work on the text fields. On `[]api.File`, `min` and `max` check the count of file parts, and `required` means at least one file part. On `api.File`, `required` means that the file part is present.
+- The OpenAPI request body has the media type `multipart/form-data` with an object schema. A file part is `{"type": "string", "contentMediaType": "application/octet-stream"}`. A `[]api.File` field is an array of these schemas. Orval generates a function that takes `Blob` or `File` values and sends `FormData`.
+
 ### Response Cookies
 
 A plain field in the response `Cookies` section sets a cookie with the name from the `gork` tag. Gork gives this cookie the `Secure`, `HttpOnly` and `SameSite=Lax` attributes. Gork does not send a cookie for an empty value.

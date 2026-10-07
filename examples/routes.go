@@ -29,6 +29,9 @@ func RegisterRoutes(mux *http.ServeMux) *stdlib.Router {
 	// Binary response with the media types of the image
 	r.Get("/api/v1/users/{userId}/avatar", handlers.GetAvatar, api.WithTags("users"), api.WithResponseContentTypes("image/png", "image/jpeg", "image/gif", "image/webp"), api.WithErrorResponses(http.StatusNotFound))
 
+	// Example demonstrating a multipart/form-data upload
+	r.Post("/api/v1/chats/{chat_id}/messages", handlers.SendMessage, api.WithTags("chats"), api.WithBearerTokenAuth("write:messages"))
+
 	// Example demonstrating rules with context variables
 	r.Post("/api/v1/items/{itemId}", handlers.UpdateOwnedItem, api.WithTags("items"))
 

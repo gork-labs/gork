@@ -144,11 +144,18 @@ type ConventionValidator struct {
 // NewConventionValidator creates a new convention validator.
 func NewConventionValidator() *ConventionValidator {
 	v := NewValidator(DefaultValidatorConfig())
+	v.RegisterCustomTypeFunc(fileValidationValue, File{})
 	return &ConventionValidator{
 		validator:      v,
 		fieldValidator: &GoPlaygroundValidator{validator: v},
 		applyRulesFunc: rules.Apply,
 	}
+}
+
+// fileValidationValue lets the tags of a File field check the file data. A file
+// part that the client sent has non-nil Data, even when the file is empty.
+func fileValidationValue(field reflect.Value) interface{} {
+	return field.Interface().(File).Data
 }
 
 // ValidateRequest validates a request using the Convention Over Configuration approach.
