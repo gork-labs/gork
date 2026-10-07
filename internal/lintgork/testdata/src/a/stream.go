@@ -54,3 +54,10 @@ func BasicPointer(ctx context.Context, req LiveRequest, extra *int) error {
 func UniversePointer(ctx context.Context, req LiveRequest, extra *error) error {
 	return nil
 }
+
+type ImageResponse struct {
+	Headers struct {
+		CacheControl string `gork:"Cache-Control"`
+	}
+	Body api.Binary
+}

@@ -324,6 +324,50 @@ An error from the handler gives the usual JSON error response. The OpenAPI opera
 }
 ```
 
+### Binary Responses
+
+To send bytes such as an image, use `api.Binary` as the `Body` of the response. The handler sets `ContentType` at run time. Gork sends `Data` as it is, with `ContentType` as the `Content-Type` header. Gork adds no envelope and does no JSON encoding. The `Headers` and `Cookies` sections and `api.WithStatus` work as for a JSON response.
+
+Add the route option `api.WithResponseContentTypes` to declare the media types in the OpenAPI operation. Without this option, the operation shows `application/octet-stream`.
+
+```go
+type GetAvatarResponse struct {
+    Headers struct {
+        // CacheControl tells the client how long it can keep the image
+        CacheControl string `gork:"Cache-Control"`
+    }
+    Body api.Binary
+}
+
+func GetAvatar(_ context.Context, _ GetAvatarRequest) (*GetAvatarResponse, error) {
+    resp := &GetAvatarResponse{}
+    resp.Headers.CacheControl = "max-age=3600"
+    resp.Body = api.Binary{ContentType: "image/png", Data: avatarPNG}
+    return resp, nil
+}
+
+router.Get("/users/{userId}/avatar", GetAvatar,
+    api.WithResponseContentTypes("image/png", "image/jpeg", "image/gif", "image/webp"),
+    api.WithErrorResponses(http.StatusNotFound))
+```
+
+An error from the handler gives the usual JSON error response. The OpenAPI operation shows one content entry for each media type:
+
+```json
+"200": {
+  "description": "Success",
+  "headers": {
+    "Cache-Control": {"description": "CacheControl tells the client how long it can keep the image", "schema": {"type": "string"}}
+  },
+  "content": {
+    "image/png": {"schema": {"type": "string", "contentMediaType": "image/png"}},
+    "image/jpeg": {"schema": {"type": "string", "contentMediaType": "image/jpeg"}},
+    "image/gif": {"schema": {"type": "string", "contentMediaType": "image/gif"}},
+    "image/webp": {"schema": {"type": "string", "contentMediaType": "image/webp"}}
+  }
+}
+```
+
 ### Context Usage
 
 The adapter passes through the HTTP request context:

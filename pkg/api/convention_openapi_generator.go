@@ -279,7 +279,10 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 		switch field.Name {
 		case SchemaSuffixBody.String():
 			// Generate body schema only if there's a Body field
-			if hasBody {
+			switch {
+			case field.Type == binaryType:
+				response.Content = g.buildBinaryContent(route)
+			case hasBody:
 				bodySchema = g.generateResponseComponentSchema(respType, components)
 			}
 		case SchemaSuffixHeaders.String():
@@ -315,6 +318,19 @@ func (g *ConventionOpenAPIGenerator) processResponseSections(respType reflect.Ty
 	}
 
 	operation.Responses["200"] = response
+}
+
+// buildBinaryContent builds the content of a Binary response, with one entry for each media type of the route.
+func (g *ConventionOpenAPIGenerator) buildBinaryContent(route *RouteInfo) map[string]*MediaType {
+	types := route.Options.ResponseContentTypes
+	if len(types) == 0 {
+		types = []string{"application/octet-stream"}
+	}
+	content := map[string]*MediaType{}
+	for _, mediaType := range types {
+		content[mediaType] = &MediaType{Schema: &Schema{Type: "string", ContentMediaType: mediaType}}
+	}
+	return content
 }
 
 // buildStreamResponse builds a text/event-stream response. The item schema is a
