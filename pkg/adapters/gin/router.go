@@ -170,9 +170,9 @@ func (ginParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	return "", false
 }
 
-func (ginParamAdapter) Query(r *http.Request, k string) (string, bool) {
-	v := r.URL.Query().Get(k)
-	return v, v != ""
+func (ginParamAdapter) Query(r *http.Request, k string) ([]string, bool) {
+	v := r.URL.Query()[k]
+	return v, len(v) > 0
 }
 
 func (ginParamAdapter) Header(r *http.Request, k string) (string, bool) {

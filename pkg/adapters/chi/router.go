@@ -16,9 +16,9 @@ func (chiParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	return v, v != ""
 }
 
-func (chiParamAdapter) Query(r *http.Request, k string) (string, bool) {
-	v := r.URL.Query().Get(k)
-	return v, v != ""
+func (chiParamAdapter) Query(r *http.Request, k string) ([]string, bool) {
+	v := r.URL.Query()[k]
+	return v, len(v) > 0
 }
 
 func (chiParamAdapter) Header(r *http.Request, k string) (string, bool) {

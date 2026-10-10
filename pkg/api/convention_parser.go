@@ -77,9 +77,9 @@ func (d *DefaultParameterAdapter) Path(_ *http.Request, _ string) (string, bool)
 }
 
 // Query extracts query parameters from the URL.
-func (d *DefaultParameterAdapter) Query(r *http.Request, key string) (string, bool) {
-	value := r.URL.Query().Get(key)
-	return value, value != ""
+func (d *DefaultParameterAdapter) Query(r *http.Request, key string) ([]string, bool) {
+	value := r.URL.Query()[key]
+	return value, len(value) > 0
 }
 
 // Header extracts headers from the request.
@@ -325,10 +325,21 @@ func (p *ConventionParser) parseQuerySection(ctx context.Context, sectionValue r
 		}
 
 		paramName := parseGorkTag(gorkTag).Name
-		if val, ok := adapter.Query(r, paramName); ok {
-			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, val); err != nil {
-				return fmt.Errorf("failed to set query parameter %s: %w", paramName, err)
-			}
+		values, ok := adapter.Query(r, paramName)
+		if !ok {
+			continue
+		}
+
+		val := values[0]
+		if fieldValue.Kind() == reflect.Slice {
+			val = strings.Join(values, ",")
+		}
+		if val == "" {
+			continue
+		}
+
+		if err := gorkson.SetFieldValueFromString(ctx, fieldValue, val); err != nil {
+			return fmt.Errorf("failed to set query parameter %s: %w", paramName, err)
 		}
 	}
 

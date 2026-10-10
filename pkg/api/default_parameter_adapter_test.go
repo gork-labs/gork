@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 )
 
@@ -86,4 +87,24 @@ func TestDefaultParameterAdapter_Cookie(t *testing.T) {
 			t.Errorf("expected first cookie value 'first', got %q", value)
 		}
 	})
+}
+
+func TestDefaultParameterAdapter_Query(t *testing.T) {
+	adapter := NewDefaultParameterAdapter()
+	req := httptest.NewRequest(http.MethodGet, "/?name=x&model=a&model=b", nil)
+
+	value, exists := adapter.Query(req, "name")
+	if !exists || !slices.Equal(value, []string{"x"}) {
+		t.Errorf("Query(name) = %q, %v, want [x], true", value, exists)
+	}
+
+	value, exists = adapter.Query(req, "model")
+	if !exists || !slices.Equal(value, []string{"a", "b"}) {
+		t.Errorf("Query(model) = %q, %v, want [a b], true", value, exists)
+	}
+
+	value, exists = adapter.Query(req, "missing")
+	if exists || value != nil {
+		t.Errorf("Query(missing) = %q, %v, want nil, false", value, exists)
+	}
 }

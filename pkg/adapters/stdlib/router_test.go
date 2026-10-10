@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/gork-labs/gork/pkg/api"
@@ -151,8 +152,8 @@ func TestStdlibParamAdapter(t *testing.T) {
 		if !ok {
 			t.Error("Query() returned false for existing parameter")
 		}
-		if value != "john" {
-			t.Errorf("Query() returned %q, want %q", value, "john")
+		if !slices.Equal(value, []string{"john"}) {
+			t.Errorf("Query() returned %q, want %q", value, []string{"john"})
 		}
 
 		// Test non-existing query parameter
@@ -160,8 +161,8 @@ func TestStdlibParamAdapter(t *testing.T) {
 		if ok {
 			t.Error("Query() returned true for non-existing parameter")
 		}
-		if value != "" {
-			t.Errorf("Query() returned %q for non-existing parameter, want empty string", value)
+		if value != nil {
+			t.Errorf("Query() returned %q for non-existing parameter, want nil", value)
 		}
 	})
 
@@ -395,5 +396,55 @@ func TestRouterGroupServesPrefixedPath(t *testing.T) {
 		if rec.Code != want {
 			t.Errorf("GET %s status = %d, want %d", path, rec.Code, want)
 		}
+	}
+}
+
+func TestRouterRepeatedQueryParameter(t *testing.T) {
+	type queryRequest struct {
+		Query struct {
+			Model []string `gork:"model"`
+			Name  string   `gork:"name"`
+		}
+	}
+	type queryResponse struct {
+		Body struct {
+			Status string `gork:"status"`
+		}
+	}
+
+	var got queryRequest
+	router := NewRouter(nil)
+	router.Get("/query", func(_ context.Context, req queryRequest) (*queryResponse, error) {
+		got = req
+		return &queryResponse{}, nil
+	})
+
+	tests := []struct {
+		name      string
+		target    string
+		wantModel []string
+		wantName  string
+	}{
+		{"repeated parameter", "/query?model=a&model=b", []string{"a", "b"}, ""},
+		{"comma separated value", "/query?model=a,b", []string{"a", "b"}, ""},
+		{"repeated and comma separated", "/query?model=a,b&model=c", []string{"a", "b", "c"}, ""},
+		{"repeated parameter in string field", "/query?name=x&name=y", nil, "x"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got = queryRequest{}
+			rec := httptest.NewRecorder()
+			router.mux.ServeHTTP(rec, httptest.NewRequest("GET", tt.target, nil))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+			}
+			if !slices.Equal(got.Query.Model, tt.wantModel) {
+				t.Errorf("Query.Model = %q, want %q", got.Query.Model, tt.wantModel)
+			}
+			if got.Query.Name != tt.wantName {
+				t.Errorf("Query.Name = %q, want %q", got.Query.Name, tt.wantName)
+			}
+		})
 	}
 }

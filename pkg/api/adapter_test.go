@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -364,8 +365,8 @@ func TestHTTPParameterAdapter(t *testing.T) {
 		if !exists {
 			t.Error("Query parameter 'name' should exist")
 		}
-		if value != "Alice" {
-			t.Errorf("Query parameter 'name': got %q, want %q", value, "Alice")
+		if !slices.Equal(value, []string{"Alice"}) {
+			t.Errorf("Query parameter 'name': got %q, want %q", value, []string{"Alice"})
 		}
 
 		// Test non-existing parameter
@@ -373,14 +374,20 @@ func TestHTTPParameterAdapter(t *testing.T) {
 		if exists {
 			t.Error("Query parameter 'nonexistent' should not exist")
 		}
-		if value != "" {
-			t.Errorf("Non-existing query parameter: got %q, want empty string", value)
+		if value != nil {
+			t.Errorf("Non-existing query parameter: got %q, want nil", value)
 		}
 
 		// Test empty parameter
 		value, exists = adapter.Query(r, "empty")
-		if exists {
-			t.Error("Empty query parameter should not exist")
+		if !exists || !slices.Equal(value, []string{""}) {
+			t.Errorf("Empty query parameter: got %q, %v, want [\"\"], true", value, exists)
+		}
+
+		// Test repeated parameter
+		value, exists = adapter.Query(httptest.NewRequest("GET", "/test?model=a&model=b", nil), "model")
+		if !exists || !slices.Equal(value, []string{"a", "b"}) {
+			t.Errorf("Repeated query parameter: got %q, %v, want [a b], true", value, exists)
 		}
 	})
 
