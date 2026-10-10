@@ -30,12 +30,9 @@ func (m *MockParameterAdapter) Path(req *http.Request, name string) (string, boo
 	return val, ok
 }
 
-func (m *MockParameterAdapter) Query(req *http.Request, name string) (string, bool) {
-	if m.queryParams == nil {
-		return "", false
-	}
+func (m *MockParameterAdapter) Query(req *http.Request, name string) ([]string, bool) {
 	val, ok := m.queryParams[name]
-	return val, ok
+	return []string{val}, ok
 }
 
 func (m *MockParameterAdapter) Header(req *http.Request, name string) (string, bool) {

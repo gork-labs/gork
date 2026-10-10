@@ -7,7 +7,7 @@ import "net/http"
 // context types (e.g., *fiber.Ctx, *gin.Context) without HTTP request conversion.
 type GenericParameterAdapter[T any] interface {
 	Path(ctx T, key string) (string, bool)
-	Query(ctx T, key string) (string, bool)
+	Query(ctx T, key string) ([]string, bool)
 	Header(ctx T, key string) (string, bool)
 	Cookie(ctx T, key string) (string, bool)
 }
@@ -18,9 +18,9 @@ type GenericParameterAdapter[T any] interface {
 type HTTPParameterAdapter struct{}
 
 // Query extracts query parameters from the HTTP request.
-func (HTTPParameterAdapter) Query(r *http.Request, k string) (string, bool) {
-	v := r.URL.Query().Get(k)
-	return v, v != ""
+func (HTTPParameterAdapter) Query(r *http.Request, k string) ([]string, bool) {
+	v := r.URL.Query()[k]
+	return v, len(v) > 0
 }
 
 // Header extracts header values from the HTTP request.

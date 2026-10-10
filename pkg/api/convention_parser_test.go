@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -25,9 +26,9 @@ func (m *mockConventionParameterAdapter) Path(r *http.Request, key string) (stri
 	return val, ok
 }
 
-func (m *mockConventionParameterAdapter) Query(r *http.Request, key string) (string, bool) {
+func (m *mockConventionParameterAdapter) Query(r *http.Request, key string) ([]string, bool) {
 	val, ok := m.queryParams[key]
-	return val, ok
+	return []string{val}, ok
 }
 
 func (m *mockConventionParameterAdapter) Header(r *http.Request, key string) (string, bool) {
@@ -227,6 +228,50 @@ func TestConventionParser_TypeParsing(t *testing.T) {
 	expected := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	if !result.Query.Since.Equal(expected) {
 		t.Errorf("Query.Since = %v, want %v", result.Query.Since, expected)
+	}
+}
+
+func TestConventionParser_ParseQuerySection_RepeatedValues(t *testing.T) {
+	parser := NewConventionParser()
+
+	type request struct {
+		Query struct {
+			Model []string `gork:"model"`
+			Name  string   `gork:"name"`
+		}
+	}
+
+	tests := []struct {
+		name      string
+		target    string
+		wantModel []string
+		wantName  string
+	}{
+		{"repeated slice parameter", "/?model=a&model=b", []string{"a", "b"}, ""},
+		{"comma separated slice parameter", "/?model=a,b", []string{"a", "b"}, ""},
+		{"repeated and comma separated slice parameter", "/?model=a,b&model=c", []string{"a", "b", "c"}, ""},
+		{"repeated non-slice parameter", "/?name=x&name=y", nil, "x"},
+		{"empty slice parameter", "/?model=", nil, ""},
+		{"empty non-slice parameter", "/?name=", nil, ""},
+		{"missing parameters", "/", nil, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.target, nil)
+			var result request
+
+			err := parser.ParseRequest(context.Background(), req, reflect.ValueOf(&result), NewDefaultParameterAdapter())
+			if err != nil {
+				t.Fatalf("ParseRequest() error = %v", err)
+			}
+			if !slices.Equal(result.Query.Model, tt.wantModel) {
+				t.Errorf("Query.Model = %q, want %q", result.Query.Model, tt.wantModel)
+			}
+			if result.Query.Name != tt.wantName {
+				t.Errorf("Query.Name = %q, want %q", result.Query.Name, tt.wantName)
+			}
+		})
 	}
 }
 

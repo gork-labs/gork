@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -195,13 +196,13 @@ func TestFiberParameterAdapter(t *testing.T) {
 
 				// Test existing query parameter
 				value, ok := adapter.Query(req, "param")
-				if !ok || value != "value" {
+				if !ok || !slices.Equal(value, []string{"value"}) {
 					t.Error("Query parameter extraction failed")
 				}
 
 				// Test missing query parameter
 				value, ok = adapter.Query(req, "missing")
-				if ok || value != "" {
+				if ok || len(value) != 0 {
 					t.Error("Expected no value for missing query parameter")
 				}
 			},
@@ -326,8 +327,11 @@ func TestParameterAdapterFallbacks(t *testing.T) {
 		shouldOk bool
 	}{
 		{
-			name:     "query_fallback",
-			testFunc: func() (string, bool) { return adapter.Query(req, "param") },
+			name: "query_fallback",
+			testFunc: func() (string, bool) {
+				value, ok := adapter.Query(req, "param")
+				return strings.Join(value, ","), ok
+			},
 			expected: "value",
 			shouldOk: true,
 		},
@@ -663,5 +667,58 @@ func TestRouterGroupServesPrefixedPath(t *testing.T) {
 		if resp.StatusCode != want {
 			t.Errorf("GET %s status = %d, want %d", path, resp.StatusCode, want)
 		}
+	}
+}
+
+func TestRouterRepeatedQueryParameter(t *testing.T) {
+	type queryRequest struct {
+		Query struct {
+			Model []string `gork:"model"`
+			Name  string   `gork:"name"`
+		}
+	}
+	type queryResponse struct {
+		Body struct {
+			Status string `gork:"status"`
+		}
+	}
+
+	var got queryRequest
+	router := NewRouter(nil)
+	router.Get("/query", func(_ context.Context, req queryRequest) (*queryResponse, error) {
+		got = req
+		return &queryResponse{}, nil
+	})
+
+	tests := []struct {
+		name      string
+		target    string
+		wantModel []string
+		wantName  string
+	}{
+		{"repeated parameter", "/query?model=a&model=b", []string{"a", "b"}, ""},
+		{"comma separated value", "/query?model=a,b", []string{"a", "b"}, ""},
+		{"repeated and comma separated", "/query?model=a,b&model=c", []string{"a", "b", "c"}, ""},
+		{"repeated parameter in string field", "/query?name=x&name=y", nil, "x"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got = queryRequest{}
+			resp, err := router.app.Test(httptest.NewRequest("GET", tt.target, nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+			}
+			if !slices.Equal(got.Query.Model, tt.wantModel) {
+				t.Errorf("Query.Model = %q, want %q", got.Query.Model, tt.wantModel)
+			}
+			if got.Query.Name != tt.wantName {
+				t.Errorf("Query.Name = %q, want %q", got.Query.Name, tt.wantName)
+			}
+		})
 	}
 }

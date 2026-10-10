@@ -30,17 +30,21 @@ func (fiberParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	return "", false
 }
 
-func (fiberParamAdapter) Query(r *http.Request, k string) (string, bool) {
+func (fiberParamAdapter) Query(r *http.Request, k string) ([]string, bool) {
 	// Extract fiber context from request context
 	if ctx := r.Context().Value(fiberCtxKey{}); ctx != nil {
 		if c, ok := ctx.(*fiber.Ctx); ok {
-			v := c.Query(k)
-			return v, v != ""
+			values := c.Context().QueryArgs().PeekMulti(k)
+			v := make([]string, 0, len(values))
+			for _, b := range values {
+				v = append(v, string(b))
+			}
+			return v, len(v) > 0
 		}
 	}
 	// Fallback to regular query parsing
-	v := r.URL.Query().Get(k)
-	return v, v != ""
+	v := r.URL.Query()[k]
+	return v, len(v) > 0
 }
 
 func (fiberParamAdapter) Header(r *http.Request, k string) (string, bool) {

@@ -71,12 +71,9 @@ func (m *mockTypedRouterAdapter) Path(r *http.Request, key string) (string, bool
 	return val, ok
 }
 
-func (m *mockTypedRouterAdapter) Query(r *http.Request, key string) (string, bool) {
-	if m.queryParams == nil {
-		return "", false
-	}
+func (m *mockTypedRouterAdapter) Query(r *http.Request, key string) ([]string, bool) {
 	val, ok := m.queryParams[key]
-	return val, ok
+	return []string{val}, ok
 }
 
 func (m *mockTypedRouterAdapter) Header(r *http.Request, key string) (string, bool) {

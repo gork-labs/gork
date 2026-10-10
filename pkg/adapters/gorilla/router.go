@@ -26,9 +26,9 @@ func (gorillaParamAdapter) Path(r *http.Request, k string) (string, bool) {
 	return v, v != ""
 }
 
-func (gorillaParamAdapter) Query(r *http.Request, k string) (string, bool) {
-	v := r.URL.Query().Get(k)
-	return v, v != ""
+func (gorillaParamAdapter) Query(r *http.Request, k string) ([]string, bool) {
+	v := r.URL.Query()[k]
+	return v, len(v) > 0
 }
 
 func (gorillaParamAdapter) Header(r *http.Request, k string) (string, bool) {
