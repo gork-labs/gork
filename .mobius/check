@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+cd "$(dirname "$0")/.."
+
+./scripts/check-coverage.sh
+golangci-lint run --timeout=5m
+go run ./cmd/lintgork -test=false ./...
+make openapi-gen
+git diff --exit-code -- examples/openapi.json examples/openapi.yaml
