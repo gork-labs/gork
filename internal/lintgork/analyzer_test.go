@@ -16,6 +16,11 @@ func TestAnalyzer(t *testing.T) {
 	analysistest.Run(t, testdata, Analyzer, "a")
 }
 
+func TestAnalyzerRequestSelection(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, Analyzer, "norequesthandler", "requesthandler", "requeststream")
+}
+
 func TestParseDiscriminator(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -926,35 +931,6 @@ func Handler(ctx context.Context, req TestRequest) error {
 	}
 }
 
-func TestAnalyzeRequestStructureEdgeCases(t *testing.T) {
-	// Test with non-request struct (should return early)
-	source := `package test
-
-type NotARequest struct {
-	Field string
-}
-`
-
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", source, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("Failed to parse test source: %v", err)
-	}
-
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						// This should return early because "NotARequest" doesn't end with "Request"
-						analyzeRequestStructure(typeSpec.Name.Name, structType, nil)
-					}
-				}
-			}
-		}
-	}
-}
-
 func TestValidateGorkTagWithMissingWireFormat(t *testing.T) {
 	// Test validateGorkTag with missing wire format (empty first part)
 	reports := []string{}
@@ -1179,35 +1155,6 @@ func AlsoNotAHandler(ctx context.Context, req string) string {
 			if fn.Name.Name == "NotAHandler" || fn.Name.Name == "AlsoNotAHandler" {
 				analyzeHandler(fn)
 				// Test passes if no error is reported
-			}
-		}
-	}
-}
-
-func TestAnalyzeRequestStructureWithNonRequestStruct(t *testing.T) {
-	// Test line 292-294: !isRequestStruct(structName) return path
-	source := `package test
-
-type NotARequestStruct struct {
-	Field string
-}
-`
-
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", source, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("Failed to parse test source: %v", err)
-	}
-
-	for _, decl := range file.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						// This should trigger the !isRequestStruct return path (line 292-294)
-						analyzeRequestStructure(typeSpec.Name.Name, structType, nil)
-					}
-				}
 			}
 		}
 	}

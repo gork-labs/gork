@@ -19,9 +19,10 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	requests := collectRequestTypes(pass)
 	for _, file := range pass.Files {
 		// Convention Over Configuration linting only
-		analyzeConventionStructure(file, pass)
+		analyzeConventionStructure(file, pass, requests)
 	}
 	collectPathParamDiagnostics(pass)
 	return nil, nil
