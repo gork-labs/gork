@@ -19,16 +19,16 @@ var allowedSections = map[string]bool{
 	"Cookies": true,
 }
 
-// analyzeConventionStructure analyzes structs for Convention Over Configuration compliance.
-func analyzeConventionStructure(file *ast.File, pass *analysis.Pass) {
+// analyzeConventionStructure analyzes the request structs of handlers for Convention Over Configuration compliance.
+func analyzeConventionStructure(file *ast.File, pass *analysis.Pass, requests map[types.Object]bool) {
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.FuncDecl:
 			analyzeHandler(node)
 			analyzeStreamHandler(node, pass)
 		case *ast.TypeSpec:
-			if st, ok := node.Type.(*ast.StructType); ok {
-				analyzeRequestStructure(node.Name.Name, st, pass)
+			if st, ok := node.Type.(*ast.StructType); ok && requests[pass.TypesInfo.Defs[node.Name]] {
+				analyzeRequestStructure(st, pass)
 			}
 		}
 		return true
@@ -144,12 +144,53 @@ func validateStreamEventField(field *types.Var, tag string, reporter Reporter) {
 	}
 }
 
-// analyzeRequestStructure analyzes request struct for Convention Over Configuration compliance.
-func analyzeRequestStructure(structName string, st *ast.StructType, pass *analysis.Pass) {
-	if !isRequestStruct(structName) {
-		return
+// collectRequestTypes returns the types that handlers of the package use as request parameter.
+func collectRequestTypes(pass *analysis.Pass) map[types.Object]bool {
+	requests := map[types.Object]bool{}
+	for _, file := range pass.Files {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			if request := handlerRequestType(fn, pass); request != nil {
+				requests[request] = true
+			}
+		}
+	}
+	return requests
+}
+
+// handlerRequestType returns the named type of the second parameter of a handler or stream handler
+// when the current package declares it.
+func handlerRequestType(fn *ast.FuncDecl, pass *analysis.Pass) types.Object {
+	sig, ok := pass.TypesInfo.TypeOf(fn.Name).(*types.Signature)
+	if !ok || sig.Params().Len() < 2 {
+		return nil
 	}
 
+	if !isHandlerFunction(fn) {
+		if sig.Params().Len() != 3 {
+			return nil
+		}
+		if _, isStream := streamEventStruct(sig.Params().At(2).Type()); !isStream {
+			return nil
+		}
+	}
+
+	request := sig.Params().At(1).Type()
+	if ptr, isPointer := request.(*types.Pointer); isPointer {
+		request = ptr.Elem()
+	}
+	named, ok := request.(*types.Named)
+	if !ok || named.Obj().Pkg() != pass.Pkg {
+		return nil
+	}
+	return named.Obj()
+}
+
+// analyzeRequestStructure analyzes request struct for Convention Over Configuration compliance.
+func analyzeRequestStructure(st *ast.StructType, pass *analysis.Pass) {
 	for _, field := range st.Fields.List {
 		if len(field.Names) == 0 {
 			continue // Anonymous field
@@ -289,11 +330,6 @@ func validateGorkTagOption(sectionName, fieldName, option string, field *ast.Fie
 }
 
 // Helper functions
-
-// isRequestStruct checks if a struct name suggests it's a request struct.
-func isRequestStruct(structName string) bool {
-	return strings.HasSuffix(structName, "Request")
-}
 
 // isResponseStruct checks if a struct name suggests it's a response struct.
 func isResponseStruct(structName string) bool {
