@@ -18,8 +18,7 @@ func (v *ValidationErrorResponse) Error() string {
 }
 
 // HTTPError is an error that a handler returns to send an HTTP status.
-// Gork writes the body {"error": Message}. For a 5xx status, the body
-// contains the status text instead of Message.
+// Gork writes the body {"error": Message} for each status.
 type HTTPError struct {
 	Status  int
 	Message string
