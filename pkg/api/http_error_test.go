@@ -62,10 +62,10 @@ func TestHandlerReturnsHTTPError(t *testing.T) {
 			wantBody:   `{"error":"No such user."}`,
 		},
 		{
-			name:       "server status hides the message",
-			err:        NewHTTPError(http.StatusServiceUnavailable, "database is down"),
+			name:       "server status sends the message",
+			err:        NewHTTPError(http.StatusServiceUnavailable, "x"),
 			wantStatus: http.StatusServiceUnavailable,
-			wantBody:   `{"error":"Service Unavailable"}`,
+			wantBody:   `{"error":"x"}`,
 		},
 		{
 			name:       "validation error response gives 400",

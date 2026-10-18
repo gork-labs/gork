@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"reflect"
 
@@ -99,7 +100,10 @@ func writeHandlerError(w http.ResponseWriter, err error) {
 	var httpErr *HTTPError
 	switch {
 	case errors.As(err, &httpErr):
-		writeError(w, httpErr.Status, httpErr.Message)
+		if httpErr.Status >= 500 {
+			log.Printf("http %d: %s", httpErr.Status, httpErr.Message)
+		}
+		writeErrorBody(w, httpErr.Status, httpErr.Message)
 	case IsValidationError(err):
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

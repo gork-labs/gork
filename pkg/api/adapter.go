@@ -114,10 +114,14 @@ func writeError(w http.ResponseWriter, code int, message string) {
 		log.Printf("http %d: %s", code, message)
 	}
 
+	writeErrorBody(w, code, clientMessage)
+}
+
+func writeErrorBody(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		"error": clientMessage,
+		"error": message,
 	})
 }
 

@@ -92,13 +92,13 @@ Gork writes the response for the error that the handler returns:
 
 | Error | Status | Body |
 | --- | --- | --- |
-| `*api.HTTPError` with a 4xx status | `Status` | `{"error": Message}` |
-| `*api.HTTPError` with a 5xx status | `Status` | `{"error": "<status text>"}` |
+| `*api.HTTPError` with any status | `Status` | `{"error": Message}` |
 | `*api.ValidationErrorResponse` | 400 | `{"error": Message, "details": Details}` |
 | Other errors | 500 | `{"error": "Internal Server Error"}` |
 
 - Gork finds an `*api.HTTPError` in a wrapped error with `errors.As`.
-- For a 5xx status, Gork does not send the message to the client. Gork writes the message to the log.
+- Gork sends the message of an `*api.HTTPError` to the client for each status. Gork writes the message to the log also for a 5xx status.
+- For other errors, Gork does not send the message to the client. Gork writes the message to the log.
 
 ### Error Responses in the OpenAPI Spec
 
