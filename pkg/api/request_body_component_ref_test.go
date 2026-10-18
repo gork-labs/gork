@@ -150,7 +150,7 @@ func TestProcessBodySectionUsesComponentRef(t *testing.T) {
 	operation := &Operation{}
 
 	bodyType := reflect.TypeOf(TestCreateUserRequestBody{})
-	generator.processBodySection(bodyType, nil, operation, components)
+	generator.processBodySection(bodyType, nil, nil, operation, components)
 
 	// Should create a RequestBody
 	if operation.RequestBody == nil {

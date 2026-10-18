@@ -45,7 +45,7 @@ func TestSliceBodySchemaIsArray(t *testing.T) {
 	if got := op.Responses["200"].Content["application/json"].Schema; !reflect.DeepEqual(got, want) {
 		t.Errorf("response schema = %+v, want %+v", got, want)
 	}
-	if spec.Paths["/raw"].Post.RequestBody != nil {
+	if spec.Paths["/raw"].Post.RequestBody.Content["application/json"] != nil {
 		t.Error("expected no JSON request body for a []byte Body")
 	}
 }
