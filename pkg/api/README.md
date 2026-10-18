@@ -214,7 +214,34 @@ type ListUsersResponse struct {
 
 - The OpenAPI schema is `{"type": "array", "items": {"$ref": "#/components/schemas/User"}}`.
 - Gork validates each item of a request array with its `validate` tags.
-- A request `Body []byte` is the raw request body. It has no JSON schema.
+- A request `Body []byte` is the raw request body. See "Raw Request Body".
+
+### Raw Request Body
+
+A request `Body []byte` is the raw request body. Gork does no JSON decoding and does no validation of the bytes.
+
+Add the route option `api.WithRequestContentTypes` to declare the media types in the OpenAPI operation. Without this option, the operation shows `application/octet-stream`.
+
+```go
+type TranscribeRequest struct {
+    Body []byte
+}
+
+router.Post("/voice/transcriptions", Transcribe,
+    api.WithRequestContentTypes("audio/wav", "audio/mpeg"))
+```
+
+The OpenAPI operation shows a required `requestBody` with one content entry for each media type:
+
+```json
+"requestBody": {
+  "required": true,
+  "content": {
+    "audio/wav": {"schema": {"type": "string", "format": "binary"}},
+    "audio/mpeg": {"schema": {"type": "string", "format": "binary"}}
+  }
+}
+```
 
 ### File Upload (multipart/form-data)
 

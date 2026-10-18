@@ -18,6 +18,7 @@ type HandlerOption struct {
 	Status         int
 
 	ResponseContentTypes []string
+	RequestContentTypes  []string
 }
 
 // SecurityRequirement represents a security requirement for an operation.
@@ -89,6 +90,14 @@ func WithErrorResponses(statuses ...int) Option {
 func WithStatus(status int) Option {
 	return func(h *HandlerOption) {
 		h.Status = status
+	}
+}
+
+// WithRequestContentTypes sets the media types of a raw []byte request Body in the
+// OpenAPI operation. Without this option, the operation shows application/octet-stream.
+func WithRequestContentTypes(types ...string) Option {
+	return func(h *HandlerOption) {
+		h.RequestContentTypes = append(h.RequestContentTypes, types...)
 	}
 }
 

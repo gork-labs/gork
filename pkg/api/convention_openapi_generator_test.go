@@ -257,7 +257,7 @@ func TestConventionOpenAPIGenerator_ProcessBodySection(t *testing.T) {
 
 	operation := &Operation{}
 
-	generator.processBodySection(bodyType, nil, operation, spec.Components)
+	generator.processBodySection(bodyType, nil, nil, operation, spec.Components)
 
 	if operation.RequestBody == nil {
 		t.Fatal("RequestBody is nil")
@@ -820,7 +820,7 @@ func TestConventionOpenAPIGenerator_ProcessBodySection_NonStruct(t *testing.T) {
 	bodyType := reflect.TypeOf("string")
 	operation := &Operation{}
 
-	generator.processBodySection(bodyType, nil, operation, spec.Components)
+	generator.processBodySection(bodyType, nil, nil, operation, spec.Components)
 
 	// Should not have set RequestBody since it's not a struct
 	if operation.RequestBody != nil {

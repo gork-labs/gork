@@ -48,7 +48,11 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 
 	// Process request sections for regular handlers
 	if route.RequestType.Kind() == reflect.Struct {
-		g.processRequestSections(route.RequestType, operation, components)
+		var rawContentTypes []string
+		if route.Options != nil {
+			rawContentTypes = route.Options.RequestContentTypes
+		}
+		g.processRequestSections(route.RequestType, rawContentTypes, operation, components)
 	}
 
 	// Process response sections
@@ -73,7 +77,7 @@ func (g *ConventionOpenAPIGenerator) buildConventionOperation(route *RouteInfo, 
 }
 
 // processRequestSections processes request sections for OpenAPI generation.
-func (g *ConventionOpenAPIGenerator) processRequestSections(reqType reflect.Type, operation *Operation, components *Components) {
+func (g *ConventionOpenAPIGenerator) processRequestSections(reqType reflect.Type, rawContentTypes []string, operation *Operation, components *Components) {
 	for i := 0; i < reqType.NumField(); i++ {
 		field := reqType.Field(i)
 		operation.sectionDocTypes[field.Name] = sectionDocKey(reqType, field)
@@ -86,7 +90,7 @@ func (g *ConventionOpenAPIGenerator) processRequestSections(reqType reflect.Type
 		case SectionHeaders:
 			g.processHeadersSection(field.Type, operation, components)
 		case SectionBody:
-			g.processBodySection(field.Type, reqType, operation, components)
+			g.processBodySection(field.Type, reqType, rawContentTypes, operation, components)
 		case SectionCookies:
 			g.processCookiesSection(field.Type, operation, components)
 		}
@@ -206,17 +210,27 @@ func (g *ConventionOpenAPIGenerator) processCookiesSection(sectionType reflect.T
 }
 
 // processBodySection processes request body for OpenAPI. A []byte Body is the raw
-// body, so it has no JSON schema.
-func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type, reqType reflect.Type, operation *Operation, components *Components) {
+// body, so it has one binary entry for each of rawContentTypes.
+func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type, reqType reflect.Type, rawContentTypes []string, operation *Operation, components *Components) {
 	var schema *Schema
 	mediaType := "application/json"
 	switch {
+	case sectionType.Kind() == reflect.Slice && sectionType.Elem().Kind() == reflect.Uint8:
+		if len(rawContentTypes) == 0 {
+			rawContentTypes = []string{"application/octet-stream"}
+		}
+		content := map[string]*MediaType{}
+		for _, rawType := range rawContentTypes {
+			content[rawType] = &MediaType{Schema: &Schema{Type: "string", Format: "binary"}}
+		}
+		operation.RequestBody = &RequestBody{Required: true, Content: content}
+		return
 	case sectionType.Kind() == reflect.Struct:
 		schema = g.generateRequestBodyComponentSchema(sectionType, reqType, components)
 		if isMultipartBody(sectionType) {
 			mediaType = "multipart/form-data"
 		}
-	case sectionType.Kind() == reflect.Slice && sectionType.Elem().Kind() != reflect.Uint8:
+	case sectionType.Kind() == reflect.Slice:
 		schema = g.generateSchemaFromType(sectionType, "", components)
 	default:
 		return
