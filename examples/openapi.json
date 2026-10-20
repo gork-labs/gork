@@ -1175,7 +1175,7 @@
             "type": "array",
             "title": "[]Mention",
             "description": "Mentions are the users that the message mentions",
-            "maximum": 20,
+            "maxItems": 20,
             "items": {
               "$ref": "#/components/schemas/Mention"
             }

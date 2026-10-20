@@ -498,21 +498,29 @@ func isUnionType(t reflect.Type) bool {
 // Supported rules (subset):
 //
 //	required          -> adds field to parent.Required
-//	min / gt / gte    -> minimum / minLength
-//	max / lt / lte    -> maximum / maxLength
+//	min / gt / gte    -> minimum / minLength / minItems
+//	max / lt / lte    -> maximum / maxLength / maxItems
 func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldType reflect.Type, parent *Schema, sf reflect.StructField) {
 	if fieldSchema == nil {
 		return
 	}
 
+	dived := false
 	parts := strings.Split(validateTag, ",")
 	for _, p := range parts {
 		if p == "required" {
 			addRequiredField(parent, sf)
 			continue
 		}
+		if p == "dive" {
+			dived = true
+			continue
+		}
 
 		key, val := parseValidationRule(p)
+		if dived && isArrayKind(fieldType) && isCountRule(key) {
+			continue
+		}
 		applyValidationRule(fieldSchema, key, val, fieldType)
 	}
 }
@@ -536,6 +544,16 @@ func parseValidationRule(p string) (key, val string) {
 	return p, ""
 }
 
+// isCountRule reports the rules that limit the length of a value. After dive, they limit each
+// element, not the slice.
+func isCountRule(key string) bool {
+	switch key {
+	case "min", "gte", "gt", "max", "lte", "lt", "len":
+		return true
+	}
+	return false
+}
+
 func applyValidationRule(fieldSchema *Schema, key, val string, fieldType reflect.Type) {
 	switch key {
 	case "min", "gte", "gt":
@@ -553,10 +571,13 @@ func applyValidationRule(fieldSchema *Schema, key, val string, fieldType reflect
 
 func applyMinConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
 	if num, err := strconv.ParseFloat(val, 64); err == nil {
-		if isStringKind(fieldType) {
-			v := int(num)
+		v := int(num)
+		switch {
+		case isStringKind(fieldType):
 			fieldSchema.MinLength = &v
-		} else {
+		case isArrayKind(fieldType):
+			fieldSchema.MinItems = &v
+		default:
 			fieldSchema.Minimum = &num
 		}
 	}
@@ -564,10 +585,13 @@ func applyMinConstraint(fieldSchema *Schema, val string, fieldType reflect.Type)
 
 func applyMaxConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
 	if num, err := strconv.ParseFloat(val, 64); err == nil {
-		if isStringKind(fieldType) {
-			v := int(num)
+		v := int(num)
+		switch {
+		case isStringKind(fieldType):
 			fieldSchema.MaxLength = &v
-		} else {
+		case isArrayKind(fieldType):
+			fieldSchema.MaxItems = &v
+		default:
 			fieldSchema.Maximum = &num
 		}
 	}
@@ -578,6 +602,9 @@ func applyLenConstraint(fieldSchema *Schema, val string, fieldType reflect.Type)
 		if isStringKind(fieldType) {
 			fieldSchema.MinLength = &num
 			fieldSchema.MaxLength = &num
+		} else if isArrayKind(fieldType) {
+			fieldSchema.MinItems = &num
+			fieldSchema.MaxItems = &num
 		}
 	}
 }
@@ -601,6 +628,13 @@ func isStringKind(t reflect.Type) bool {
 		t = t.Elem()
 	}
 	return t.Kind() == reflect.String
+}
+
+func isArrayKind(t reflect.Type) bool {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Kind() == reflect.Slice || t.Kind() == reflect.Array
 }
 
 // parseDiscriminator returns the value after "discriminator=" if present.

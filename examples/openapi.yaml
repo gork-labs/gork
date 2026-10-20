@@ -239,7 +239,7 @@ components:
                     description: Mentions are the users that the message mentions
                     items:
                         $ref: '#/components/schemas/Mention'
-                    maximum: 20
+                    maxItems: 20
                     title: '[]Mention'
                     type: array
                 text:
