@@ -129,6 +129,13 @@ type MediaType struct {
 	Schema *Schema `json:"schema,omitempty"`
 	// ItemSchema describes each item of a sequential media type such as text/event-stream (OpenAPI 3.2).
 	ItemSchema *Schema `json:"itemSchema,omitempty"`
+	// Encoding gives the encoding of each field of a multipart/form-data schema.
+	Encoding map[string]*Encoding `json:"encoding,omitempty"`
+}
+
+// Encoding represents an OpenAPI encoding object of one field of a multipart/form-data schema.
+type Encoding struct {
+	ContentType string `json:"contentType,omitempty"`
 }
 
 // Response represents an OpenAPI response object describing a single response from an API operation.

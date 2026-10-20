@@ -1,6 +1,10 @@
 package api
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/gork-labs/gork/pkg/gorkson"
+)
 
 // File is one file part of a multipart/form-data request body.
 //
@@ -35,6 +39,15 @@ func isMultipartBody(bodyType reflect.Type) bool {
 
 func isFileType(t reflect.Type) bool {
 	return t == fileType || t == fileSliceType
+}
+
+// isJSONSliceField reports whether a multipart field is a slice of a struct type that has no codec.
+// Each part for such a field holds one JSON object.
+func isJSONSliceField(t reflect.Type) bool {
+	return t.Kind() == reflect.Slice &&
+		t.Elem().Kind() == reflect.Struct &&
+		t != fileSliceType &&
+		!gorkson.GetCodecRegistry().HasParser(t.Elem())
 }
 
 func fileSchema() *Schema {

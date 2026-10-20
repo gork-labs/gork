@@ -202,6 +202,20 @@ components:
                 - token
             title: LoginResponse
             type: object
+        Mention:
+            description: Mention is a user that a message mentions.
+            properties:
+                offset:
+                    description: Offset is the position of the mention in the text of the message
+                    minimum: 0
+                    type: integer
+                user_id:
+                    description: UserID is the user that the message mentions
+                    type: string
+            required:
+                - user_id
+            title: Mention
+            type: object
         PaymentMetadata:
             description: PaymentMetadata represents example user-defined metadata types validated by the webhook dispatcher.
             properties:
@@ -221,6 +235,13 @@ components:
                         contentMediaType: application/octet-stream
                         type: string
                     type: array
+                mentions:
+                    description: Mentions are the users that the message mentions
+                    items:
+                        $ref: '#/components/schemas/Mention'
+                    maximum: 20
+                    title: '[]Mention'
+                    type: array
                 text:
                     description: Text is the text of the message
                     maxLength: 4000
@@ -238,12 +259,19 @@ components:
                         type: string
                     title: '[]string'
                     type: array
+                mention_user_ids:
+                    description: MentionUserIDs are the users that the message mentions
+                    items:
+                        type: string
+                    title: '[]string'
+                    type: array
                 text:
                     description: Text is the text of the message
                     type: string
             required:
                 - text
                 - image_names
+                - mention_user_ids
             title: SendMessageResponse
             type: object
         StripeWebhookErrorResponse:
@@ -501,6 +529,9 @@ paths:
             requestBody:
                 content:
                     multipart/form-data:
+                        encoding:
+                            mentions:
+                                contentType: application/json
                         schema:
                             $ref: '#/components/schemas/SendMessageBody'
                 required: true
