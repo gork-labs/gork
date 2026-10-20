@@ -498,8 +498,8 @@ func isUnionType(t reflect.Type) bool {
 // Supported rules (subset):
 //
 //	required          -> adds field to parent.Required
-//	min / gt / gte    -> minimum / minLength
-//	max / lt / lte    -> maximum / maxLength
+//	min / gt / gte    -> minimum / minLength / minItems
+//	max / lt / lte    -> maximum / maxLength / maxItems
 func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldType reflect.Type, parent *Schema, sf reflect.StructField) {
 	if fieldSchema == nil {
 		return
@@ -553,10 +553,13 @@ func applyValidationRule(fieldSchema *Schema, key, val string, fieldType reflect
 
 func applyMinConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
 	if num, err := strconv.ParseFloat(val, 64); err == nil {
-		if isStringKind(fieldType) {
-			v := int(num)
+		v := int(num)
+		switch {
+		case isStringKind(fieldType):
 			fieldSchema.MinLength = &v
-		} else {
+		case isArrayKind(fieldType):
+			fieldSchema.MinItems = &v
+		default:
 			fieldSchema.Minimum = &num
 		}
 	}
@@ -564,10 +567,13 @@ func applyMinConstraint(fieldSchema *Schema, val string, fieldType reflect.Type)
 
 func applyMaxConstraint(fieldSchema *Schema, val string, fieldType reflect.Type) {
 	if num, err := strconv.ParseFloat(val, 64); err == nil {
-		if isStringKind(fieldType) {
-			v := int(num)
+		v := int(num)
+		switch {
+		case isStringKind(fieldType):
 			fieldSchema.MaxLength = &v
-		} else {
+		case isArrayKind(fieldType):
+			fieldSchema.MaxItems = &v
+		default:
 			fieldSchema.Maximum = &num
 		}
 	}
@@ -578,6 +584,9 @@ func applyLenConstraint(fieldSchema *Schema, val string, fieldType reflect.Type)
 		if isStringKind(fieldType) {
 			fieldSchema.MinLength = &num
 			fieldSchema.MaxLength = &num
+		} else if isArrayKind(fieldType) {
+			fieldSchema.MinItems = &num
+			fieldSchema.MaxItems = &num
 		}
 	}
 }
@@ -601,6 +610,13 @@ func isStringKind(t reflect.Type) bool {
 		t = t.Elem()
 	}
 	return t.Kind() == reflect.String
+}
+
+func isArrayKind(t reflect.Type) bool {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Kind() == reflect.Slice || t.Kind() == reflect.Array
 }
 
 // parseDiscriminator returns the value after "discriminator=" if present.

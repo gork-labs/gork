@@ -230,6 +230,15 @@ func TestApplyMinConstraint(t *testing.T) {
 			desc: "should set Minimum for float type",
 		},
 		{
+			name:      "slice type",
+			val:       "1",
+			fieldType: reflect.TypeOf([]string{}),
+			verify: func(s *Schema) bool {
+				return s.MinItems != nil && *s.MinItems == 1 && s.Minimum == nil
+			},
+			desc: "should set MinItems for slice type",
+		},
+		{
 			name:      "invalid number",
 			val:       "not-a-number",
 			fieldType: reflect.TypeOf(""),
@@ -288,6 +297,24 @@ func TestApplyMaxConstraint(t *testing.T) {
 			desc: "should set Maximum for float type",
 		},
 		{
+			name:      "pointer to array type",
+			val:       "2",
+			fieldType: reflect.TypeOf(&[2]int{}),
+			verify: func(s *Schema) bool {
+				return s.MaxItems != nil && *s.MaxItems == 2 && s.Maximum == nil
+			},
+			desc: "should set MaxItems for array type",
+		},
+		{
+			name:      "slice type",
+			val:       "5",
+			fieldType: reflect.TypeOf([]string{}),
+			verify: func(s *Schema) bool {
+				return s.MaxItems != nil && *s.MaxItems == 5 && s.Maximum == nil
+			},
+			desc: "should set MaxItems for slice type",
+		},
+		{
 			name:      "invalid number",
 			val:       "invalid",
 			fieldType: reflect.TypeOf(""),
@@ -329,12 +356,32 @@ func TestApplyLenConstraint(t *testing.T) {
 			desc: "should set both MinLength and MaxLength",
 		},
 		{
-			name:      "valid length for non-string type",
-			val:       "5",
+			name:      "valid length for slice",
+			val:       "3",
 			fieldType: reflect.TypeOf([]string{}),
 			verify: func(s *Schema) bool {
-				// For non-string types, applyLenConstraint doesn't set anything
-				return s.MinLength == nil && s.MaxLength == nil
+				return s.MinItems != nil && *s.MinItems == 3 &&
+					s.MaxItems != nil && *s.MaxItems == 3 &&
+					s.MinLength == nil && s.MaxLength == nil
+			},
+			desc: "should set both MinItems and MaxItems",
+		},
+		{
+			name:      "valid length for array",
+			val:       "2",
+			fieldType: reflect.TypeOf([2]int{}),
+			verify: func(s *Schema) bool {
+				return s.MinItems != nil && *s.MinItems == 2 &&
+					s.MaxItems != nil && *s.MaxItems == 2
+			},
+			desc: "should set both MinItems and MaxItems for array",
+		},
+		{
+			name:      "valid length for non-string type",
+			val:       "5",
+			fieldType: reflect.TypeOf(0),
+			verify: func(s *Schema) bool {
+				return s.MinLength == nil && s.MaxLength == nil && s.MinItems == nil && s.MaxItems == nil
 			},
 			desc: "should not set constraints for non-string types",
 		},
@@ -586,5 +633,41 @@ func TestWithRouteFilter(t *testing.T) {
 
 	if spec.routeFilter(route2) {
 		t.Error("Expected /excluded route to be filtered out")
+	}
+}
+
+func TestIsArrayKind(t *testing.T) {
+	tests := []struct {
+		name     string
+		t        reflect.Type
+		expected bool
+	}{
+		{name: "slice", t: reflect.TypeOf([]string{}), expected: true},
+		{name: "array", t: reflect.TypeOf([2]int{}), expected: true},
+		{name: "pointer to slice", t: reflect.TypeOf(&[]int{}), expected: true},
+		{name: "string", t: reflect.TypeOf(""), expected: false},
+		{name: "map", t: reflect.TypeOf(map[string]int{}), expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if result := isArrayKind(tt.t); result != tt.expected {
+				t.Errorf("isArrayKind() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyValidationConstraints_SliceItems(t *testing.T) {
+	sf := reflect.StructField{Name: "Tags"}
+	schema := &Schema{}
+
+	applyValidationConstraints(schema, "min=1,max=5", reflect.TypeOf([]string{}), &Schema{}, sf)
+
+	if schema.MinItems == nil || *schema.MinItems != 1 || schema.MaxItems == nil || *schema.MaxItems != 5 {
+		t.Errorf("MinItems/MaxItems = %v/%v, want 1/5", schema.MinItems, schema.MaxItems)
+	}
+	if schema.Minimum != nil || schema.Maximum != nil {
+		t.Errorf("Minimum/Maximum = %v/%v, want nil", schema.Minimum, schema.Maximum)
 	}
 }

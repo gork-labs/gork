@@ -176,6 +176,8 @@ type Schema struct {
 	Maximum       *float64           `json:"maximum,omitempty"`
 	MinLength     *int               `json:"minLength,omitempty"`
 	MaxLength     *int               `json:"maxLength,omitempty"`
+	MinItems      *int               `json:"minItems,omitempty"`
+	MaxItems      *int               `json:"maxItems,omitempty"`
 	Pattern       string             `json:"pattern,omitempty"`
 	Enum          []string           `json:"enum,omitempty"`
 	Items         *Schema            `json:"items,omitempty"`
