@@ -6,6 +6,15 @@ import (
 	"github.com/gork-labs/gork/pkg/api"
 )
 
+// Mention is a user that a message mentions.
+type Mention struct {
+	// UserID is the user that the message mentions
+	UserID string `gork:"user_id" validate:"required,uuid"`
+
+	// Offset is the position of the mention in the text of the message
+	Offset int `gork:"offset" validate:"min=0"`
+}
+
 // SendMessageRequest represents a chat message with images.
 // The client sends it as multipart/form-data.
 type SendMessageRequest struct {
@@ -19,6 +28,9 @@ type SendMessageRequest struct {
 
 		// Images are the images of the message
 		Images []api.File `gork:"images" validate:"max=4"`
+
+		// Mentions are the users that the message mentions
+		Mentions []Mention `gork:"mentions" validate:"max=20,dive"`
 	}
 }
 
@@ -30,6 +42,9 @@ type SendMessageResponse struct {
 
 		// ImageNames are the file names of the images of the message
 		ImageNames []string `gork:"image_names"`
+
+		// MentionUserIDs are the users that the message mentions
+		MentionUserIDs []string `gork:"mention_user_ids"`
 	}
 }
 
@@ -40,6 +55,10 @@ func SendMessage(_ context.Context, req SendMessageRequest) (*SendMessageRespons
 	resp.Body.ImageNames = []string{}
 	for _, image := range req.Body.Images {
 		resp.Body.ImageNames = append(resp.Body.ImageNames, image.Name)
+	}
+	resp.Body.MentionUserIDs = []string{}
+	for _, mention := range req.Body.Mentions {
+		resp.Body.MentionUserIDs = append(resp.Body.MentionUserIDs, mention.UserID)
 	}
 	return resp, nil
 }

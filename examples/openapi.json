@@ -134,6 +134,11 @@
         "requestBody": {
           "content": {
             "multipart/form-data": {
+              "encoding": {
+                "mentions": {
+                  "contentType": "application/json"
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/SendMessageBody"
               }
@@ -1119,6 +1124,25 @@
         ],
         "description": "LoginResponse represents the response body for the login endpoint."
       },
+      "Mention": {
+        "type": "object",
+        "title": "Mention",
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "description": "Offset is the position of the mention in the text of the message",
+            "minimum": 0
+          },
+          "user_id": {
+            "type": "string",
+            "description": "UserID is the user that the message mentions"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "description": "Mention is a user that a message mentions."
+      },
       "PaymentMetadata": {
         "type": "object",
         "title": "PaymentMetadata",
@@ -1147,6 +1171,15 @@
               "contentMediaType": "application/octet-stream"
             }
           },
+          "mentions": {
+            "type": "array",
+            "title": "[]Mention",
+            "description": "Mentions are the users that the message mentions",
+            "maximum": 20,
+            "items": {
+              "$ref": "#/components/schemas/Mention"
+            }
+          },
           "text": {
             "type": "string",
             "description": "Text is the text of the message",
@@ -1169,6 +1202,14 @@
               "type": "string"
             }
           },
+          "mention_user_ids": {
+            "type": "array",
+            "title": "[]string",
+            "description": "MentionUserIDs are the users that the message mentions",
+            "items": {
+              "type": "string"
+            }
+          },
           "text": {
             "type": "string",
             "description": "Text is the text of the message"
@@ -1176,7 +1217,8 @@
         },
         "required": [
           "text",
-          "image_names"
+          "image_names",
+          "mention_user_ids"
         ],
         "description": "SendMessageResponse represents the message that the chat got."
       },

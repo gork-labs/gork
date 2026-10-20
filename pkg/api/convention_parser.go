@@ -204,6 +204,7 @@ func (p *ConventionParser) parseBodySection(sectionValue reflect.Value, r *http.
 // parseMultipartBody reads the parts of a multipart/form-data body one at a time.
 // A part for a File or []File field is a file part. Any other part is a text field.
 // Each part for a []string field adds one item.
+// Each part for a JSON slice field adds the item that the JSON object of the part gives.
 // A part with a name that no field has is skipped.
 func (p *ConventionParser) parseMultipartBody(ctx context.Context, sectionValue reflect.Value, r *http.Request) error {
 	reader, err := r.MultipartReader()
@@ -230,19 +231,35 @@ func (p *ConventionParser) parseMultipartBody(ctx context.Context, sectionValue 
 			return fmt.Errorf("failed to read form field %s: %w", part.FormName(), err)
 		}
 
-		switch fieldValue.Type() {
-		case fileType:
-			fieldValue.Set(reflect.ValueOf(newFile(part, data)))
-		case fileSliceType:
-			fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(newFile(part, data))))
-		case stringSliceType:
-			fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(string(data))))
-		default:
-			if err := gorkson.SetFieldValueFromString(ctx, fieldValue, string(data)); err != nil {
-				return fmt.Errorf("failed to set form field %s: %w", part.FormName(), err)
-			}
+		if err := setFormField(ctx, fieldValue, part, data); err != nil {
+			return err
 		}
 	}
+}
+
+// setFormField sets or extends a field of a Body struct from the data of one part.
+func setFormField(ctx context.Context, fieldValue reflect.Value, part *multipart.Part, data []byte) error {
+	switch fieldValue.Type() {
+	case fileType:
+		fieldValue.Set(reflect.ValueOf(newFile(part, data)))
+	case fileSliceType:
+		fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(newFile(part, data))))
+	case stringSliceType:
+		fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(string(data))))
+	default:
+		if isJSONSliceField(fieldValue.Type()) {
+			item := reflect.New(fieldValue.Type().Elem())
+			if err := gorkson.Unmarshal(data, item.Interface()); err != nil {
+				return fmt.Errorf("failed to decode form field %s: %w", part.FormName(), err)
+			}
+			fieldValue.Set(reflect.Append(fieldValue, item.Elem()))
+			return nil
+		}
+		if err := gorkson.SetFieldValueFromString(ctx, fieldValue, string(data)); err != nil {
+			return fmt.Errorf("failed to set form field %s: %w", part.FormName(), err)
+		}
+	}
+	return nil
 }
 
 // findFormField finds the field of a Body struct with the given gork name.

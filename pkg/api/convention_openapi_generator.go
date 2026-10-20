@@ -213,6 +213,7 @@ func (g *ConventionOpenAPIGenerator) processCookiesSection(sectionType reflect.T
 // body, so it has one binary entry for each of rawContentTypes.
 func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type, reqType reflect.Type, rawContentTypes []string, operation *Operation, components *Components) {
 	var schema *Schema
+	var encoding map[string]*Encoding
 	mediaType := "application/json"
 	switch {
 	case sectionType.Kind() == reflect.Slice && sectionType.Elem().Kind() == reflect.Uint8:
@@ -229,6 +230,7 @@ func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type
 		schema = g.generateRequestBodyComponentSchema(sectionType, reqType, components)
 		if isMultipartBody(sectionType) {
 			mediaType = "multipart/form-data"
+			encoding = jsonSliceEncoding(sectionType)
 		}
 	case sectionType.Kind() == reflect.Slice:
 		schema = g.generateSchemaFromType(sectionType, "", components)
@@ -240,10 +242,28 @@ func (g *ConventionOpenAPIGenerator) processBodySection(sectionType reflect.Type
 		Required: true,
 		Content: map[string]*MediaType{
 			mediaType: {
-				Schema: schema,
+				Schema:   schema,
+				Encoding: encoding,
 			},
 		},
 	}
+}
+
+// jsonSliceEncoding gives the application/json encoding of each JSON slice field of a multipart Body struct.
+func jsonSliceEncoding(bodyType reflect.Type) map[string]*Encoding {
+	var encoding map[string]*Encoding
+	for i := 0; i < bodyType.NumField(); i++ {
+		field := bodyType.Field(i)
+		name := parseGorkTag(field.Tag.Get("gork")).Name
+		if name == "" || !isJSONSliceField(field.Type) {
+			continue
+		}
+		if encoding == nil {
+			encoding = map[string]*Encoding{}
+		}
+		encoding[name] = &Encoding{ContentType: "application/json"}
+	}
+	return encoding
 }
 
 // processResponseSections processes response sections for OpenAPI using Convention Over Configuration.
