@@ -671,3 +671,17 @@ func TestApplyValidationConstraints_SliceItems(t *testing.T) {
 		t.Errorf("Minimum/Maximum = %v/%v, want nil", schema.Minimum, schema.Maximum)
 	}
 }
+
+func TestApplyValidationConstraints_SliceItemsAfterDive(t *testing.T) {
+	sf := reflect.StructField{Name: "Tags"}
+	schema := &Schema{}
+
+	applyValidationConstraints(schema, "max=5,dive,min=1,max=20,oneof=a b", reflect.TypeOf([]string{}), &Schema{}, sf)
+
+	if schema.MinItems != nil {
+		t.Errorf("MinItems = %v, want nil", *schema.MinItems)
+	}
+	if schema.MaxItems == nil || *schema.MaxItems != 5 {
+		t.Errorf("MaxItems = %v, want 5", schema.MaxItems)
+	}
+}

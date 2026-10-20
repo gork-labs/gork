@@ -505,14 +505,22 @@ func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldTy
 		return
 	}
 
+	dived := false
 	parts := strings.Split(validateTag, ",")
 	for _, p := range parts {
 		if p == "required" {
 			addRequiredField(parent, sf)
 			continue
 		}
+		if p == "dive" {
+			dived = true
+			continue
+		}
 
 		key, val := parseValidationRule(p)
+		if dived && isArrayKind(fieldType) && isCountRule(key) {
+			continue
+		}
 		applyValidationRule(fieldSchema, key, val, fieldType)
 	}
 }
@@ -534,6 +542,16 @@ func parseValidationRule(p string) (key, val string) {
 		return p[:idx], p[idx+1:]
 	}
 	return p, ""
+}
+
+// isCountRule reports the rules that limit the length of a value. After dive, they limit each
+// element, not the slice.
+func isCountRule(key string) bool {
+	switch key {
+	case "min", "gte", "gt", "max", "lte", "lt", "len":
+		return true
+	}
+	return false
 }
 
 func applyValidationRule(fieldSchema *Schema, key, val string, fieldType reflect.Type) {
