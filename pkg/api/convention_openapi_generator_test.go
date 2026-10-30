@@ -208,6 +208,42 @@ func TestConventionOpenAPIGenerator_ProcessQuerySection(t *testing.T) {
 	}
 }
 
+func TestConventionOpenAPIGenerator_ProcessQuerySectionSliceItemsAfterDive(t *testing.T) {
+	spec := &OpenAPISpec{
+		Components: &Components{
+			Schemas: make(map[string]*Schema),
+		},
+	}
+	generator := NewConventionOpenAPIGenerator(spec, NewDocExtractor())
+
+	queryType := reflect.TypeOf(struct {
+		Fields []string `gork:"fields" validate:"dive,oneof=a b"`
+	}{})
+
+	operation := &Operation{
+		Parameters: []Parameter{},
+	}
+
+	generator.processQuerySection(queryType, operation, spec.Components)
+
+	if len(operation.Parameters) != 1 {
+		t.Fatalf("Parameter count = %d, want 1", len(operation.Parameters))
+	}
+	schema := operation.Parameters[0].Schema
+	if schema == nil {
+		t.Fatal("Parameter schema is nil")
+	}
+	if schema.Enum != nil {
+		t.Errorf("Parameter schema Enum = %v, want nil", schema.Enum)
+	}
+	if schema.Items == nil {
+		t.Fatal("Parameter schema Items is nil")
+	}
+	if !reflect.DeepEqual(schema.Items.Enum, []string{"a", "b"}) {
+		t.Errorf("Parameter schema Items.Enum = %v, want [a b]", schema.Items.Enum)
+	}
+}
+
 func TestConventionOpenAPIGenerator_ProcessPathSection(t *testing.T) {
 	spec := &OpenAPISpec{
 		Components: &Components{

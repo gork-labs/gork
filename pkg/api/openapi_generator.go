@@ -518,8 +518,15 @@ func applyValidationConstraints(fieldSchema *Schema, validateTag string, fieldTy
 		}
 
 		key, val := parseValidationRule(p)
-		if dived && isArrayKind(fieldType) && isCountRule(key) {
-			continue
+		if dived {
+			if elemType := arrayElemType(fieldType); elemType != nil {
+				// After dive, a rule applies to each item, not to the list.
+				if fieldSchema.Items == nil {
+					continue
+				}
+				applyValidationRule(fieldSchema.Items, key, val, elemType)
+				continue
+			}
 		}
 		applyValidationRule(fieldSchema, key, val, fieldType)
 	}
@@ -542,16 +549,6 @@ func parseValidationRule(p string) (key, val string) {
 		return p[:idx], p[idx+1:]
 	}
 	return p, ""
-}
-
-// isCountRule reports the rules that limit the length of a value. After dive, they limit each
-// element, not the slice.
-func isCountRule(key string) bool {
-	switch key {
-	case "min", "gte", "gt", "max", "lte", "lt", "len":
-		return true
-	}
-	return false
 }
 
 func applyValidationRule(fieldSchema *Schema, key, val string, fieldType reflect.Type) {
@@ -631,10 +628,19 @@ func isStringKind(t reflect.Type) bool {
 }
 
 func isArrayKind(t reflect.Type) bool {
+	return arrayElemType(t) != nil
+}
+
+// arrayElemType returns the element type of a slice or an array, after dereferencing
+// pointers. It returns nil when t is not a slice or an array.
+func arrayElemType(t reflect.Type) reflect.Type {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	return t.Kind() == reflect.Slice || t.Kind() == reflect.Array
+	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+		return t.Elem()
+	}
+	return nil
 }
 
 // parseDiscriminator returns the value after "discriminator=" if present.
