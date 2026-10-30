@@ -674,14 +674,54 @@ func TestApplyValidationConstraints_SliceItems(t *testing.T) {
 
 func TestApplyValidationConstraints_SliceItemsAfterDive(t *testing.T) {
 	sf := reflect.StructField{Name: "Tags"}
-	schema := &Schema{}
+	schema := &Schema{Type: "array", Items: &Schema{Type: "string"}}
 
 	applyValidationConstraints(schema, "max=5,dive,min=1,max=20,oneof=a b", reflect.TypeOf([]string{}), &Schema{}, sf)
 
-	if schema.MinItems != nil {
-		t.Errorf("MinItems = %v, want nil", *schema.MinItems)
+	if schema.Enum != nil {
+		t.Errorf("Enum = %v, want nil", schema.Enum)
 	}
 	if schema.MaxItems == nil || *schema.MaxItems != 5 {
 		t.Errorf("MaxItems = %v, want 5", schema.MaxItems)
+	}
+	if schema.Items == nil {
+		t.Fatal("Items = nil, want a string schema")
+	}
+	if schema.Items.MinLength == nil || *schema.Items.MinLength != 1 {
+		t.Errorf("Items.MinLength = %v, want 1", schema.Items.MinLength)
+	}
+	if schema.Items.MaxLength == nil || *schema.Items.MaxLength != 20 {
+		t.Errorf("Items.MaxLength = %v, want 20", schema.Items.MaxLength)
+	}
+	if !reflect.DeepEqual(schema.Items.Enum, []string{"a", "b"}) {
+		t.Errorf("Items.Enum = %v, want [a b]", schema.Items.Enum)
+	}
+}
+
+func TestApplyValidationConstraints_SliceItemsAfterDiveMax(t *testing.T) {
+	sf := reflect.StructField{Name: "Tags"}
+	schema := &Schema{Type: "array", Items: &Schema{Type: "string"}}
+
+	applyValidationConstraints(schema, "max=5,dive,max=20", reflect.TypeOf([]string{}), &Schema{}, sf)
+
+	if schema.MaxItems == nil || *schema.MaxItems != 5 {
+		t.Errorf("MaxItems = %v, want 5", schema.MaxItems)
+	}
+	if schema.Items == nil {
+		t.Fatal("Items = nil, want a string schema")
+	}
+	if schema.Items.MaxLength == nil || *schema.Items.MaxLength != 20 {
+		t.Errorf("Items.MaxLength = %v, want 20", schema.Items.MaxLength)
+	}
+}
+
+func TestApplyValidationConstraints_ByteSliceAfterDive(t *testing.T) {
+	sf := reflect.StructField{Name: "Data"}
+	schema := &Schema{Type: "string", Format: "byte"}
+
+	applyValidationConstraints(schema, "dive,max=20,oneof=a b", reflect.TypeOf([]byte{}), &Schema{}, sf)
+
+	if schema.MaxLength != nil || schema.Enum != nil {
+		t.Errorf("MaxLength/Enum = %v/%v, want nil", schema.MaxLength, schema.Enum)
 	}
 }
