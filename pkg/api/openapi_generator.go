@@ -49,6 +49,7 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		routeFilter = defaultRouteFilter
 	}
 
+	operationOwners := map[string]*RouteInfo{}
 	for _, route := range registry.GetRoutes() {
 		if !routeFilter(route) {
 			continue
@@ -59,6 +60,7 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 		}
 		generator := NewConventionOpenAPIGenerator(spec, NewDocExtractor())
 		op := generator.buildConventionOperation(route, spec.Components)
+		checkOperationID(op.OperationID, route, operationOwners)
 		if route.StreamType != nil {
 			spec.OpenAPI = "3.2.0"
 		}
@@ -77,6 +79,22 @@ func GenerateOpenAPI(registry *RouteRegistry, opts ...OpenAPIOption) *OpenAPISpe
 	}
 
 	return spec
+}
+
+// checkOperationID panics when an earlier route already has the operationId,
+// because OpenAPI requires each operationId to be unique. It records the route
+// as the owner of a new operationId.
+func checkOperationID(operationID string, route *RouteInfo, owners map[string]*RouteInfo) {
+	if operationID == "" {
+		return
+	}
+	existing, ok := owners[operationID]
+	if !ok {
+		owners[operationID] = route
+		return
+	}
+	panic(fmt.Sprintf("the routes %s %s and %s %s both get the OpenAPI operationId %q; rename one of the handlers",
+		existing.Method, existing.Path, route.Method, route.Path, operationID))
 }
 
 func applySecurityToOperation(route *RouteInfo, spec *OpenAPISpec, op *Operation) {

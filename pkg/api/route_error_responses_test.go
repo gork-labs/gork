@@ -12,7 +12,7 @@ func TestWithErrorResponsesInSpec(t *testing.T) {
 	router := NewTypedRouter[*struct{}](nil, registry, "", nil, &HTTPParameterAdapter{}, nil)
 	handler := func(context.Context, httpErrorRequest) (*httpErrorResponse, error) { return nil, nil }
 	router.Post("/login", handler, WithErrorResponses(http.StatusUnauthorized, http.StatusConflict, http.StatusBadRequest))
-	router.Post("/plain", handler)
+	router.Post("/plain", func(context.Context, httpErrorRequest) (*httpErrorResponse, error) { return nil, nil })
 
 	spec := GenerateOpenAPI(registry)
 	responses := spec.Paths["/login"].Post.Responses

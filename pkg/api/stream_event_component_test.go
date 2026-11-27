@@ -11,8 +11,9 @@ type streamAnonymousEvents = struct {
 
 func TestStreamEventComponent(t *testing.T) {
 	named := func(context.Context, streamTestRequest, *Stream[streamTestEvents]) error { return nil }
+	namedAgain := func(context.Context, streamTestRequest, *Stream[streamTestEvents]) error { return nil }
 	anonymous := func(context.Context, streamTestRequest, *Stream[streamAnonymousEvents]) error { return nil }
-	spec := GenerateOpenAPI(newStreamTestRegistry(t, named, named, anonymous))
+	spec := GenerateOpenAPI(newStreamTestRegistry(t, named, namedAgain, anonymous))
 
 	for _, path := range []string{"/routea", "/routeb"} {
 		if got := spec.Paths[path].Get.Responses["200"].Content["text/event-stream"].ItemSchema.Ref; got != "#/components/schemas/streamTestEvents" {
