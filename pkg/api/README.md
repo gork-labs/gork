@@ -395,6 +395,35 @@ An error from the handler gives the usual JSON error response. The OpenAPI opera
 }
 ```
 
+### Wrapper Closures
+
+Gork takes the operationId and the doc comment of an operation from the function that you register. A wrapper that registers a closure hides the real handler. Each route then gets the operationId `func1`, and the doc comment is lost.
+
+Add the route option `api.WithNameOf` to take the operationId and the doc comment from the real handler. Gork still calls the registered closure and reads its request and response types.
+
+```go
+func withRecord[Req any](method func(string, interface{}, ...api.Option), path string,
+    handler func(context.Context, Req) (Record, error), opts ...api.Option) {
+    method(path, func(ctx context.Context, req Req) error {
+        record, err := handler(ctx, req)
+        if err != nil {
+            return err
+        }
+        save(record)
+        return nil
+    }, append(opts, api.WithNameOf(handler))...)
+}
+
+// SetSwitch turns a global switch on or off.
+func (h *handlers) SetSwitch(ctx context.Context, req SetSwitchRequest) (Record, error) {
+    return h.engine.SetSwitch(ctx, req.Path.Kind, req.Body.On)
+}
+
+withRecord(router.Put, "/switches/{kind}", h.SetSwitch)
+```
+
+The operation has the operationId `SetSwitch` and the description `SetSwitch turns a global switch on or off.`. `WithNameOf` does not change the webhook event handlers.
+
 ### Context Usage
 
 The adapter passes through the HTTP request context:
