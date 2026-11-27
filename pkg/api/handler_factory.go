@@ -215,15 +215,20 @@ func buildRouteInfo(handler interface{}, reqType, respType reflect.Type, opts []
 		o(optionCfg)
 	}
 
+	named := handler
+	if optionCfg.nameOf != nil {
+		named = optionCfg.nameOf
+	}
+
 	return &RouteInfo{
 		Handler:      handler,
-		HandlerName:  getFunctionName(handler),
+		HandlerName:  getFunctionName(named),
 		RequestType:  reqType,
 		ResponseType: respType,
 		StreamType:   streamEventType(reflect.TypeOf(handler)),
 		Options:      optionCfg,
 
-		handlerDocKey: handlerDocKey(handler),
+		handlerDocKey: handlerDocKey(named),
 	}
 }
 

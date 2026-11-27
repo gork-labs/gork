@@ -19,6 +19,8 @@ type HandlerOption struct {
 
 	ResponseContentTypes []string
 	RequestContentTypes  []string
+
+	nameOf interface{}
 }
 
 // SecurityRequirement represents a security requirement for an operation.
@@ -106,6 +108,15 @@ func WithRequestContentTypes(types ...string) Option {
 func WithResponseContentTypes(types ...string) Option {
 	return func(h *HandlerOption) {
 		h.ResponseContentTypes = append(h.ResponseContentTypes, types...)
+	}
+}
+
+// WithNameOf takes the operationId and the doc comment of the OpenAPI operation
+// from fn instead of from the registered handler. Use it when a wrapper
+// registers a closure around a handler. Gork still calls the registered handler.
+func WithNameOf(fn interface{}) Option {
+	return func(h *HandlerOption) {
+		h.nameOf = fn
 	}
 }
 
